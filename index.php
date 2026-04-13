@@ -185,7 +185,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         </div>
         
         <div class="input-group">
-            <label for="senha">Palavra-passe</label>
+            <label for="senha">Palavra-srpasse</label>
             <input type="password" id="senha" name="senha" required placeholder="Introduza a sua senha">
         </div>
         
