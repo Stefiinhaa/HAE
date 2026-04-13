@@ -2,21 +2,14 @@
 session_start();
 require 'conexao.php';
 
-// Verifica se já existe uma sessão ativa para redirecionar ao painel
-if (isset($_SESSION['id_usuario'])) {
-    header("Location: painel.php");
-    exit;
-}
-
-$erro = "";
 $msg_sucesso = isset($_GET['cadastro']) && $_GET['cadastro'] == 'sucesso';
+$link_whatsapp = isset($_GET['wa']) ? $_GET['wa'] : null;
 
-// Lógica de Autenticação
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    $email = filter_input(INPUT_POST, 'email', FILTER_SANITIZE_EMAIL);
-    $senha = md5($_POST['senha']); // Nota: Em produção, utiliza password_hash e password_verify
+    $email = $_POST['email'];
+    $senha = md5($_POST['senha']);
 
-    $stmt = $pdo->prepare("SELECT id, nome, funcao, trocar_senha FROM usuarios WHERE email = ? AND senha = ?");
+    $stmt = $pdo->prepare("SELECT * FROM usuarios WHERE email = ? AND senha = ?");
     $stmt->execute([$email, $senha]);
     $usuario = $stmt->fetch();
 
@@ -24,8 +17,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $_SESSION['id_usuario'] = $usuario['id'];
         $_SESSION['nome'] = $usuario['nome'];
         $_SESSION['funcao'] = $usuario['funcao'];
-
-        // Regra do projeto: Obrigar a trocar a senha no primeiro login
+        
         if ($usuario['trocar_senha'] == 1) {
             header("Location: troca_senha.php");
         } else {
@@ -33,170 +25,64 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         }
         exit;
     } else {
-        $erro = "E-mail ou senha incorretos. Tente novamente.";
+        $erro = "Credenciais incorretas.";
     }
 }
 ?>
 <!DOCTYPE html>
-<html lang="pt-PT">
+<html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - Sistema HAE Fatec Garça</title>
+    <title>Login - Portal HAE</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, sans-serif; }
-        
-        body { 
-            background-color: #f4f4f4; 
-            display: flex; 
-            justify-content: center; 
-            align-items: center; 
-            height: 100vh; 
-            background-image: linear-gradient(135deg, #fdfdfd 0%, #e0e0e0 100%);
-        }
-
-        .login-container { 
-            background-color: #ffffff; 
-            width: 100%; 
-            max-width: 420px; 
-            padding: 40px; 
-            border-radius: 12px; 
-            box-shadow: 0 10px 25px rgba(0,0,0,0.15); 
-            border-top: 6px solid #b20000; 
-        }
-
-        .login-header { text-align: center; margin-bottom: 35px; }
-        
-        .login-header h1 { 
-            color: #000; 
-            font-size: 26px; 
-            font-weight: 800;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
-        .login-header p { color: #b20000; font-size: 14px; font-weight: 600; margin-top: 5px; }
-
-        .alert {
-            padding: 15px;
-            margin-bottom: 20px;
-            border-radius: 6px;
-            font-size: 14px;
-            text-align: center;
-            line-height: 1.5;
-        }
-
-        .alert-success { 
-            background-color: #d4edda; 
-            color: #155724; 
-            border: 1px solid #c3e6cb; 
-        }
-
-        .alert-error { 
-            background-color: #f8d7da; 
-            color: #721c24; 
-            border: 1px solid #f5c6cb; 
-        }
-
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
+        body { background-color: #f4f4f4; display: flex; justify-content: center; align-items: center; height: 100vh; }
+        .login-container { background: #fff; width: 400px; padding: 40px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); border-top: 6px solid #b20000; }
+        .header { text-align: center; margin-bottom: 30px; }
+        .header h1 { color: #333; font-size: 24px; }
         .input-group { margin-bottom: 20px; }
-        
-        .input-group label { 
-            display: block; 
-            margin-bottom: 8px; 
-            color: #333; 
-            font-weight: 600; 
-            font-size: 14px; 
-        }
-
-        .input-group input { 
-            width: 100%; 
-            padding: 14px; 
-            border: 2px solid #eee; 
-            border-radius: 6px; 
-            font-size: 15px; 
-            transition: all 0.3s ease; 
-        }
-
-        .input-group input:focus { 
-            border-color: #b20000; 
-            outline: none; 
-            background-color: #fff;
-            box-shadow: 0 0 8px rgba(178, 0, 0, 0.1);
-        }
-
-        .btn-login { 
-            width: 100%; 
-            padding: 15px; 
-            background-color: #b20000; 
-            color: #fff; 
-            border: none; 
-            border-radius: 6px; 
-            font-size: 16px; 
-            font-weight: 700; 
-            cursor: pointer; 
-            transition: background 0.3s; 
-            text-transform: uppercase;
-        }
-
-        .btn-login:hover { background-color: #8a0000; }
-
-        .footer-links { 
-            margin-top: 25px; 
-            text-align: center; 
-            border-top: 1px solid #eee;
-            padding-top: 20px;
-        }
-
-        .footer-links a { 
-            color: #b20000; 
-            text-decoration: none; 
-            font-size: 14px; 
-            font-weight: 600; 
-        }
-
-        .footer-links a:hover { text-decoration: underline; }
+        label { display: block; font-weight: bold; margin-bottom: 5px; font-size: 14px; }
+        input { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 4px; }
+        .btn-login { width: 100%; padding: 12px; background: #b20000; color: #fff; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; }
+        .alert-success { background: #d4edda; color: #155724; padding: 15px; border-radius: 4px; margin-bottom: 20px; text-align: center; font-size: 14px; }
+        .btn-wa { display: block; text-align: center; background: #25d366; color: #fff; padding: 12px; border-radius: 4px; text-decoration: none; font-weight: bold; margin-top: 10px; }
+        .btn-wa:hover { background: #128c7e; }
+        .footer { text-align: center; margin-top: 20px; font-size: 13px; }
+        .footer a { color: #b20000; text-decoration: none; font-weight: bold; }
     </style>
 </head>
 <body>
-
 <div class="login-container">
-    <div class="login-header">
+    <div class="header">
         <h1>Portal HAE</h1>
         <p>Fatec Garça</p>
     </div>
-    
+
     <?php if($msg_sucesso): ?>
-        <div class="alert alert-success">
-            <strong>Registo concluído com sucesso!</strong><br>
-            A tua senha provisória foi enviada para o teu e-mail e WhatsApp.
+        <div class="alert-success">
+            <strong>Cadastro concluído!</strong><br>
+            A senha foi enviada por e-mail.
+            <?php if($link_whatsapp): ?>
+                <a href="<?php echo $link_whatsapp; ?>" target="_blank" class="btn-wa">Enviar Senha via WhatsApp</a>
+            <?php endif; ?>
         </div>
     <?php endif; ?>
 
-    <?php if($erro): ?>
-        <div class="alert alert-error">
-            <?php echo $erro; ?>
-        </div>
-    <?php endif; ?>
-
-    <form method="POST" action="">
+    <form method="POST">
         <div class="input-group">
-            <label for="email">E-mail Institucional</label>
-            <input type="email" id="email" name="email" required placeholder="exemplo@fatec.sp.gov.br">
+            <label>E-mail Institucional</label>
+            <input type="email" name="email" required>
         </div>
-        
         <div class="input-group">
-            <label for="senha">Palavra-srpasse</label>
-            <input type="password" id="senha" name="senha" required placeholder="Introduza a sua senha">
+            <label>Senha</label>
+            <input type="password" name="senha" required>
         </div>
-        
-        <button type="submit" class="btn-login">Entrar no Sistema</button>
+        <button type="submit" class="btn-login">Entrar</button>
     </form>
 
-    <div class="footer-links">
-        <p style="font-size: 13px; color: #666; margin-bottom: 10px;">Ainda não tem acesso?</p>
-        <a href="cadastro.php">Solicitar Registo de Professor/Direção</a>
+    <div class="footer">
+        <p>Novo por aqui? <a href="cadastro.php">Cadastre-se</a></p>
     </div>
 </div>
-
 </body>
 </html>
