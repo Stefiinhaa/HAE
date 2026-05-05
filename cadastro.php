@@ -1,13 +1,13 @@
 <?php
-require 'conexao.php';
+require 'config/conexao.php';
 
 // Importação das classes do PHPMailer
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
-require 'PHPMailer/Exception.php';
-require 'PHPMailer/PHPMailer.php';
-require 'PHPMailer/SMTP.php';
+require 'vendor/PHPMailer/Exception.php';
+require 'vendor/PHPMailer/PHPMailer.php';
+require 'vendor/PHPMailer/SMTP.php';
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $nome = $_POST['nome'];
@@ -19,7 +19,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $tipo_contrato = $_POST['tipo_contrato'];
     $formacao = $_POST['formacao'];
     
-    // Geração da senha provisória: DDMMAAAA [cite: 31, 157]
+    // Geração da senha provisória: DDMMAAAA
     $data_obj = new DateTime($data_nascimento);
     $senha_provisoria = $data_obj->format('dmY');
     $senha_hash = md5($senha_provisoria);
@@ -36,7 +36,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     }
 
     try {
-        $sql = "INSERT INTO usuarios (nome, email, whatsapp, funcao, data_nascimento, data_admissao, tipo_contrato, formacao, assinatura_path, senha, trocar_senha) 
+        // CORREÇÃO AQUI: Nomes das colunas ajustados para bater com o banco de dados (telefone_whatsapp, formacao_academica, primeiro_acesso)
+        $sql = "INSERT INTO usuarios (nome, email, telefone_whatsapp, funcao, data_nascimento, data_admissao, tipo_contrato, formacao_academica, assinatura_path, senha, primeiro_acesso) 
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)";
         $stmt = $pdo->prepare($sql);
         $stmt->execute([$nome, $email, $whatsapp, $funcao, $data_nascimento, $data_admissao, $tipo_contrato, $formacao, $assinatura_path, $senha_hash]);
