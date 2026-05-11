@@ -44,6 +44,7 @@ $funcao_usuario = $_SESSION['usuario_funcao'];
                 <?php else: ?>
                     <li><a href="analisar_solicitacoes.php"><i class="fa-solid fa-clipboard-check"></i> <span>Analisar Solicitações</span></a></li>
                     <li><a href="acompanhar_relatorios.php"><i class="fa-solid fa-chart-line"></i> <span>Acompanhar Relatórios</span></a></li>
+                    <li><a href="cadastrar_professor.php"><i class="fa-solid fa-user-plus"></i> <span>Cadastrar Professor</span></a></li>
                     <li><a href="#"><i class="fa-solid fa-users-viewfinder"></i> <span>Professores Pendentes</span></a></li>
                 <?php endif; ?>
                 

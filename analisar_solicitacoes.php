@@ -159,11 +159,12 @@ if ($visualizando_id) {
                 
                 <?php if ($_SESSION['usuario_funcao'] == 'Professor'): ?>
                     <li><a href="nova_solicitacao.php"><i class="fa-solid fa-file-circle-plus"></i> <span>Nova Solicitação HAE</span></a></li>
-                    <li><a href="#"><i class="fa-solid fa-folder-open"></i> <span>Meus Projetos</span></a></li>
-                    <li><a href="#"><i class="fa-solid fa-calendar-check"></i> <span>Enviar Relatório</span></a></li>
+                    <li><a href="meus_projetos.php"><i class="fa-solid fa-folder-open"></i> <span>Meus Projetos</span></a></li>
+                    <li><a href="enviar_relatorio.php"><i class="fa-solid fa-calendar-check"></i> <span>Enviar Relatório</span></a></li>
                 <?php else: ?>
                     <li><a href="analisar_solicitacoes.php"><i class="fa-solid fa-clipboard-check"></i> <span>Analisar Solicitações</span></a></li>
-                    <li><a href="#"><i class="fa-solid fa-chart-line"></i> <span>Acompanhar Relatórios</span></a></li>
+                    <li><a href="acompanhar_relatorio.php"><i class="fa-solid fa-chart-line"></i> <span>Acompanhar Relatórios</span></a></li>
+                    <li><a href="cadastrar_professor.php"><i class="fa-solid fa-user-plus"></i> <span>Cadastrar Professor</span></a></li>
                     <li><a href="#"><i class="fa-solid fa-users-viewfinder"></i> <span>Professores Pendentes</span></a></li>
                 <?php endif; ?>
                 

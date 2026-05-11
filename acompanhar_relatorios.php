@@ -102,6 +102,7 @@ $lista_projetos = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 <li><a href="analisar_solicitacoes.php"><i class="fa-solid fa-clipboard-check"></i> <span>Analisar Solicitações</span></a></li>
                 <li><a href="acompanhar_relatorios.php" class="active"><i class="fa-solid fa-chart-line"></i> <span>Acompanhar Relatórios</span></a></li>
                 <li><a href="#"><i class="fa-solid fa-users-viewfinder"></i> <span>Professores Pendentes</span></a></li>
+                <li><a href="cadastrar_professor.php"><i class="fa-solid fa-user-plus"></i> <span>Cadastrar Professor</span></a></li>
                 <li><a href="logout.php" class="logout-link"><i class="fa-solid fa-right-from-bracket"></i> <span>Sair do Sistema</span></a></li>
             </ul>
         </nav>
