@@ -118,7 +118,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 <body>
 
 <div class="login-box">
-    <h2>Portal <span>HAE</span></h2>
+    <h2>Por vvvbtal <span>HAE</span></h2>
     
     <!-- Exibe mensagem de sucesso se vier do cadastro -->
     <?php if($mensagem_sucesso) echo "<div class='alert-success'>$mensagem_sucesso</div>"; ?>
