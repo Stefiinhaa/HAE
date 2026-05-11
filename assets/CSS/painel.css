@@ -46,7 +46,31 @@ body { display: flex; min-height: 100vh; background-color: var(--light-bg); over
     overflow: hidden;
 }
 
-.sidebar-header h2 { color: #333; font-size: 20px; font-weight: 700; transition: opacity 0.2s; }
+/* --- NOVO ESTILO DO LOGO E TÍTULO --- */
+.brand {
+    display: flex;
+    align-items: center;
+    gap: 12px; /* Espaço entre o logo e o texto */
+    text-decoration: none;
+}
+
+.brand img {
+    height: 48px; /* Tamanho maior e com mais presença para o site */
+    width: auto;
+    max-width: 100%;
+    object-fit: contain;
+    transition: all 0.3s ease;
+}
+
+.brand h2 { color: #333; font-size: 20px; font-weight: 700; transition: opacity 0.2s; margin: 0; line-height: 1;}
+.brand span { color: var(--fatec-red); }
+
+/* Quando o menu diminui, esconde o texto e ajusta o tamanho do logo para caber */
+.sidebar.collapsed .brand h2 { opacity: 0; display: none; }
+.sidebar.collapsed .brand img { 
+    height: 35px; /* Diminui um pouco apenas na versão retraída */
+    margin: 0 auto; 
+}
 .sidebar-header span { color: var(--fatec-red); }
 .sidebar.collapsed .sidebar-header h2 { opacity: 0; display: none; }
 

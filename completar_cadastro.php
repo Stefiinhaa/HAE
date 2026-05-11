@@ -86,6 +86,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         input:focus, select:focus { border-color: var(--fatec-red); outline: none; }
         input[type="file"] { padding: 9px; }
 
+        input[type="password"], input[type="text"] { padding-right: 40px; }
+
         .form-section { padding-top: 20px; border-top: 1px solid #eee; margin-top: 20px; }
 
         /* Barrinha de Força da Senha */
@@ -98,6 +100,26 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         .btn:disabled { background: #ccc; cursor: not-allowed; box-shadow: none; }
 
         .error-msg { background: #fee2e2; color: #b91c1c; padding: 12px; border-radius: 6px; margin-bottom: 20px; font-size: 13px; text-align: center; }
+
+        .toggle-password {
+            position: absolute;
+            right: 12px;
+            top: 34px;
+            cursor: pointer;
+            width: 20px;
+            opacity: 0.5;
+            transition: 0.3s;
+        }
+        .toggle-password:hover { opacity: 1; }
+
+        /* Estilo para a idade */
+        .idade-info {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+            font-weight: bold;
+            display: block;
+        }
     </style>
 </head>
 <body>
@@ -112,7 +134,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         
         <h3 style="font-size:16px; margin-bottom:15px; color:var(--fatec-red);">1. Dados Acadêmicos</h3>
         <div class="grid">
-            <div class="input-group"><label>Data de Nascimento</label><input type="date" name="data_nascimento" required></div>
+            <div class="input-group">
+                <label>Data de Nascimento</label>
+                <input type="date" name="data_nascimento" id="data_nascimento" required oninput="calculateAge(this.value)">
+                <span id="idade-display" class="idade-info"></span>
+            </div>
             <div class="input-group"><label>Data de Admissão na Fatec</label><input type="date" name="data_admissao" required></div>
             
             <div class="input-group full">
@@ -138,6 +164,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 <div class="input-group full">
                     <label>Sua Nova Senha Definitiva</label>
                     <input type="password" name="nova_senha" id="nova_senha" required oninput="checkStrength(this.value)">
+                    <img src="https://raw.githubusercontent.com/FortAwesome/Font-Awesome/master/svgs/regular/eye.svg" class="toggle-password" onclick="toggleVisibility('nova_senha', this)" alt="Ver senha">
                     <div class="strength-meter"><div id="strength-bar" class="strength-bar"></div></div>
                     <div id="strength-text" class="strength-text"></div>
                 </div>
@@ -145,6 +172,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 <div class="input-group full">
                     <label>Confirmar Nova Senha</label>
                     <input type="password" name="confirma_senha" id="confirma_senha" required oninput="validateMatch()">
+                    <img src="https://raw.githubusercontent.com/FortAwesome/Font-Awesome/master/svgs/regular/eye.svg" class="toggle-password" onclick="toggleVisibility('confirma_senha', this)" alt="Ver senha">
                     <div id="match-text" class="strength-text"></div>
                 </div>
             </div>
@@ -155,6 +183,48 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 </div>
 
 <script>
+    // Função para calcular a idade em tempo real
+    function calculateAge(dobString) {
+        const display = document.getElementById('idade-display');
+        if (!dobString) {
+            display.innerText = "";
+            return;
+        }
+
+        const dob = new Date(dobString);
+        const today = new Date();
+        
+        let age = today.getFullYear() - dob.getFullYear();
+        const m = today.getMonth() - dob.getMonth();
+        
+        // Ajusta a idade se o aniversário ainda não aconteceu este ano
+        if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) {
+            age--;
+        }
+        
+        if (age >= 0) {
+            display.innerText = age + (age === 1 ? " ano" : " anos");
+            display.style.color = "#666";
+        } else {
+            display.innerText = "Data inválida";
+            display.style.color = "var(--fatec-red)";
+        }
+    }
+
+    function toggleVisibility(inputId, element) {
+        const input = document.getElementById(inputId);
+        const eyeOpen = "https://raw.githubusercontent.com/FortAwesome/Font-Awesome/master/svgs/regular/eye.svg";
+        const eyeSlash = "https://raw.githubusercontent.com/FortAwesome/Font-Awesome/master/svgs/regular/eye-slash.svg";
+        
+        if (input.type === "password") {
+            input.type = "text";
+            element.src = eyeSlash;
+        } else {
+            input.type = "password";
+            element.src = eyeOpen;
+        }
+    }
+
     function checkStrength(password) {
         const bar = document.getElementById('strength-bar');
         const text = document.getElementById('strength-text');

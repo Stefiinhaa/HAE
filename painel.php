@@ -24,12 +24,12 @@ $funcao_usuario = $_SESSION['usuario_funcao'];
 <body>
 
 <aside class="sidebar" id="sidebar">
-        <div class="sidebar-header">
-            <h2>HAE <span>FATEC</span></h2>
-            <!-- Botão de Minimizar a Barra -->
-            <button class="collapse-btn" id="collapse-btn">
-                <i class="fa-solid fa-bars"></i>
-            </button>
+       <div class="sidebar-header">
+            <a href="painel.php" class="brand">
+                <img src="Img/cps_fatecgarca_logo.jfif" alt="Logo Fatec" >
+                <h2>HAE </h2>
+            </a>
+            <button class="collapse-btn" id="collapse-btn"><i class="fa-solid fa-bars"></i></button>
         </div>
         
         <nav class="menu">
@@ -41,7 +41,9 @@ $funcao_usuario = $_SESSION['usuario_funcao'];
                     <li><a href="nova_solicitacao.php"><i class="fa-solid fa-file-circle-plus"></i> <span>Nova Solicitação HAE</span></a></li>
                     <li><a href="meus_projetos.php"><i class="fa-solid fa-folder-open"></i> <span>Meus Projetos</span></a></li>
                     <li><a href="enviar_relatorio.php"><i class="fa-solid fa-calendar-check"></i> <span>Enviar Relatório</span></a></li>
+                    <li><a href="perfil.php"><i class="fa-solid fa-user-gear"></i> <span>Meu Perfil</span></a></li>
                 <?php else: ?>
+                    
                     <li><a href="analisar_solicitacoes.php"><i class="fa-solid fa-clipboard-check"></i> <span>Analisar Solicitações</span></a></li>
                     <li><a href="acompanhar_relatorios.php"><i class="fa-solid fa-chart-line"></i> <span>Acompanhar Relatórios</span></a></li>
                     <li><a href="cadastrar_professor.php"><i class="fa-solid fa-user-plus"></i> <span>Cadastrar Professor</span></a></li>

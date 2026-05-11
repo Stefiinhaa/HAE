@@ -146,7 +146,10 @@ $meses = [1=>'Janeiro', 2=>'Fevereiro', 3=>'Março', 4=>'Abril', 5=>'Maio', 6=>'
 
     <aside class="sidebar" id="sidebar">
         <div class="sidebar-header">
-            <h2>HAE <span>FATEC</span></h2>
+            <a href="painel.php" class="brand">
+                <img src="Img/cps_fatecgarca_logo.jfif" alt="Logo Fatec" >
+                <h2>HAE </h2>
+            </a>
             <button class="collapse-btn" id="collapse-btn"><i class="fa-solid fa-bars"></i></button>
         </div>
         <nav class="menu">
