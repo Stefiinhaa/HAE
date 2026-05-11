@@ -140,7 +140,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                  class="toggle-password" onclick="toggleVisibility('senha', this)" alt="Ver senha">
         </div>
         
-        <button type="submit" class="btn-submit">Entrarrr no Sistema</button>
+        <button type="submit" class="btn-submit">Entrarr no Sistema</button>
     </form>
 
     <div class="links">
