@@ -1,11 +1,11 @@
 -- phpMyAdmin SQL Dump
--- version 5.2.1
+-- version 5.2.0
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Tempo de geração: 06/05/2026 às 00:48
--- Versão do servidor: 10.4.32-MariaDB
--- Versão do PHP: 8.2.12
+-- Tempo de geração: 11-Maio-2026 às 22:44
+-- Versão do servidor: 10.4.27-MariaDB
+-- versão do PHP: 8.2.0
 
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
 START TRANSACTION;
@@ -24,7 +24,7 @@ SET time_zone = "+00:00";
 -- --------------------------------------------------------
 
 --
--- Estrutura para tabela `relatorios_hae`
+-- Estrutura da tabela `relatorios_hae`
 --
 
 CREATE TABLE `relatorios_hae` (
@@ -38,7 +38,7 @@ CREATE TABLE `relatorios_hae` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
--- Despejando dados para a tabela `relatorios_hae`
+-- Extraindo dados da tabela `relatorios_hae`
 --
 
 INSERT INTO `relatorios_hae` (`id`, `solicitacao_id`, `mes_referencia`, `ano_referencia`, `acoes_realizadas`, `status`, `data_envio`) VALUES
@@ -49,7 +49,7 @@ INSERT INTO `relatorios_hae` (`id`, `solicitacao_id`, `mes_referencia`, `ano_ref
 -- --------------------------------------------------------
 
 --
--- Estrutura para tabela `solicitacoes_hae`
+-- Estrutura da tabela `solicitacoes_hae`
 --
 
 CREATE TABLE `solicitacoes_hae` (
@@ -80,7 +80,7 @@ CREATE TABLE `solicitacoes_hae` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
--- Despejando dados para a tabela `solicitacoes_hae`
+-- Extraindo dados da tabela `solicitacoes_hae`
 --
 
 INSERT INTO `solicitacoes_hae` (`id`, `professor_id`, `semestre`, `quantidade_horas`, `titulo_projeto`, `projeto_anterior`, `nome_projeto_anterior`, `objetivos_escola`, `horas_aula`, `horas_atividade`, `horas_especificas`, `total_semanal`, `total_mensal`, `categoria`, `justificativa`, `objetivo`, `metodologia`, `envolvidos`, `recursos_necessarios`, `detalhamento_recursos`, `cronograma`, `resultados_esperados`, `status_aprovacao`, `data_criacao`) VALUES
@@ -90,7 +90,7 @@ INSERT INTO `solicitacoes_hae` (`id`, `professor_id`, `semestre`, `quantidade_ho
 -- --------------------------------------------------------
 
 --
--- Estrutura para tabela `usuarios`
+-- Estrutura da tabela `usuarios`
 --
 
 CREATE TABLE `usuarios` (
@@ -99,9 +99,9 @@ CREATE TABLE `usuarios` (
   `email` varchar(100) NOT NULL,
   `telefone_whatsapp` varchar(20) DEFAULT NULL,
   `funcao` enum('Professor','Coordenador','Diretor') NOT NULL,
-  `data_nascimento` date NOT NULL,
-  `data_admissao` date NOT NULL,
-  `tipo_contrato` enum('Determinado','Indeterminado') NOT NULL,
+  `data_nascimento` date DEFAULT NULL,
+  `data_admissao` date DEFAULT NULL,
+  `tipo_contrato` enum('Determinado','Indeterminado') DEFAULT NULL,
   `formacao_academica` text DEFAULT NULL,
   `assinatura_path` varchar(255) DEFAULT NULL,
   `senha` varchar(255) NOT NULL,
@@ -109,41 +109,42 @@ CREATE TABLE `usuarios` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
--- Despejando dados para a tabela `usuarios`
+-- Extraindo dados da tabela `usuarios`
 --
 
 INSERT INTO `usuarios` (`id`, `nome`, `email`, `telefone_whatsapp`, `funcao`, `data_nascimento`, `data_admissao`, `tipo_contrato`, `formacao_academica`, `assinatura_path`, `senha`, `primeiro_acesso`) VALUES
 (1, 'Stefani Santos', 'stefanisantos1212@gmail.com', '(14) 99837-3207', 'Professor', '2006-11-12', '2026-02-02', 'Indeterminado', 'ADS', 'uploads/assinaturas/cb407ab5771005be2cb9e453adf39fb3.jpg', '1d8bbc4294d306e8ba3ec733b0b06180', 0),
 (2, 'Diretor Teste', 'diretor@fatec.sp.gov.br', '14999999999', 'Diretor', '1980-03-15', '2010-02-01', 'Indeterminado', 'Doutorado em Educação', '', '1d8bbc4294d306e8ba3ec733b0b06180', 0),
-(3, 'Teste professora', 'professora@gmail.com', '(14) 99837-3207', 'Professor', '2006-11-12', '2025-03-01', 'Indeterminado', 'ADS', 'uploads/assinaturas/dd9d1889e20ed1ca009b5a54459f8795.jpg', '1d8bbc4294d306e8ba3ec733b0b06180', 0);
+(3, 'Teste professora', 'professora@gmail.com', '(14) 99837-3207', 'Professor', '2006-11-12', '2025-03-01', 'Indeterminado', 'ADS', 'uploads/assinaturas/dd9d1889e20ed1ca009b5a54459f8795.jpg', '1d8bbc4294d306e8ba3ec733b0b06180', 0),
+(4, 'professor_teste', 'professorteste@gmail.com', '(14) 99837-3207', 'Professor', '2006-11-12', '2014-04-04', 'Indeterminado', 'especialista em TI', 'uploads/assinaturas/4c7bd8b0a262942fec377e0cb3763944.jpg', '1d8bbc4294d306e8ba3ec733b0b06180', 0);
 
 --
 -- Índices para tabelas despejadas
 --
 
 --
--- Índices de tabela `relatorios_hae`
+-- Índices para tabela `relatorios_hae`
 --
 ALTER TABLE `relatorios_hae`
   ADD PRIMARY KEY (`id`),
   ADD KEY `solicitacao_id` (`solicitacao_id`);
 
 --
--- Índices de tabela `solicitacoes_hae`
+-- Índices para tabela `solicitacoes_hae`
 --
 ALTER TABLE `solicitacoes_hae`
   ADD PRIMARY KEY (`id`),
   ADD KEY `professor_id` (`professor_id`);
 
 --
--- Índices de tabela `usuarios`
+-- Índices para tabela `usuarios`
 --
 ALTER TABLE `usuarios`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `email` (`email`);
 
 --
--- AUTO_INCREMENT para tabelas despejadas
+-- AUTO_INCREMENT de tabelas despejadas
 --
 
 --
@@ -162,20 +163,20 @@ ALTER TABLE `solicitacoes_hae`
 -- AUTO_INCREMENT de tabela `usuarios`
 --
 ALTER TABLE `usuarios`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
 
 --
--- Restrições para tabelas despejadas
+-- Restrições para despejos de tabelas
 --
 
 --
--- Restrições para tabelas `relatorios_hae`
+-- Limitadores para a tabela `relatorios_hae`
 --
 ALTER TABLE `relatorios_hae`
   ADD CONSTRAINT `relatorios_hae_ibfk_1` FOREIGN KEY (`solicitacao_id`) REFERENCES `solicitacoes_hae` (`id`);
 
 --
--- Restrições para tabelas `solicitacoes_hae`
+-- Limitadores para a tabela `solicitacoes_hae`
 --
 ALTER TABLE `solicitacoes_hae`
   ADD CONSTRAINT `solicitacoes_hae_ibfk_1` FOREIGN KEY (`professor_id`) REFERENCES `usuarios` (`id`);
