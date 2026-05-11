@@ -118,7 +118,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 <body>
 
 <div class="login-box">
-    <h2>Por vvvbtal <span>HAE</span></h2>
+    <h2>Portal <span>HAE</span></h2>
     
     <!-- Exibe mensagem de sucesso se vier do cadastro -->
     <?php if($mensagem_sucesso) echo "<div class='alert-success'>$mensagem_sucesso</div>"; ?>
@@ -140,7 +140,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                  class="toggle-password" onclick="toggleVisibility('senha', this)" alt="Ver senha">
         </div>
         
-        <button type="submit" class="btn-submit">Entrar no Sistema</button>
+        <button type="submit" class="btn-submit">Entrarrrrr no Sistema</button>
     </form>
 
     <div class="links">
