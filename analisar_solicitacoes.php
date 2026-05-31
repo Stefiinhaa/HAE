@@ -143,11 +143,15 @@ if ($visualizando_id) {
 </head>
 <body>
 
-<aside class="sidebar" id="sidebar">
+<?php
+    // O PHP descobre magicamente em qual tela o usuário está agora
+    $pagina_atual = basename($_SERVER['PHP_SELF']);
+    ?>
+    <aside class="sidebar" id="sidebar">
         <div class="sidebar-header">
             <a href="painel.php" class="brand">
-                <img src="Img/cps_fatecgarca_logo.jfif" alt="Logo Fatec" >
-                <h2>HAE </h2>
+                <img src="assets/img/logo.png" alt="Logo Fatec" onerror="this.src='https://upload.wikimedia.org/wikipedia/commons/5/52/Fatec_logo.svg'">
+                <h2>HAE <span>FATEC</span></h2>
             </a>
             <button class="collapse-btn" id="collapse-btn"><i class="fa-solid fa-bars"></i></button>
         </div>
@@ -155,20 +159,44 @@ if ($visualizando_id) {
         <nav class="menu">
             <div class="menu-title">Navegação</div>
             <ul>
-                <li><a href="painel.php" class="active"><i class="fa-solid fa-chart-pie"></i> <span>Dashboard</span></a></li>
+                <li><a href="painel.php" class="<?php echo ($pagina_atual == 'painel.php') ? 'active' : ''; ?>">
+                    <i class="fa-solid fa-chart-pie"></i> <span>Dashboard</span>
+                </a></li>
                 
                 <?php if ($_SESSION['usuario_funcao'] == 'Professor'): ?>
-                    <li><a href="nova_solicitacao.php"><i class="fa-solid fa-file-circle-plus"></i> <span>Nova Solicitação HAE</span></a></li>
-                    <li><a href="meus_projetos.php"><i class="fa-solid fa-folder-open"></i> <span>Meus Projetos</span></a></li>
-                    <li><a href="enviar_relatorio.php"><i class="fa-solid fa-calendar-check"></i> <span>Enviar Relatório</span></a></li>
+                    <li><a href="nova_solicitacao.php" class="<?php echo ($pagina_atual == 'nova_solicitacao.php') ? 'active' : ''; ?>">
+                        <i class="fa-solid fa-file-circle-plus"></i> <span>Nova Solicitação</span>
+                    </a></li>
+                    
+                    <li><a href="meus_projetos.php" class="<?php echo ($pagina_atual == 'meus_projetos.php') ? 'active' : ''; ?>">
+                        <i class="fa-solid fa-folder-open"></i> <span>Meus Projetos</span>
+                    </a></li>
+                    
+                    <li><a href="meus_projetos.php" class="<?php echo ($pagina_atual == 'enviar_relatorio.php') ? 'active' : ''; ?>">
+                        <i class="fa-solid fa-calendar-check"></i> <span>Enviar Relatório</span>
+                    </a></li>
+                    
                 <?php else: ?>
-                    <li><a href="analisar_solicitacoes.php"><i class="fa-solid fa-clipboard-check"></i> <span>Analisar Solicitações</span></a></li>
-                    <li><a href="acompanhar_relatorio.php"><i class="fa-solid fa-chart-line"></i> <span>Acompanhar Relatórios</span></a></li>
-                    <li><a href="cadastrar_professor.php"><i class="fa-solid fa-user-plus"></i> <span>Cadastrar Professor</span></a></li>
-                    <li><a href="#"><i class="fa-solid fa-users-viewfinder"></i> <span>Professores Pendentes</span></a></li>
+                    <li><a href="analisar_solicitacoes.php" class="<?php echo ($pagina_atual == 'analisar_solicitacoes.php') ? 'active' : ''; ?>">
+                        <i class="fa-solid fa-clipboard-check"></i> <span>Analisar Solicitações</span>
+                    </a></li>
+                    
+                    <li><a href="acompanhar_relatorios.php" class="<?php echo ($pagina_atual == 'acompanhar_relatorios.php') ? 'active' : ''; ?>">
+                        <i class="fa-solid fa-chart-line"></i> <span>Acompanhar Relatórios</span>
+                    </a></li>
+                    
+                    <li><a href="cadastrar_professor.php" class="<?php echo ($pagina_atual == 'cadastrar_professor.php') ? 'active' : ''; ?>">
+                        <i class="fa-solid fa-user-plus"></i> <span>Cadastrar Professor</span>
+                    </a></li>
                 <?php endif; ?>
                 
-                <li><a href="logout.php" class="logout-link"><i class="fa-solid fa-right-from-bracket"></i> <span>Sair do Sistema</span></a></li>
+                <li><a href="perfil.php" class="<?php echo ($pagina_atual == 'perfil.php') ? 'active' : ''; ?>">
+                    <i class="fa-solid fa-user-gear"></i> <span>Meu Perfil</span>
+                </a></li>
+                
+                <li><a href="logout.php" class="logout-link">
+                    <i class="fa-solid fa-right-from-bracket"></i> <span>Sair do Sistema</span>
+                </a></li>
             </ul>
         </nav>
     </aside>
