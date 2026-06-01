@@ -27,7 +27,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $total_semanal = $_POST['total_semanal'];
     $total_mensal = $_POST['total_mensal'];
     
-    $categoria = $_POST['categoria'];
+    $categoria = trim($_POST['categoria']);
     $justificativa = $_POST['justificativa'];
     $objetivo = $_POST['objetivo'];
     $metodologia = $_POST['metodologia'];
@@ -110,9 +110,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $pagina_atual = basename($_SERVER['PHP_SELF']);
     ?>
     <aside class="sidebar" id="sidebar">
-        <div class="sidebar-header">
+    <div class="sidebar-header">
             <a href="painel.php" class="brand">
-                <img src="assets/img/logo.png" alt="Logo Fatec" onerror="this.src='https://upload.wikimedia.org/wikipedia/commons/5/52/Fatec_logo.svg'">
+                <img src="Img/cps_fatecgarca_logo.jfif" alt="Logo Fatec">
                 <h2>HAE <span>FATEC</span></h2>
             </a>
             <button class="collapse-btn" id="collapse-btn"><i class="fa-solid fa-bars"></i></button>
@@ -137,6 +137,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     <li><a href="meus_projetos.php" class="<?php echo ($pagina_atual == 'enviar_relatorio.php') ? 'active' : ''; ?>">
                         <i class="fa-solid fa-calendar-check"></i> <span>Enviar Relatório</span>
                     </a></li>
+
+                    <li><a href="meus_relatorios.php" class="<?php echo ($pagina_atual == 'meus_relatorios.php') ? 'active' : ''; ?>"><i class="fa-solid fa-list-check"></i> <span>Meus Relatórios</span></a></li>
                     
                 <?php else: ?>
                     <li><a href="analisar_solicitacoes.php" class="<?php echo ($pagina_atual == 'analisar_solicitacoes.php') ? 'active' : ''; ?>">
@@ -214,7 +216,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     <div class="grid-3">
                         <div>
                             <label>Horas-aula</label>
-                            <input type="number" name="horas_aula" id="horas_aula" value="0" min="0" oninput="calcularHoras()">
+                            <input type="number" name="horas_aula" id="horas_aula" value="0" min="0" onfocus="if(this.value=='0') this.value='';" onblur="if(this.value=='') this.value='0'; calcularHoras();" oninput="calcularHoras()">
                         </div>
                         <div>
                             <label>Hora Atividade (50%)</label>
@@ -222,7 +224,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         </div>
                         <div>
                             <label>HAE do Projeto</label>
-                            <input type="number" name="horas_especificas" id="horas_especificas" value="0" min="0" oninput="calcularHoras()">
+                            <input type="number" name="horas_especificas" id="horas_especificas" value="0" min="0" onfocus="if(this.value=='0') this.value='';" onblur="if(this.value=='') this.value='0'; calcularHoras();" oninput="calcularHoras()">
                         </div>
                     </div>
                     <br>
@@ -247,14 +249,18 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                             <label>Objetivos/Meta(s) da Escola vinculada(s)</label>
                             <textarea name="objetivos_escola" required></textarea>
                         </div>
+                        
+                        <!-- NOVA CATEGORIA COM DATALIST -->
                         <div class="full-width">
                             <label>Categoria do Projeto</label>
-                            <select name="categoria" required>
-                                <option value="Acadêmico">Acadêmico</option>
-                                <option value="Administrativo">Administrativo</option>
-                                <option value="Extensão a comunidade">Extensão à comunidade</option>
-                            </select>
+                            <input type="text" list="categorias_list" name="categoria" id="categoria" required placeholder="Selecione na lista ou digite uma nova categoria...">
+                            <datalist id="categorias_list">
+                                <option value="Acadêmico"></option>
+                                <option value="Administrativo"></option>
+                                <option value="Extensão à comunidade"></option>
+                            </datalist>
                         </div>
+                        
                         <div class="full-width"><label>Justificativa</label><textarea name="justificativa" required></textarea></div>
                         <div class="full-width"><label>Objetivo</label><textarea name="objetivo" required></textarea></div>
                         <div class="full-width"><label>Metodologia</label><textarea name="metodologia" required></textarea></div>

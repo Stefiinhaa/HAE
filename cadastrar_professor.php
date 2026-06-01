@@ -75,9 +75,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $pagina_atual = basename($_SERVER['PHP_SELF']);
     ?>
     <aside class="sidebar" id="sidebar">
-        <div class="sidebar-header">
+    <div class="sidebar-header">
             <a href="painel.php" class="brand">
-                <img src="assets/img/logo.png" alt="Logo Fatec" onerror="this.src='https://upload.wikimedia.org/wikipedia/commons/5/52/Fatec_logo.svg'">
+                <img src="Img/cps_fatecgarca_logo.jfif" alt="Logo Fatec">
                 <h2>HAE <span>FATEC</span></h2>
             </a>
             <button class="collapse-btn" id="collapse-btn"><i class="fa-solid fa-bars"></i></button>

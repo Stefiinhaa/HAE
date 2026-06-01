@@ -20,18 +20,26 @@ $user = $stmt->fetch(PDO::FETCH_ASSOC);
 // 2. PROCESSA A ATUALIZAÇÃO
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $nome = trim($_POST['nome']);
+    $email = trim($_POST['email']);
     $whatsapp = trim($_POST['whatsapp']);
     $data_nascimento = $_POST['data_nascimento'];
     $data_admissao = $_POST['data_admissao'];
     $tipo_contrato = $_POST['tipo_contrato'];
     $formacao_academica = $_POST['formacao_academica'];
     
+    // Verificação de E-mail Duplicado
+    $stmt_check = $pdo->prepare("SELECT id FROM usuarios WHERE email = ? AND id != ?");
+    $stmt_check->execute([$email, $usuario_id]);
+    if ($stmt_check->rowCount() > 0) {
+        $erro = "Este e-mail já está sendo utilizado por outro usuário no sistema.";
+    }
+
     // Lógica para Nova Senha (Opcional)
     $nova_senha = $_POST['nova_senha'];
     $sql_senha = "";
     $params_senha = [];
 
-    if (!empty($nova_senha)) {
+    if (!empty($nova_senha) && empty($erro)) {
         if ($nova_senha !== $_POST['confirma_senha']) {
             $erro = "As senhas não coincidem.";
         } else {
@@ -42,7 +50,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
     // Lógica para Nova Assinatura (Opcional)
     $assinatura_path = $user['assinatura_path'];
-    if (isset($_FILES['assinatura']) && $_FILES['assinatura']['error'] == 0) {
+    if (isset($_FILES['assinatura']) && $_FILES['assinatura']['error'] == 0 && empty($erro)) {
         $extensao = pathinfo($_FILES['assinatura']['name'], PATHINFO_EXTENSION);
         $novo_nome = md5(uniqid()) . "." . $extensao;
         $diretorio = "uploads/assinaturas/";
@@ -54,13 +62,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     if (empty($erro)) {
         try {
             $sql = "UPDATE usuarios SET 
-                    nome = ?, telefone_whatsapp = ?, data_nascimento = ?, 
+                    nome = ?, email = ?, telefone_whatsapp = ?, data_nascimento = ?, 
                     data_admissao = ?, tipo_contrato = ?, formacao_academica = ?, 
                     assinatura_path = ? $sql_senha 
                     WHERE id = ?";
             
             $stmt = $pdo->prepare($sql);
-            $base_params = [$nome, $whatsapp, $data_nascimento, $data_admissao, $tipo_contrato, $formacao_academica, $assinatura_path];
+            // Agora o email faz parte dos parâmetros de atualização
+            $base_params = [$nome, $email, $whatsapp, $data_nascimento, $data_admissao, $tipo_contrato, $formacao_academica, $assinatura_path];
             $final_params = array_merge($base_params, $params_senha, [$usuario_id]);
             
             $stmt->execute($final_params);
@@ -79,6 +88,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         }
     }
 }
+
+$pagina_atual = basename($_SERVER['PHP_SELF']);
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -104,7 +115,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         label { display: block; font-weight: 600; margin-bottom: 8px; font-size: 13px; color: #444; }
         input, select { width: 100%; padding: 12px; border: 1.5px solid #ddd; border-radius: 6px; font-size: 14px; outline: none; transition: 0.3s; }
         input:focus { border-color: var(--fatec-red); }
-        input[readonly] { background: #f8f9fa; cursor: not-allowed; }
         input[type="password"] { padding-right: 40px; }
 
         .btn-save { background: var(--fatec-red); color: white; padding: 15px 30px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.3s; width: 100%; font-size: 15px; }
@@ -120,7 +130,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         
         .idade-info { font-size: 12px; color: #666; margin-top: 5px; font-weight: bold; display: block; }
 
-        /* Barrinha de Força da Senha */
         .strength-meter { height: 4px; width: 100%; background-color: #eee; margin-top: 8px; border-radius: 2px; overflow: hidden; display: flex; }
         .strength-bar { height: 100%; width: 0%; transition: all 0.4s ease; }
         .strength-text { font-size: 11px; margin-top: 4px; font-weight: bold; text-transform: uppercase; }
@@ -130,60 +139,32 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 </head>
 <body>
 
-<?php
-    // O PHP descobre magicamente em qual tela o usuário está agora
-    $pagina_atual = basename($_SERVER['PHP_SELF']);
-    ?>
     <aside class="sidebar" id="sidebar">
         <div class="sidebar-header">
             <a href="painel.php" class="brand">
-                <img src="assets/img/logo.png" alt="Logo Fatec" onerror="this.src='https://upload.wikimedia.org/wikipedia/commons/5/52/Fatec_logo.svg'">
+                <img src="img/cps_fatecgarca_logo.jfif" alt="Logo Fatec">
                 <h2>HAE <span>FATEC</span></h2>
             </a>
             <button class="collapse-btn" id="collapse-btn"><i class="fa-solid fa-bars"></i></button>
         </div>
-        
         <nav class="menu">
             <div class="menu-title">Navegação</div>
             <ul>
-                <li><a href="painel.php" class="<?php echo ($pagina_atual == 'painel.php') ? 'active' : ''; ?>">
-                    <i class="fa-solid fa-chart-pie"></i> <span>Dashboard</span>
-                </a></li>
+                <li><a href="painel.php" class="<?php echo ($pagina_atual == 'painel.php') ? 'active' : ''; ?>"><i class="fa-solid fa-chart-pie"></i> <span>Dashboard</span></a></li>
                 
                 <?php if ($_SESSION['usuario_funcao'] == 'Professor'): ?>
-                    <li><a href="nova_solicitacao.php" class="<?php echo ($pagina_atual == 'nova_solicitacao.php') ? 'active' : ''; ?>">
-                        <i class="fa-solid fa-file-circle-plus"></i> <span>Nova Solicitação</span>
-                    </a></li>
-                    
-                    <li><a href="meus_projetos.php" class="<?php echo ($pagina_atual == 'meus_projetos.php') ? 'active' : ''; ?>">
-                        <i class="fa-solid fa-folder-open"></i> <span>Meus Projetos</span>
-                    </a></li>
-                    
-                    <li><a href="meus_projetos.php" class="<?php echo ($pagina_atual == 'enviar_relatorio.php') ? 'active' : ''; ?>">
-                        <i class="fa-solid fa-calendar-check"></i> <span>Enviar Relatório</span>
-                    </a></li>
-                    
+                    <li><a href="nova_solicitacao.php" class="<?php echo ($pagina_atual == 'nova_solicitacao.php') ? 'active' : ''; ?>"><i class="fa-solid fa-file-circle-plus"></i> <span>Nova Solicitação</span></a></li>
+                    <li><a href="meus_projetos.php" class="<?php echo ($pagina_atual == 'meus_projetos.php') ? 'active' : ''; ?>"><i class="fa-solid fa-folder-open"></i> <span>Meus Projetos</span></a></li>
+                    <li><a href="enviar_relatorio.php" class="<?php echo ($pagina_atual == 'enviar_relatorio.php') ? 'active' : ''; ?>"><i class="fa-solid fa-calendar-check"></i> <span>Enviar Relatório</span></a></li>
+                    <li><a href="meus_relatorios.php" class="<?php echo ($pagina_atual == 'meus_relatorios.php') ? 'active' : ''; ?>"><i class="fa-solid fa-list-check"></i> <span>Meus Relatórios</span></a></li>
                 <?php else: ?>
-                    <li><a href="analisar_solicitacoes.php" class="<?php echo ($pagina_atual == 'analisar_solicitacoes.php') ? 'active' : ''; ?>">
-                        <i class="fa-solid fa-clipboard-check"></i> <span>Analisar Solicitações</span>
-                    </a></li>
-                    
-                    <li><a href="acompanhar_relatorios.php" class="<?php echo ($pagina_atual == 'acompanhar_relatorios.php') ? 'active' : ''; ?>">
-                        <i class="fa-solid fa-chart-line"></i> <span>Acompanhar Relatórios</span>
-                    </a></li>
-                    
-                    <li><a href="cadastrar_professor.php" class="<?php echo ($pagina_atual == 'cadastrar_professor.php') ? 'active' : ''; ?>">
-                        <i class="fa-solid fa-user-plus"></i> <span>Cadastrar Professor</span>
-                    </a></li>
+                    <li><a href="analisar_solicitacoes.php" class="<?php echo ($pagina_atual == 'analisar_solicitacoes.php') ? 'active' : ''; ?>"><i class="fa-solid fa-clipboard-check"></i> <span>Analisar Solicitações</span></a></li>
+                    <li><a href="acompanhar_relatorios.php" class="<?php echo ($pagina_atual == 'acompanhar_relatorios.php') ? 'active' : ''; ?>"><i class="fa-solid fa-chart-line"></i> <span>Acompanhar Relatórios</span></a></li>
+                    <li><a href="cadastrar_professor.php" class="<?php echo ($pagina_atual == 'cadastrar_professor.php') ? 'active' : ''; ?>"><i class="fa-solid fa-user-plus"></i> <span>Cadastrar Professor</span></a></li>
                 <?php endif; ?>
                 
-                <li><a href="perfil.php" class="<?php echo ($pagina_atual == 'perfil.php') ? 'active' : ''; ?>">
-                    <i class="fa-solid fa-user-gear"></i> <span>Meu Perfil</span>
-                </a></li>
-                
-                <li><a href="logout.php" class="logout-link">
-                    <i class="fa-solid fa-right-from-bracket"></i> <span>Sair do Sistema</span>
-                </a></li>
+                <li><a href="perfil.php" class="<?php echo ($pagina_atual == 'perfil.php') ? 'active' : ''; ?>"><i class="fa-solid fa-user-gear"></i> <span>Meu Perfil</span></a></li>
+                <li><a href="logout.php" class="logout-link"><i class="fa-solid fa-right-from-bracket"></i> <span>Sair do Sistema</span></a></li>
             </ul>
         </nav>
     </aside>
@@ -201,15 +182,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
         <div class="perfil-container">
             <div class="form-card">
-                <form method="POST" enctype="multipart/form-data">
+                <form method="POST" enctype="multipart/form-data" id="perfil-form" autocomplete="off">
                     <div class="grid">
                         <div class="full">
                             <label>Nome Completo</label>
                             <input type="text" name="nome" value="<?php echo htmlspecialchars($user['nome']); ?>" required>
                         </div>
                         <div>
-                            <label>E-mail Institucional (Não alterável)</label>
-                            <input type="email" value="<?php echo htmlspecialchars($user['email']); ?>" readonly>
+                            <label>E-mail Institucional</label>
+                            <input type="email" name="email" value="<?php echo htmlspecialchars($user['email']); ?>" required>
                         </div>
                         <div>
                             <label>WhatsApp</label>
@@ -241,14 +222,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     <div class="grid">
                         <div class="input-with-icon">
                             <label>Nova Senha</label>
-                            <input type="password" name="nova_senha" id="nova_senha" oninput="checkStrength(this.value)">
+                            <input type="password" name="nova_senha" id="nova_senha" autocomplete="new-password" oninput="checkStrength(this.value)">
                             <i class="fa-regular fa-eye toggle-password" onclick="toggleVisibility('nova_senha', this)"></i>
                             <div class="strength-meter"><div id="strength-bar" class="strength-bar"></div></div>
                             <div id="strength-text" class="strength-text"></div>
                         </div>
                         <div class="input-with-icon">
                             <label>Confirmar Nova Senha</label>
-                            <input type="password" name="confirma_senha" id="confirma_senha" oninput="validateMatch()">
+                            <input type="password" name="confirma_senha" id="confirma_senha" autocomplete="new-password" oninput="validateMatch()">
                             <i class="fa-regular fa-eye toggle-password" onclick="toggleVisibility('confirma_senha', this)"></i>
                             <div id="match-text" class="strength-text"></div>
                         </div>
@@ -337,7 +318,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             const matchText = document.getElementById('match-text');
             const btn = document.getElementById('submitBtn');
 
-            // Se o usuário não digitou nada na senha, permite salvar o resto do perfil
             if (p1 === "" && p2 === "") { 
                 matchText.innerText = ""; 
                 btn.disabled = false; 
@@ -358,7 +338,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             }
         }
 
-        // Máscara WhatsApp
         document.getElementById('whatsapp').addEventListener('input', function(e) {
             let value = e.target.value.replace(/\D/g, '');
             if (value.length > 11) value = value.slice(0, 11);

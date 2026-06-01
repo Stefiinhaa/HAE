@@ -26,11 +26,11 @@ $data_envio = date('d/m/Y', strtotime($dados['data_criacao']));
 $ano_projeto = explode('/', $dados['semestre'])[1] ?? date('Y');
 $data_admissao = date('d/m/Y', strtotime($dados['data_admissao']));
 
-// Verificação dos checkboxes de contrato[cite: 4]
+// Verificação dos checkboxes de contrato
 $check_determinado = $dados['tipo_contrato'] == 'Determinado' ? '( X )' : '(   )';
 $check_indeterminado = $dados['tipo_contrato'] == 'Indeterminado' ? '( X )' : '(   )';
 
-// Verificação do projeto anterior[cite: 4]
+// Verificação do projeto anterior
 $check_ant_sim = $dados['projeto_anterior'] ? '( X )' : '(   )';
 $check_ant_nao = !$dados['projeto_anterior'] ? '( X )' : '(   )';
 
@@ -49,7 +49,6 @@ $caminho_assinatura = $dados['assinatura_path'];
             padding: 20px; 
             font-family: 'Arial', sans-serif; 
             margin: 0; 
-            /* Removido o display:flex que estava quebrando o layout */
         }
         
         .page { 
@@ -82,7 +81,15 @@ $caminho_assinatura = $dados['assinatura_path'];
         .parecer-box { border: 1px solid #000; padding: 15px; margin-top: 20px; margin-bottom: 20px; }
         .grid-parecer { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 30px; text-align: center; }
 
-        /* Botão flutuante corrigido para nunca quebrar o layout */
+        /* Parecer dinâmico da Direção */
+        .parecer-direcao-dinamico {
+            margin-top: 20px; 
+            padding: 15px; 
+            border: 1px solid #b20000; 
+            background-color: #fff9f9;
+        }
+
+        /* Botão flutuante */
         .btn-imprimir {
             position: fixed; 
             bottom: 20px; 
@@ -100,13 +107,10 @@ $caminho_assinatura = $dados['assinatura_path'];
         }
         .btn-imprimir:hover { background: #8a0000; }
 
-        /* Responsividade focada no mobile */
         @media (max-width: 768px) {
             body { padding: 10px; }
             .page { padding: 15px; min-height: auto; }
-            .grid-parecer { grid-template-columns: 1fr; gap: 40px; } /* Empilha assinaturas */
-            
-            /* Mantém o botão fixo, mas pega a largura toda no celular */
+            .grid-parecer { grid-template-columns: 1fr; gap: 40px; }
             .btn-imprimir {
                 bottom: 10px; right: 10px; left: 10px; 
                 width: calc(100% - 20px); 
@@ -137,7 +141,7 @@ $caminho_assinatura = $dados['assinatura_path'];
         <p><strong>Formação Acadêmica:</strong> <?php echo htmlspecialchars($dados['formacao_academica']); ?></p>
         
         <table class="tabela-horas" style="width: 50%;">
-            <tr><th>Nº HAE Solicitada</th></tr>
+            <tr><th>Nº HAE Solicitada/Aprovada</th></tr>
             <tr><td style="text-align: center; font-weight: bold;"><?php echo $dados['quantidade_horas']; ?></td></tr>
         </table>
 
@@ -154,17 +158,19 @@ $caminho_assinatura = $dados['assinatura_path'];
         <p><strong>Objetivos/Meta(s) da Escola à(s) qual(is) o projeto está vinculado:</strong><br>
         <?php echo nl2br(htmlspecialchars($dados['objetivos_escola'])); ?></p>
 
-        <table class="tabela-horas">
-            <tr>
-                <th style="width: 70%;">Carga Horária Semanal</th>
-                <th><?php echo htmlspecialchars($dados['semestre']); ?></th>
-            </tr>
-            <tr><td>Horas aula</td><td><?php echo $dados['horas_aula']; ?></td></tr>
-            <tr><td>Hora Atividade (50% das Horas-aula)</td><td><?php echo $dados['horas_atividade']; ?></td></tr>
-            <tr><td>Hora – Atividade Específica do Projeto -</td><td><?php echo $dados['horas_especificas']; ?></td></tr>
-            <tr><td><strong>Total Semanal</strong></td><td><strong><?php echo $dados['total_semanal']; ?></strong></td></tr>
-            <tr><td><strong>Total Mensal (Total-Semanal x 4,5 Semanas)</strong></td><td><strong><?php echo $dados['total_mensal']; ?></strong></td></tr>
-        </table>
+        <div class="table-responsive">
+            <table class="tabela-horas">
+                <tr>
+                    <th style="width: 70%;">Carga Horária Semanal</th>
+                    <th><?php echo htmlspecialchars($dados['semestre']); ?></th>
+                </tr>
+                <tr><td>Horas aula</td><td><?php echo $dados['horas_aula']; ?></td></tr>
+                <tr><td>Hora Atividade (50% das Horas-aula)</td><td><?php echo $dados['horas_atividade']; ?></td></tr>
+                <tr><td>Hora – Atividade Específica do Projeto -</td><td><?php echo $dados['horas_especificas']; ?></td></tr>
+                <tr><td><strong>Total Semanal</strong></td><td><strong><?php echo $dados['total_semanal']; ?></strong></td></tr>
+                <tr><td><strong>Total Mensal (Total-Semanal x 4,5 Semanas)</strong></td><td><strong><?php echo $dados['total_mensal']; ?></strong></td></tr>
+            </table>
+        </div>
         <p style="text-align: center; font-size: 12px; font-weight: bold;">OBS: O TOTAL NÃO PODERÁ ULTRAPASSAR ÀS 200 (duzentas) HORAS MENSAIS</p>
 
         <div class="parecer-box">
@@ -175,18 +181,29 @@ $caminho_assinatura = $dados['assinatura_path'];
             </div>
             
             <p style="margin-top: 20px;"><strong>Parecer do(a) diretor(a):</strong></p>
-            <p>Número de HAE(s) concedida(s) para desenvolvimento do Projeto: ______ HAE(s)</p>
+            
+            <!-- LÓGICA DE EXIBIÇÃO DAS HORAS APROVADAS -->
+            <p>Número de HAE(s) concedida(s) para desenvolvimento do Projeto: <strong><?php echo ($dados['status_aprovacao'] == 'Aprovado') ? $dados['quantidade_horas'] : '______'; ?></strong> HAE(s)</p>
+            
             <div class="grid-parecer">
                 <div>Data: ____/____/_______</div>
                 <div>_________________________________________<br>Assinatura</div>
             </div>
         </div>
 
+        <!-- Exibe o parecer preenchido no sistema caso exista -->
+        <?php if (!empty($dados['parecer_direcao'])): ?>
+        <div class="parecer-direcao-dinamico">
+            <strong><span style="color: #b20000;">Parecer da Direção (Via Sistema):</span></strong><br>
+            <?php echo nl2br(htmlspecialchars($dados['parecer_direcao'])); ?>
+        </div>
+        <?php endif; ?>
+
         <h4 style="margin-top: 30px;">APRESENTAÇÃO DO PROJETO</h4>
         
         <p><strong>1.- Título do Projeto:</strong> <?php echo htmlspecialchars($dados['titulo_projeto']); ?></p>
         <p><strong>2.- Professor Responsável:</strong> <?php echo htmlspecialchars($dados['nome']); ?></p>
-        <p><strong>3.- Categoria:</strong> <?php echo $dados['categoria']; ?></p>
+        <p><strong>3.- Categoria:</strong> <?php echo htmlspecialchars($dados['categoria']); ?></p>
         <p><strong>4.- Justificativa:</strong><br><?php echo nl2br(htmlspecialchars($dados['justificativa'])); ?></p>
         <p><strong>5.- Objetivo:</strong><br><?php echo nl2br(htmlspecialchars($dados['objetivo'])); ?></p>
         <p><strong>6.- Metodologia:</strong><br><?php echo nl2br(htmlspecialchars($dados['metodologia'])); ?></p>
