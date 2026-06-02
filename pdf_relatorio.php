@@ -71,7 +71,7 @@ $caminho_assinatura = $dados['assinatura_path'];
         }
 
         .header-doc { text-align: center; margin-bottom: 40px; }
-        .header-doc img { width: 100%; height: 100vh; max-height: 80px; margin-bottom: 15px; }
+        .header-doc img { max-height: 80px; margin-bottom: 15px; }
         .header-doc h2 { margin: 0; font-size: 20px; font-weight: bold; }
 
         /* Tabela invisível para deixar Período e Quantidade lado a lado */

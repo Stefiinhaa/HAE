@@ -21,10 +21,27 @@ if (!$dados) {
     die("Solicitação não encontrada.");
 }
 
-// Formatação de datas e extração do Ano
+// -------------------------------------------------------------------------
+// BUSCA AS ASSINATURAS OFICIAIS DA COORDENAÇÃO E DIREÇÃO
+// -------------------------------------------------------------------------
+$stmt_coord = $pdo->query("SELECT assinatura_path FROM usuarios WHERE funcao = 'Coordenador' LIMIT 1");
+$coord_data = $stmt_coord->fetch(PDO::FETCH_ASSOC);
+$assinatura_coordenador = $coord_data ? $coord_data['assinatura_path'] : '';
+
+$stmt_dir = $pdo->query("SELECT assinatura_path FROM usuarios WHERE funcao = 'Diretor' LIMIT 1");
+$dir_data = $stmt_dir->fetch(PDO::FETCH_ASSOC);
+$assinatura_diretor = $dir_data ? $dir_data['assinatura_path'] : '';
+// -------------------------------------------------------------------------
+
+// Formatação de datas
 $data_envio = date('d/m/Y', strtotime($dados['data_criacao']));
 $ano_projeto = explode('/', $dados['semestre'])[1] ?? date('Y');
 $data_admissao = date('d/m/Y', strtotime($dados['data_admissao']));
+
+// Formata a Data de Aprovação (Se existir)
+$data_aprovacao_formatada = ($dados['status_aprovacao'] == 'Aprovado' && !empty($dados['data_aprovacao'])) 
+                            ? date('d/m/Y', strtotime($dados['data_aprovacao'])) 
+                            : '____/____/_______';
 
 // Verificação dos checkboxes de contrato
 $check_determinado = $dados['tipo_contrato'] == 'Determinado' ? '( X )' : '(   )';
@@ -34,7 +51,7 @@ $check_indeterminado = $dados['tipo_contrato'] == 'Indeterminado' ? '( X )' : '(
 $check_ant_sim = $dados['projeto_anterior'] ? '( X )' : '(   )';
 $check_ant_nao = !$dados['projeto_anterior'] ? '( X )' : '(   )';
 
-// Caminho absoluto para a imagem da assinatura
+// Caminho absoluto para a imagem da assinatura do professor
 $caminho_assinatura = $dados['assinatura_path'];
 ?>
 <!DOCTYPE html>
@@ -62,7 +79,7 @@ $caminho_assinatura = $dados['assinatura_path'];
             font-size: 14px;
             line-height: 1.5;
             color: #000;
-            margin: 0 auto; /* Isso garante que a folha fique sempre centralizada */
+            margin: 0 auto; 
             overflow-x: hidden;
         }
 
@@ -79,17 +96,15 @@ $caminho_assinatura = $dados['assinatura_path'];
         .linha-assinatura { width: 300px; max-width: 100%; border-top: 1px solid #000; margin-top: 20px; padding-top: 5px; }
 
         .parecer-box { border: 1px solid #000; padding: 15px; margin-top: 20px; margin-bottom: 20px; }
-        .grid-parecer { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 30px; text-align: center; }
+        .grid-parecer { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px; text-align: center; }
+        
+        /* Ajustes para encaixar a imagem da assinatura da direção */
+        .assinatura-responsavel { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 70px; }
+        .assinatura-responsavel img { max-height: 55px; max-width: 200px; margin-bottom: -10px; }
+        .linha-assinatura-pequena { width: 100%; border-top: 1px solid #000; padding-top: 5px; }
 
-        /* Parecer dinâmico da Direção */
-        .parecer-direcao-dinamico {
-            margin-top: 20px; 
-            padding: 15px; 
-            border: 1px solid #b20000; 
-            background-color: #fff9f9;
-        }
+        .parecer-direcao-dinamico { margin-top: 20px; padding: 15px; border: 1px solid #b20000; background-color: #fff9f9; }
 
-        /* Botão flutuante */
         .btn-imprimir {
             position: fixed; 
             bottom: 20px; 
@@ -106,17 +121,6 @@ $caminho_assinatura = $dados['assinatura_path'];
             transition: 0.3s;
         }
         .btn-imprimir:hover { background: #8a0000; }
-
-        @media (max-width: 768px) {
-            body { padding: 10px; }
-            .page { padding: 15px; min-height: auto; }
-            .grid-parecer { grid-template-columns: 1fr; gap: 40px; }
-            .btn-imprimir {
-                bottom: 10px; right: 10px; left: 10px; 
-                width: calc(100% - 20px); 
-                text-align: center;
-            }
-        }
 
         @media print {
             body { background: white; padding: 0; }
@@ -176,22 +180,34 @@ $caminho_assinatura = $dados['assinatura_path'];
         <div class="parecer-box">
             <p><strong>Parecer do(a) coordenador(a):</strong></p>
             <div class="grid-parecer">
-                <div>Data: ____/____/_______</div>
-                <div>_________________________________________<br>Assinatura</div>
+                <div>Data: <?php echo $data_aprovacao_formatada; ?></div>
+                <div class="assinatura-responsavel">
+                    <?php if ($dados['status_aprovacao'] == 'Aprovado' && !empty($assinatura_coordenador) && file_exists($assinatura_coordenador)): ?>
+                        <img src="<?php echo $assinatura_coordenador; ?>" alt="Assinatura Coordenador">
+                    <?php else: ?>
+                        <br>
+                    <?php endif; ?>
+                    <div class="linha-assinatura-pequena">Assinatura</div>
+                </div>
             </div>
             
             <p style="margin-top: 20px;"><strong>Parecer do(a) diretor(a):</strong></p>
             
-            <!-- LÓGICA DE EXIBIÇÃO DAS HORAS APROVADAS -->
             <p>Número de HAE(s) concedida(s) para desenvolvimento do Projeto: <strong><?php echo ($dados['status_aprovacao'] == 'Aprovado') ? $dados['quantidade_horas'] : '______'; ?></strong> HAE(s)</p>
             
             <div class="grid-parecer">
-                <div>Data: ____/____/_______</div>
-                <div>_________________________________________<br>Assinatura</div>
+                <div>Data: <?php echo $data_aprovacao_formatada; ?></div>
+                <div class="assinatura-responsavel">
+                    <?php if ($dados['status_aprovacao'] == 'Aprovado' && !empty($assinatura_diretor) && file_exists($assinatura_diretor)): ?>
+                        <img src="<?php echo $assinatura_diretor; ?>" alt="Assinatura Diretor">
+                    <?php else: ?>
+                        <br>
+                    <?php endif; ?>
+                    <div class="linha-assinatura-pequena">Assinatura</div>
+                </div>
             </div>
         </div>
 
-        <!-- Exibe o parecer preenchido no sistema caso exista -->
         <?php if (!empty($dados['parecer_direcao'])): ?>
         <div class="parecer-direcao-dinamico">
             <strong><span style="color: #b20000;">Parecer da Direção (Via Sistema):</span></strong><br>

@@ -16,12 +16,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao'])) {
     $novo_status = $_POST['acao'] == 'aprovar' ? 'Aprovado' : 'Rejeitado';
     $horas_aprovadas = $_POST['horas_aprovadas'] ?? 0;
     $parecer = trim($_POST['parecer']);
+    
+    // Captura a data exata da aprovação
+    $data_aprovacao = ($novo_status == 'Aprovado') ? date('Y-m-d') : null;
 
     try {
-        // Agora salvamos também o parecer_direcao no banco!
-        $sql = "UPDATE solicitacoes_hae SET status_aprovacao = ?, quantidade_horas = ?, parecer_direcao = ? WHERE id = ?";
+        $sql = "UPDATE solicitacoes_hae SET status_aprovacao = ?, quantidade_horas = ?, parecer_direcao = ?, data_aprovacao = ? WHERE id = ?";
         $stmt = $pdo->prepare($sql);
-        $stmt->execute([$novo_status, $horas_aprovadas, $parecer, $solicitacao_id]);
+        $stmt->execute([$novo_status, $horas_aprovadas, $parecer, $data_aprovacao, $solicitacao_id]);
         
         header("Location: analisar_solicitacoes.php?status=sucesso");
         exit;
@@ -152,7 +154,7 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
                 <li><a href="painel.php" class="<?php echo ($pagina_atual == 'painel.php') ? 'active' : ''; ?>"><i class="fa-solid fa-chart-pie"></i> <span>Dashboard</span></a></li>
                 <li><a href="analisar_solicitacoes.php" class="<?php echo ($pagina_atual == 'analisar_solicitacoes.php') ? 'active' : ''; ?>"><i class="fa-solid fa-clipboard-check"></i> <span>Analisar Solicitações</span></a></li>
                 <li><a href="acompanhar_relatorios.php" class="<?php echo ($pagina_atual == 'acompanhar_relatorios.php') ? 'active' : ''; ?>"><i class="fa-solid fa-chart-line"></i> <span>Acompanhar Relatórios</span></a></li>
-                <li><a href="cadastrar_professor.php" class="<?php echo ($pagina_atual == 'cadastrar_professor.php') ? 'active' : ''; ?>"><i class="fa-solid fa-user-plus"></i> <span>Cadastrar Professor</span></a></li>
+                <li><a href="cadastrar_professor.php" class="<?php echo ($pagina_atual == 'cadastrar_professor.php') ? 'active' : ''; ?>"><i class="fa-solid fa-user-plus"></i> <span>Cadastrar Usuário</span></a></li>
                 <li><a href="perfil.php" class="<?php echo ($pagina_atual == 'perfil.php') ? 'active' : ''; ?>"><i class="fa-solid fa-user-gear"></i> <span>Meu Perfil</span></a></li>
                 <li><a href="logout.php" class="logout-link"><i class="fa-solid fa-right-from-bracket"></i> <span>Sair do Sistema</span></a></li>
             </ul>
@@ -195,7 +197,6 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
                         <textarea name="parecer" id="campo_parecer" rows="5" placeholder="Obrigatório em caso de rejeição. Descreva o motivo ou ajustes necessários..."></textarea>
                         
                         <div class="botoes-acao">
-                            <!-- Inserimos a validação JS nos botões -->
                             <button type="submit" name="acao" value="aprovar" class="btn-aprovar" onclick="return validarParecer('aprovar');">✓ Aprovar Projeto HAE</button>
                             <button type="submit" name="acao" value="rejeitar" class="btn-rejeitar" onclick="return validarParecer('rejeitar');">✕ Rejeitar Projeto</button>
                         </div>
@@ -280,14 +281,11 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
     <script>
         function validarParecer(acao) {
             var campoParecer = document.getElementById('campo_parecer').value.trim();
-            
-            // Se estiver rejeitando, o motivo é obrigatório
             if (acao === 'rejeitar' && campoParecer === '') {
                 alert('Atenção: É obrigatório informar o motivo da rejeição no campo de Parecer!');
                 document.getElementById('campo_parecer').focus();
-                return false; // Bloqueia o envio do form
+                return false; 
             }
-            
             if (acao === 'rejeitar') {
                 return confirm('Tem certeza que deseja REJEITAR este projeto HAE?');
             } else {

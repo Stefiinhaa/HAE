@@ -150,7 +150,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     </a></li>
                     
                     <li><a href="cadastrar_professor.php" class="<?php echo ($pagina_atual == 'cadastrar_professor.php') ? 'active' : ''; ?>">
-                        <i class="fa-solid fa-user-plus"></i> <span>Cadastrar Professor</span>
+                        <i class="fa-solid fa-user-plus"></i> <span>Cadastrar Usuário</span>
                     </a></li>
                 <?php endif; ?>
                 
