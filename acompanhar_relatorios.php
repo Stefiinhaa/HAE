@@ -30,7 +30,7 @@ if ($visualizando_projeto_id > 0) {
 
 } else {
     // ==============================================================================
-    // TELA 1: GRID GERAL COM SISTEMA "ACORDEÃO"
+    // TELA 1: GRID GERAL COM ACORDEÃO E PAGINAÇÃO
     // ==============================================================================
     $mes_padrao = date('n') == 1 ? 12 : date('n') - 1;
     $ano_padrao = $mes_padrao == 12 && date('n') == 1 ? date('Y') - 1 : date('Y');
@@ -55,7 +55,6 @@ if ($visualizando_projeto_id > 0) {
         $where[] = "EXISTS (SELECT 1 FROM relatorios_hae r WHERE r.solicitacao_id = s.id AND r.mes_referencia = $filtro_mes AND r.ano_referencia = $filtro_ano AND r.status = 'Publicado')";
     }
 
-    // Agora buscamos o semestre também (s.semestre)
     $sql = "SELECT s.id, s.titulo_projeto, s.semestre, u.nome as professor_nome, u.telefone_whatsapp,
             (SELECT r.id FROM relatorios_hae r WHERE r.solicitacao_id = s.id AND r.mes_referencia = ? AND r.ano_referencia = ? AND r.status = 'Publicado' LIMIT 1) as relatorio_entregue_id
             FROM solicitacoes_hae s 
@@ -67,11 +66,31 @@ if ($visualizando_projeto_id > 0) {
     $stmt->execute($params);
     $projetos = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
-    // AGRUPAMENTO DOS DADOS PARA O ACORDEÃO
-    $projetos_agrupados = [];
+    // 1. Agrupamento Total para o Acordeão
+    $projetos_agrupados_total = [];
     foreach ($projetos as $proj) {
-        $projetos_agrupados[$proj['professor_nome']][] = $proj;
+        $projetos_agrupados_total[$proj['professor_nome']][] = $proj;
     }
+
+    // 2. Lógica de Paginação Profissional
+    $limite_por_pagina = 10;
+    $total_professores = count($projetos_agrupados_total);
+    $total_paginas = ceil($total_professores / $limite_por_pagina);
+    
+    $pagina_atual_pag = isset($_GET['pagina']) ? (int)$_GET['pagina'] : 1;
+    if ($pagina_atual_pag < 1) $pagina_atual_pag = 1;
+    if ($pagina_atual_pag > $total_paginas && $total_paginas > 0) $pagina_atual_pag = $total_paginas;
+
+    $offset = ($pagina_atual_pag - 1) * $limite_por_pagina;
+    
+    // Fatiar o array agrupado para mostrar apenas os 10 professores da página atual
+    $projetos_agrupados = array_slice($projetos_agrupados_total, $offset, $limite_por_pagina, true);
+
+    // Construtor de links para paginação manter os filtros aplicados
+    $query_params = $_GET;
+    unset($query_params['pagina']); // Remove a página atual da URL base
+    $query_string = http_build_query($query_params);
+    $url_base = "acompanhar_relatorios.php?" . ($query_string ? $query_string . "&" : "");
 }
 
 $pagina_atual = basename($_SERVER['PHP_SELF']);
@@ -95,7 +114,7 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
         .btn-filtrar:hover { background: #2980b9; }
         .btn-limpar { background: #f1f3f5; color: #444; border: 1px solid #ddd; padding: 10px 15px; border-radius: 5px; font-weight: bold; cursor: pointer; text-decoration: none; transition: 0.3s; }
         
-        .card-table { background: #fff; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.03); overflow: hidden; margin-bottom: 40px; border-top: 4px solid var(--fatec-red); }
+        .card-table { background: #fff; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.03); overflow: hidden; margin-bottom: 30px; border-top: 4px solid var(--fatec-red); }
         table { width: 100%; border-collapse: collapse; }
         th, td { padding: 15px 20px; text-align: left; font-size: 14px; border-bottom: 1px solid #eee; }
         th { background-color: #f8f9fa; color: #555; font-weight: 600; text-transform: uppercase; font-size: 12px; }
@@ -112,7 +131,7 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
         .gaveta-aberta { display: table-row; }
         .tabela-interna { width: 100%; border-left: 4px solid var(--fatec-red); margin: 0; background: #fff; box-shadow: inset 0 2px 5px rgba(0,0,0,0.02); }
         .tabela-interna th { background: #fff; font-size: 11px; border-bottom: 2px solid #eee; padding: 10px 20px; }
-        .tabela-interna td { padding: 12px 20px; font-size: 13.5px; }
+        .tabela-interna td { padding: 12px 20px; font-size: 13.5px; vertical-align: middle; }
 
         .badge { padding: 6px 12px; border-radius: 20px; font-size: 11px; font-weight: bold; text-transform: uppercase; display: inline-block; white-space: nowrap; }
         .badge-pendente { background: #fee2e2; color: #b91c1c; border: 1px solid #f8d7da; }
@@ -130,6 +149,12 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
 
         .btn-voltar { display: inline-flex; align-items: center; gap: 8px; margin-bottom: 20px; color: #666; text-decoration: none; font-weight: bold; font-size: 14px; }
         .page-header { background: #fff; padding: 25px; border-radius: 10px; margin-bottom: 25px; border-left: 5px solid var(--fatec-red); box-shadow: 0 4px 10px rgba(0,0,0,0.03); }
+
+        /* Paginação Profissional */
+        .paginacao { display: flex; justify-content: center; gap: 8px; margin-bottom: 40px; }
+        .paginacao a { display: inline-block; padding: 10px 15px; background: #fff; border: 1px solid #ddd; color: #444; text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 13px; transition: 0.3s; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
+        .paginacao a:hover { background: #f8f9fa; border-color: #ccc; transform: translateY(-1px); }
+        .paginacao a.active { background: var(--fatec-red); color: #fff; border-color: var(--fatec-red); }
     </style>
 </head>
 <body>
@@ -370,6 +395,24 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
                     </table>
                 </div>
             </div>
+
+            <!-- CONTROLES DE PAGINAÇÃO PROFISSIONAL -->
+            <?php if ($total_paginas > 1): ?>
+                <div class="paginacao">
+                    <?php if ($pagina_atual_pag > 1): ?>
+                        <a href="<?php echo $url_base . 'pagina=' . ($pagina_atual_pag - 1); ?>"><i class="fa-solid fa-angle-left"></i> Anterior</a>
+                    <?php endif; ?>
+                    
+                    <?php for ($i = 1; $i <= $total_paginas; $i++): ?>
+                        <a href="<?php echo $url_base . 'pagina=' . $i; ?>" class="<?php echo $i == $pagina_atual_pag ? 'active' : ''; ?>"><?php echo $i; ?></a>
+                    <?php endfor; ?>
+                    
+                    <?php if ($pagina_atual_pag < $total_paginas): ?>
+                        <a href="<?php echo $url_base . 'pagina=' . ($pagina_atual_pag + 1); ?>">Próxima <i class="fa-solid fa-angle-right"></i></a>
+                    <?php endif; ?>
+                </div>
+            <?php endif; ?>
+
         <?php endif; ?>
 
     </main>
