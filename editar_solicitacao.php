@@ -111,25 +111,75 @@ $pagina_atual = 'meus_projetos.php'; // Mantém o menu "Meus Projetos" ativo
 </head>
 <body>
 
-    <aside class="sidebar" id="sidebar">
-        <!-- O menu permanece idêntico aos outros arquivos -->
+<aside class="sidebar" id="sidebar">
         <div class="sidebar-header">
             <a href="painel.php" class="brand">
                 <img src="img/cps_fatecgarca_logo.jfif" alt="Logo Fatec">
-                <h2>HAE <span>FATEC</span></h2>
+                <h2 class="brand-text">HAE</h2>
             </a>
-            <button class="collapse-btn" id="collapse-btn"><i class="fa-solid fa-bars"></i></button>
+            <button class="collapse-btn" id="collapse-btn" title="Minimizar Menu">
+                <i class="fa-solid fa-bars-staggered"></i>
+            </button>
         </div>
+        
         <nav class="menu">
             <div class="menu-title">Navegação</div>
             <ul>
-                <li><a href="painel.php"><i class="fa-solid fa-chart-pie"></i> <span>Dashboard</span></a></li>
-                <li><a href="nova_solicitacao.php"><i class="fa-solid fa-file-circle-plus"></i> <span>Nova Solicitação</span></a></li>
-                <li><a href="meus_projetos.php" class="active"><i class="fa-solid fa-folder-open"></i> <span>Meus Projetos</span></a></li>
-                <li><a href="enviar_relatorio.php"><i class="fa-solid fa-calendar-check"></i> <span>Enviar Relatório</span></a></li>
-                <li><a href="meus_relatorios.php"><i class="fa-solid fa-list-check"></i> <span>Meus Relatórios</span></a></li>
-                <li><a href="perfil.php"><i class="fa-solid fa-user-gear"></i> <span>Meu Perfil</span></a></li>
-                <li><a href="logout.php" class="logout-link"><i class="fa-solid fa-right-from-bracket"></i> <span>Sair do Sistema</span></a></li>
+                <li>
+                    <a href="painel.php" class="<?php echo ($pagina_atual == 'painel.php') ? 'active' : ''; ?>">
+                        <i class="fa-solid fa-chart-pie"></i> <span class="menu-text">Dashboard</span>
+                    </a>
+                </li>
+                
+                <?php if ($_SESSION['usuario_funcao'] == 'Professor'): ?>
+                    <li>
+                        <a href="nova_solicitacao.php" class="<?php echo ($pagina_atual == 'nova_solicitacao.php') ? 'active' : ''; ?>">
+                            <i class="fa-solid fa-file-circle-plus"></i> <span class="menu-text">Nova Solicitação</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="meus_projetos.php" class="<?php echo ($pagina_atual == 'meus_projetos.php') ? 'active' : ''; ?>">
+                            <i class="fa-solid fa-folder-open"></i> <span class="menu-text">Meus Projetos</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="enviar_relatorio.php" class="<?php echo ($pagina_atual == 'enviar_relatorio.php') ? 'active' : ''; ?>">
+                            <i class="fa-solid fa-calendar-check"></i> <span class="menu-text">Enviar Relatório</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="meus_relatorios.php" class="<?php echo ($pagina_atual == 'meus_relatorios.php') ? 'active' : ''; ?>">
+                            <i class="fa-solid fa-list-check"></i> <span class="menu-text">Meus Relatórios</span>
+                        </a>
+                    </li>
+                <?php else: ?>
+                    <li>
+                        <a href="analisar_solicitacoes.php" class="<?php echo ($pagina_atual == 'analisar_solicitacoes.php') ? 'active' : ''; ?>">
+                            <i class="fa-solid fa-clipboard-check"></i> <span class="menu-text">Analisar Solicitações</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="acompanhar_relatorios.php" class="<?php echo ($pagina_atual == 'acompanhar_relatorios.php') ? 'active' : ''; ?>">
+                            <i class="fa-solid fa-chart-line"></i> <span class="menu-text">Acompanhar Relatórios</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="cadastrar_professor.php" class="<?php echo ($pagina_atual == 'cadastrar_professor.php') ? 'active' : ''; ?>">
+                            <i class="fa-solid fa-user-plus"></i> <span class="menu-text">Cadastrar Usuário</span>
+                        </a>
+                    </li>
+                <?php endif; ?>
+                
+                <li>
+                    <a href="perfil.php" class="<?php echo ($pagina_atual == 'perfil.php') ? 'active' : ''; ?>">
+                        <i class="fa-solid fa-user-gear"></i> <span class="menu-text">Meu Perfil</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="logout.php" class="logout-link">
+                        <i class="fa-solid fa-right-from-bracket"></i> <span class="menu-text">Sair do Sistema</span>
+                    </a>
+                </li>
             </ul>
         </nav>
     </aside>

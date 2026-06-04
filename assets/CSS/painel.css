@@ -1,171 +1,328 @@
-/* assets/css/painel.css */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
 :root {
     --fatec-red: #b20000;
     --fatec-red-hover: #8a0000;
-    --sidebar-bg: #ffffff;
-    --sidebar-text: #495057;
-    --sidebar-hover-bg: #f8f9fa;
-    --sidebar-border: #e9ecef;
-    --light-bg: #f4f7f6;
-    --text-muted: #868e96;
-    
+    --sidebar-bg: #ffffff; /* Fundo claro para a logo ficar perfeita */
+    --sidebar-bg-hover: #f8f9fa;
+    --sidebar-color: #555555;
+    --sidebar-active-text: #b20000;
+    --sidebar-active-bg: #fff5f5;
+    --body-bg: #f4f6f9;
+    --text-color: #333333;
     --sidebar-width: 260px;
-    --sidebar-collapsed-width: 76px; /* Largura da barra minimizada */
+    --sidebar-collapsed-width: 80px; /* Largura da barra minimizada */
 }
 
-* { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Inter', sans-serif;
+}
 
-body { display: flex; min-height: 100vh; background-color: var(--light-bg); overflow-x: hidden; }
+body {
+    background-color: var(--body-bg);
+    color: var(--text-color);
+    display: flex;
+    min-height: 100vh;
+    overflow-x: hidden;
+}
 
-/* --- SIDEBAR FIXA E RETRÁTIL --- */
+/* ================= SIDEBAR ================= */
 .sidebar {
-    position: fixed;
-    top: 0;
-    left: 0;
-    height: 100vh; /* Fica 100% da altura da tela */
     width: var(--sidebar-width);
     background-color: var(--sidebar-bg);
-    color: var(--sidebar-text);
+    color: var(--sidebar-color);
+    height: 100vh;
+    position: fixed;
+    left: 0;
+    top: 0;
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    z-index: 1000;
     display: flex;
     flex-direction: column;
-    transition: all 0.3s ease;
-    z-index: 1000;
-    border-right: 1px solid var(--sidebar-border);
-    box-shadow: 2px 0 15px rgba(0,0,0,0.03);
+    box-shadow: 2px 0 10px rgba(0,0,0,0.05);
+    border-right: 1px solid #eee;
 }
-
-.sidebar.collapsed { width: var(--sidebar-collapsed-width); }
 
 .sidebar-header {
     padding: 20px;
     display: flex;
+    flex-direction: column;
     align-items: center;
-    justify-content: space-between;
-    border-bottom: 1px solid var(--sidebar-border);
-    white-space: nowrap;
-    overflow: hidden;
+    justify-content: center;
+    position: relative;
+    border-bottom: 1px solid #eee;
+    min-height: 140px;
 }
 
-/* --- NOVO ESTILO DO LOGO E TÍTULO --- */
 .brand {
     display: flex;
+    flex-direction: column;
     align-items: center;
-    gap: 12px; /* Espaço entre o logo e o texto */
     text-decoration: none;
+    color: #333;
+    gap: 10px;
+    transition: 0.3s;
 }
 
 .brand img {
-    height: 48px; /* Tamanho maior e com mais presença para o site */
-    width: auto;
-    max-width: 100%;
+    width: 70px;
+    height: 70px;
     object-fit: contain;
     transition: all 0.3s ease;
 }
 
-.brand h2 { color: #333; font-size: 20px; font-weight: 700; transition: opacity 0.2s; margin: 0; line-height: 1;}
-.brand span { color: var(--fatec-red); }
-
-/* Quando o menu diminui, esconde o texto e ajusta o tamanho do logo para caber */
-.sidebar.collapsed .brand h2 { opacity: 0; display: none; }
-.sidebar.collapsed .brand img { 
-    height: 35px; /* Diminui um pouco apenas na versão retraída */
-    margin: 0 auto; 
+.brand h2 {
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-align: center;
+    transition: all 0.3s ease;
 }
-.sidebar-header span { color: var(--fatec-red); }
-.sidebar.collapsed .sidebar-header h2 { opacity: 0; display: none; }
 
-/* Botão de Diminuir Menu */
+.brand h2 span {
+    color: var(--fatec-red);
+}
+
+/* Botão de Minimizar a Barra Lateral (Desktop) */
 .collapse-btn {
-    background: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    right: -16px; /* Fica metade para fora da barra, bem moderno */
+    top: 35px;
+    width: 32px;
+    height: 32px;
+    background: var(--fatec-red);
+    color: #fff;
     border: none;
-    color: var(--text-muted);
-    font-size: 20px;
+    border-radius: 50%;
     cursor: pointer;
-    transition: 0.3s;
-    padding: 5px;
+    z-index: 1001;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    transition: background 0.3s ease;
 }
-.collapse-btn:hover { color: var(--fatec-red); }
-.sidebar.collapsed .collapse-btn { margin: 0 auto; }
 
-/* --- ITENS DO MENU --- */
-.menu { padding: 20px 0; flex-grow: 1; overflow-y: auto; overflow-x: hidden; }
-.menu-title { padding: 10px 25px; font-size: 11px; text-transform: uppercase; color: var(--text-muted); font-weight: 700; white-space: nowrap; }
-.sidebar.collapsed .menu-title { display: none; }
+.collapse-btn:hover {
+    background: var(--fatec-red-hover);
+}
+
+/* ================= ESTADO MINIMIZADO (COLLAPSED) ================= */
+.sidebar.collapsed {
+    width: var(--sidebar-collapsed-width);
+}
+
+.sidebar.collapsed .brand h2 {
+    display: none; /* Esconde o texto HAE FATEC */
+}
+
+.sidebar.collapsed .brand img {
+    width: 45px; /* Diminui a logo */
+    height: 45px;
+}
+
+.sidebar.collapsed .menu-title {
+    display: none; /* Esconde o título "Navegação" */
+}
+
+.sidebar.collapsed .menu ul li a span {
+    display: none; /* Esconde o texto dos menus */
+}
+
+.sidebar.collapsed .menu ul li a {
+    justify-content: center;
+    padding: 15px 0;
+}
+
+.sidebar.collapsed .menu ul li a i {
+    margin: 0;
+    font-size: 22px;
+}
+
+/* ================= MENU ================= */
+.menu {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px 0;
+}
+
+.menu::-webkit-scrollbar { width: 5px; }
+    .menu::-webkit-scrollbar-thumb { background: #ddd; border-radius: 5px; }
+
+.menu-title {
+    padding: 10px 25px;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #999;
+    font-weight: 700;
+    margin-bottom: 5px;
+    transition: 0.3s;
+}
 
 .menu ul { list-style: none; }
+
 .menu ul li a {
     display: flex;
     align-items: center;
     padding: 12px 25px;
-    color: var(--sidebar-text);
+    color: var(--sidebar-color);
     text-decoration: none;
     font-size: 14px;
-    font-weight: 500;
+    font-weight: 600;
     transition: 0.3s;
-    border-left: 3px solid transparent;
-    white-space: nowrap;
+    gap: 15px;
+    border-left: 4px solid transparent;
 }
 
-/* Ícones do Menu */
 .menu ul li a i {
     font-size: 18px;
-    min-width: 30px;
-    color: var(--text-muted);
+    width: 25px;
+    text-align: center;
+    color: #888;
     transition: 0.3s;
 }
 
-.sidebar.collapsed .menu ul li a { padding: 15px 0; justify-content: center; }
-.sidebar.collapsed .menu ul li a span { display: none; }
-.sidebar.collapsed .menu ul li a i { min-width: auto; margin: 0; font-size: 20px; }
-
-.menu ul li a:hover, .menu ul li a.active {
-    background: var(--sidebar-hover-bg);
+.menu ul li a:hover {
+    background-color: var(--sidebar-bg-hover);
     color: var(--fatec-red);
-    border-left: 3px solid var(--fatec-red);
 }
-.menu ul li a:hover i, .menu ul li a.active i { color: var(--fatec-red); }
 
-/* Botão de Sair Vermelho */
-.logout-link { color: #d32f2f !important; }
-.logout-link i { color: #d32f2f !important; }
-.logout-link:hover { background: #fee2e2 !important; border-left-color: #d32f2f !important; }
+.menu ul li a.active {
+    background-color: var(--sidebar-active-bg);
+    color: var(--sidebar-active-text);
+    border-left-color: var(--fatec-red);
+}
 
-/* --- CONTEÚDO PRINCIPAL (MAIN) --- */
+.menu ul li a:hover i, 
+.menu ul li a.active i {
+    color: var(--fatec-red);
+}
+
+/* ================= MAIN CONTENT E HEADER ================= */
 .main-content {
-    margin-left: var(--sidebar-width); /* Empurra o conteúdo pra direita */
+    flex: 1;
+    margin-left: var(--sidebar-width);
+    padding: 30px 40px;
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
     width: calc(100% - var(--sidebar-width));
-    flex-grow: 1; 
-    padding: 30px 40px; 
-    transition: all 0.3s ease;
-    min-height: 100vh;
 }
 
-/* Quando o menu diminui, o conteúdo estica */
+/* Quando a barra recolhe, o conteúdo expande e preenche a tela */
 .sidebar.collapsed ~ .main-content {
     margin-left: var(--sidebar-collapsed-width);
     width: calc(100% - var(--sidebar-collapsed-width));
 }
 
-.header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px; }
-.header-top { display: flex; align-items: center; gap: 15px; }
-.header h1 { font-size: 24px; color: #333; }
-.user-info { font-size: 14px; color: #666; font-weight: 500; }
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+    background: #fff;
+    padding: 15px 25px;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.02);
+}
 
-.alert-success { background-color: #d1e7dd; color: #0f5132; padding: 15px 20px; border-radius: 6px; margin-bottom: 30px; border-left: 5px solid #198754; font-weight: 500; }
+.header-top {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
 
-/* Botão Mobile */
-.mobile-toggle { display: none; background: var(--fatec-red); color: white; border: none; padding: 8px 12px; border-radius: 5px; cursor: pointer; font-size: 18px; }
+.header-top h1 {
+    font-size: 20px;
+    color: #333;
+    font-weight: 700;
+    margin: 0;
+}
 
-/* RESPONSIVIDADE PARA CELULARES */
-@media (max-width: 1024px) {
-    .sidebar {
-        left: -var(--sidebar-width); /* Esconde fora da tela */
-        width: var(--sidebar-width) !important;
-    }
-    .sidebar.open { left: 0; }
-    .collapse-btn { display: none; } /* Oculta botão de minimizar no celular */
-    
-    .main-content { margin-left: 0 !important; width: 100% !important; padding: 20px; }
+.user-info {
+    font-size: 14px;
+    color: #666;
+    background: #f8f9fa;
+    padding: 8px 15px;
+    border-radius: 20px;
+    border: 1px solid #eee;
+}
+
+.user-info strong { color: var(--fatec-red); }
+
+.mobile-toggle {
+    display: none;
+    background: #f8f9fa;
+    border: 1px solid #ddd;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 18px;
+    color: #333;
+    cursor: pointer;
+    transition: 0.3s;
+}
+.mobile-toggle:hover { background: #e9ecef; }
+
+.alert-success {
+    background-color: #d1e7dd;
+    color: #0f5132;
+    padding: 15px 20px;
+    border-radius: 8px;
+    border-left: 5px solid #0f5132;
+    margin-bottom: 20px;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+/* ================= MODO RESPONSIVO ================= */
+@media (max-width: 992px) {
+    .main-content { padding: 20px; }
     .header { flex-direction: column; align-items: flex-start; gap: 15px; }
-    .mobile-toggle { display: inline-block; }
+    .user-info { align-self: flex-start; }
+}
+
+@media (max-width: 768px) {
+    .sidebar { transform: translateX(-100%); }
+    
+    .sidebar.active { 
+        transform: translateX(0); 
+        width: var(--sidebar-width); 
+    }
+    
+    .sidebar.active .brand h2, 
+    .sidebar.active .menu-title, 
+    .sidebar.active .menu ul li a span { 
+        display: block; 
+    }
+    
+    .sidebar.active .menu ul li a { 
+        justify-content: flex-start; 
+        padding: 12px 25px; 
+    }
+    
+    .sidebar.active .brand img { 
+        width: 70px; height: 70px; 
+    }
+    
+    .collapse-btn { display: none !important; }
+    
+    .main-content, .sidebar.collapsed ~ .main-content {
+        margin-left: 0;
+        width: 100%;
+        padding: 15px;
+    }
+
+    .mobile-toggle { display: block; }
+    
+    .sidebar-overlay {
+        display: none;
+        position: fixed;
+        top: 0; left: 0;
+        width: 100%; height: 100%;
+        background: rgba(0,0,0,0.6);
+        z-index: 999;
+    }
+    .sidebar-overlay.active { display: block; }
 }

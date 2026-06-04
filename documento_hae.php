@@ -71,6 +71,14 @@ $caminho_assinatura = $dados['assinatura_path'];
         .tabela-horas th, .tabela-horas td { border: 1px solid #000; padding: 8px; text-align: left; }
         .tabela-horas th { background-color: #f2f2f2; }
         
+        /* NOVO LAYOUT DO CABEÇALHO LADO A LADO */
+        .info-topo { display: flex; justify-content: space-between; align-items: stretch; margin-bottom: 20px; }
+        .dados-professor { flex: 1; padding-right: 20px; }
+        .dados-professor p { margin-top: 0; margin-bottom: 10px; }
+        .quadrado-hae { width: 160px; border: 1px solid #000; display: flex; flex-direction: column; text-align: center; }
+        .titulo-quadrado { background-color: #f2f2f2; border-bottom: 1px solid #000; padding: 8px 5px; font-weight: bold; font-size: 11px; text-transform: uppercase; }
+        .valor-quadrado { padding: 15px; font-size: 24px; font-weight: bold; flex: 1; display: flex; align-items: center; justify-content: center; }
+
         .parecer-box { border: 1px solid #000; padding: 15px; margin-top: 20px; margin-bottom: 20px; }
         .grid-parecer { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 15px; text-align: center; }
         .assinatura-responsavel { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 70px; }
@@ -95,14 +103,23 @@ $caminho_assinatura = $dados['assinatura_path'];
     <div class="page">
         <h3>FORMULÁRIO PARA SOLICITAÇÃO DE PROJETO COM<br>HORA ATIVIDADE ESPECÍFICA – <?php echo $ano_projeto; ?></h3>
         
-        <p><strong>Professor Responsável:</strong> <?php echo htmlspecialchars($dados['nome']); ?></p>
-        <p><strong>Data de admissão:</strong> <?php echo $data_admissao; ?> &nbsp;&nbsp;&nbsp; <?php echo $check_determinado; ?> determinado &nbsp;&nbsp;&nbsp; <?php echo $check_indeterminado; ?> indeterminado</p>
-        <p><strong>Formação Acadêmica:</strong> <?php echo htmlspecialchars($dados['formacao_academica']); ?></p>
-        
-        <table class="tabela-horas" style="width: 50%;">
-            <tr><th>Nº HAE Solicitada/Aprovada</th></tr>
-            <tr><td style="text-align: center; font-weight: bold;"><?php echo $dados['quantidade_horas']; ?></td></tr>
-        </table>
+        <!-- CABEÇALHO LADO A LADO -->
+        <div class="info-topo">
+            <div class="dados-professor">
+                <p><strong>Professor Responsável:</strong> <?php echo htmlspecialchars($dados['nome']); ?></p>
+                <p>
+                    <strong>Data de admissão:</strong> <?php echo $data_admissao; ?> &nbsp;&nbsp;&nbsp; 
+                    <?php echo $check_determinado; ?> determinado &nbsp;&nbsp;&nbsp; 
+                    <?php echo $check_indeterminado; ?> indeterminado
+                </p>
+                <p><strong>Formação Acadêmica:</strong> <?php echo htmlspecialchars($dados['formacao_academica']); ?></p>
+            </div>
+            
+            <div class="quadrado-hae">
+                <div class="titulo-quadrado">Nº HAE Solicitada </div>
+                <div class="valor-quadrado"><?php echo $dados['quantidade_horas']; ?></div>
+            </div>
+        </div>
 
         <p><strong>Título do Projeto:</strong> <?php echo htmlspecialchars($dados['titulo_projeto']); ?></p>
         <p><strong>Está relacionado com outro projeto desenvolvido em <?php echo $ano_projeto; ?>?</strong> &nbsp;&nbsp; <?php echo $check_ant_nao; ?> Não &nbsp;&nbsp; <?php echo $check_ant_sim; ?> Sim</p>
