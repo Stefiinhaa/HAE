@@ -2,31 +2,25 @@
 session_start();
 require 'config/conexao.php';
 
-// Segurança: Apenas Professor acessa esta tela
-if (!isset($_SESSION['usuario_id']) || $_SESSION['usuario_funcao'] !== 'Professor') {
+// Segurança: Apenas Professor acessa
+if (!isset($_SESSION['usuario_id']) || $_SESSION['usuario_funcao'] != 'Professor') {
     header("Location: painel.php");
     exit;
 }
 
-$professor_id = $_SESSION['usuario_id'];
-$sucesso = "";
+$usuario_id = $_SESSION['usuario_id'];
+$meses = [1=>'Janeiro', 2=>'Fevereiro', 3=>'Março', 4=>'Abril', 5=>'Maio', 6=>'Junho', 7=>'Julho', 8=>'Agosto', 9=>'Setembro', 10=>'Outubro', 11=>'Novembro', 12=>'Dezembro'];
 
-if (isset($_GET['status_msg']) && $_GET['status_msg'] == 'sucesso') {
-    $tipo = isset($_GET['tipo']) ? $_GET['tipo'] : '';
-    $sucesso = "Relatório " . ($tipo == 'Publicado' ? "publicado em definitivo" : "salvo como rascunho") . " com sucesso!";
-}
-
-// Busca todos os relatórios do professor (juntando com o nome do projeto)
+// CORREÇÃO AQUI: Trocado data_atualizacao por data_envio
 $sql = "SELECT r.*, s.titulo_projeto 
         FROM relatorios_hae r 
         JOIN solicitacoes_hae s ON r.solicitacao_id = s.id 
-        WHERE s.professor_id = ? 
-        ORDER BY r.ano_referencia DESC, r.mes_referencia DESC";
+        WHERE s.professor_id = ? AND r.status = 'Rascunho' 
+        ORDER BY r.data_envio DESC";
 $stmt = $pdo->prepare($sql);
-$stmt->execute([$professor_id]);
-$relatorios = $stmt->fetchAll(PDO::FETCH_ASSOC);
+$stmt->execute([$usuario_id]);
+$rascunhos = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-$meses = [1=>'Janeiro', 2=>'Fevereiro', 3=>'Março', 4=>'Abril', 5=>'Maio', 6=>'Junho', 7=>'Julho', 8=>'Agosto', 9=>'Setembro', 10=>'Outubro', 11=>'Novembro', 12=>'Dezembro'];
 $pagina_atual = basename($_SERVER['PHP_SELF']);
 ?>
 <!DOCTYPE html>
@@ -34,24 +28,24 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Meus Relatórios - HAE Fatec</title>
+    <title>Meus Rascunhos - HAE Fatec</title>
     <link rel="stylesheet" href="assets/css/painel.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        .card-table { background: #fff; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.03); overflow: hidden; border-top: 4px solid var(--fatec-red); margin-top: 20px; }
+        .card-table { background: #fff; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.03); overflow: hidden; border-top: 4px solid #f39c12; }
         table { width: 100%; border-collapse: collapse; }
         th, td { padding: 15px 20px; text-align: left; border-bottom: 1px solid #eee; font-size: 14px; vertical-align: middle; }
         th { background-color: #f8f9fa; color: #555; font-weight: 600; text-transform: uppercase; font-size: 12px; }
         tr:hover { background-color: #fcfcfc; }
         
         .badge { padding: 6px 12px; border-radius: 20px; font-size: 11px; font-weight: bold; text-transform: uppercase; display: inline-block; white-space: nowrap; }
-        .bg-rascunho { background: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
-        .bg-publicado { background: #d1e7dd; color: #0f5132; border: 1px solid #badbcc; }
+        .badge-rascunho { background: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
 
-        .btn-action { padding: 8px 12px; border-radius: 4px; text-decoration: none; font-size: 12px; font-weight: bold; transition: 0.3s; display: inline-flex; align-items: center; gap: 5px; border: none; cursor: pointer; }
-        .btn-editar { background: #3498db; color: #fff; }
-        .btn-editar:hover { background: #2980b9; }
-        .texto-bloqueado { color: #888; font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 5px; }
+        .btn-action { background: #3498db; color: #fff; padding: 8px 15px; border-radius: 4px; text-decoration: none; font-size: 12px; font-weight: bold; transition: 0.3s; display: inline-flex; align-items: center; gap: 5px; border: none; cursor: pointer; }
+        .btn-action:hover { background: #2980b9; }
+        
+        .info-vazio { text-align: center; padding: 50px; color: #888; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .info-vazio i { font-size: 40px; color: #ddd; }
     </style>
 </head>
 <body>
@@ -92,9 +86,10 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
                             <i class="fa-solid fa-calendar-check"></i> <span class="menu-text">Enviar Relatório</span>
                         </a>
                     </li>
+                    <!-- O LINK ATUALIZADO AQUI -->
                     <li>
-                        <a href="meus_relatorios.php" class="<?php echo ($pagina_atual == 'meus_relatorios.php') ? 'active' : ''; ?>">
-                            <i class="fa-solid fa-list-check"></i> <span class="menu-text">Meus Relatórios</span>
+                        <a href="meus_rascunhos.php" class="<?php echo ($pagina_atual == 'meus_rascunhos.php') ? 'active' : ''; ?>">
+                            <i class="fa-solid fa-file-pen"></i> <span class="menu-text">Meus Rascunhos</span>
                         </a>
                     </li>
                 <?php else: ?>
@@ -133,55 +128,47 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
         <header class="header">
             <div class="header-top">
                 <button class="mobile-toggle" id="mobile-toggle"><i class="fa-solid fa-bars"></i></button>
-                <h1>Histórico de Relatórios</h1>
+                <h1>Meus Rascunhos de Relatório</h1>
             </div>
             <div class="user-info">Olá, <strong><?php echo htmlspecialchars($_SESSION['usuario_nome']); ?></strong></div>
         </header>
 
-        <?php if($sucesso) echo "<div class='alert-success'>✅ $sucesso</div>"; ?>
-
-        <p style="color: #666; margin-bottom: 20px;">Acompanhe aqui todos os relatórios mensais enviados e continue a edição dos seus rascunhos.</p>
+        <p style="color: #666; margin-bottom: 25px;">Aqui ficam guardados os relatórios que você começou a preencher, mas salvou como rascunho para terminar depois.</p>
 
         <div class="card-table">
             <div style="overflow-x: auto;">
                 <table>
                     <thead>
                         <tr>
-                            <th>Mês / Ano</th>
-                            <th>Projeto Relacionado</th>
-                            <th>Última Atualização</th>
+                            <th>Data do Salvo</th>
+                            <th>Mês de Referência</th>
+                            <th style="width: 40%;">Projeto Vinculado</th>
                             <th>Status</th>
-                            <th>Ações</th>
+                            <th>Ação</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <?php if (count($relatorios) > 0): ?>
-                            <?php foreach ($relatorios as $rel): ?>
+                        <?php if (count($rascunhos) > 0): ?>
+                            <?php foreach ($rascunhos as $r): ?>
                                 <tr>
-                                    <td><strong><?php echo $meses[$rel['mes_referencia']] . ' / ' . $rel['ano_referencia']; ?></strong></td>
-                                    <td><?php echo htmlspecialchars($rel['titulo_projeto']); ?></td>
-                                    <td><?php echo date('d/m/Y H:i', strtotime($rel['data_envio'])); ?></td>
+                                    <td><?php echo date('d/m/Y \à\s H:i', strtotime($r['data_envio'])); ?></td>
+                                    <td><strong><?php echo $meses[$r['mes_referencia']] . ' / ' . $r['ano_referencia']; ?></strong></td>
+                                    <td><?php echo htmlspecialchars($r['titulo_projeto']); ?></td>
+                                    <td><span class="badge badge-rascunho"><i class="fa-solid fa-pen"></i> Em Edição</span></td>
                                     <td>
-                                        <span class="badge <?php echo $rel['status'] == 'Publicado' ? 'bg-publicado' : 'bg-rascunho'; ?>">
-                                            <?php echo $rel['status']; ?>
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <?php if ($rel['status'] == 'Rascunho'): ?>
-                                            <a href="enviar_relatorio.php?id_projeto=<?php echo $rel['solicitacao_id']; ?>&edit_id=<?php echo $rel['id']; ?>" class="btn-action btn-editar">
-                                                <i class="fa-solid fa-pen-to-square"></i> Continuar Edição
-                                            </a>
-                                        <?php else: ?>
-                                            <span class="texto-bloqueado"><i class="fa-solid fa-lock"></i> Entregue Definitivo</span>
-                                        <?php endif; ?>
+                                        <a href="enviar_relatorio.php?id=<?php echo $r['id']; ?>" class="btn-action">
+                                            <i class="fa-solid fa-arrow-up-right-from-square"></i> Continuar Editando
+                                        </a>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>
                         <?php else: ?>
                             <tr>
-                                <td colspan="5" style="text-align:center; padding: 40px; color: #888;">
-                                    <i class="fa-solid fa-file-excel" style="font-size: 30px; margin-bottom: 10px; color: #ddd; display: block;"></i>
-                                    Nenhum relatório foi salvo ou enviado ainda.
+                                <td colspan="5">
+                                    <div class="info-vazio">
+                                        <i class="fa-solid fa-box-open"></i>
+                                        Você não possui nenhum rascunho salvo no momento.
+                                    </div>
                                 </td>
                             </tr>
                         <?php endif; ?>

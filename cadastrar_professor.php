@@ -115,9 +115,10 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
                             <i class="fa-solid fa-calendar-check"></i> <span class="menu-text">Enviar Relatório</span>
                         </a>
                     </li>
+                    <!-- O LINK ATUALIZADO AQUI -->
                     <li>
-                        <a href="meus_relatorios.php" class="<?php echo ($pagina_atual == 'meus_relatorios.php') ? 'active' : ''; ?>">
-                            <i class="fa-solid fa-list-check"></i> <span class="menu-text">Meus Relatórios</span>
+                        <a href="meus_rascunhos.php" class="<?php echo ($pagina_atual == 'meus_rascunhos.php') ? 'active' : ''; ?>">
+                            <i class="fa-solid fa-file-pen"></i> <span class="menu-text">Meus Rascunhos</span>
                         </a>
                     </li>
                 <?php else: ?>

@@ -32,8 +32,10 @@ if ($visualizando_projeto_id > 0) {
     // ==============================================================================
     // TELA 1: GRID GERAL COM ACORDEÃO E PAGINAÇÃO
     // ==============================================================================
-    $mes_padrao = date('n') == 1 ? 12 : date('n') - 1;
-    $ano_padrao = $mes_padrao == 12 && date('n') == 1 ? date('Y') - 1 : date('Y');
+    
+    // CORREÇÃO: Agora o filtro padrão é SEMPRE o mês e ano do momento exato do acesso
+    $mes_padrao = (int)date('n');
+    $ano_padrao = (int)date('Y');
 
     $filtro_mes = isset($_GET['mes']) ? (int)$_GET['mes'] : $mes_padrao;
     $filtro_ano = isset($_GET['ano']) ? (int)$_GET['ano'] : $ano_padrao;
@@ -43,6 +45,10 @@ if ($visualizando_projeto_id > 0) {
     $params = [$filtro_mes, $filtro_ano]; 
     $where = ["s.status_aprovacao = 'Aprovado'"];
 
+    $ultimo_dia_mes_filtro = date('Y-m-t 23:59:59', strtotime(sprintf('%04d-%02d-01', $filtro_ano, $filtro_mes)));
+    $where[] = "(COALESCE(s.data_aprovacao_diretor, s.data_aprovacao_coordenador, s.data_criacao) <= ? OR r.id IS NOT NULL)";
+    $params[] = $ultimo_dia_mes_filtro;
+
     if (!empty($filtro_busca)) {
         $where[] = "(u.nome LIKE ? OR s.titulo_projeto LIKE ?)";
         $params[] = "%$filtro_busca%";
@@ -50,15 +56,16 @@ if ($visualizando_projeto_id > 0) {
     }
 
     if ($filtro_status == 'Pendente') {
-        $where[] = "NOT EXISTS (SELECT 1 FROM relatorios_hae r WHERE r.solicitacao_id = s.id AND r.mes_referencia = $filtro_mes AND r.ano_referencia = $filtro_ano AND r.status = 'Publicado')";
+        $where[] = "r.id IS NULL";
     } elseif ($filtro_status == 'Entregue') {
-        $where[] = "EXISTS (SELECT 1 FROM relatorios_hae r WHERE r.solicitacao_id = s.id AND r.mes_referencia = $filtro_mes AND r.ano_referencia = $filtro_ano AND r.status = 'Publicado')";
+        $where[] = "r.id IS NOT NULL";
     }
 
     $sql = "SELECT s.id, s.titulo_projeto, s.semestre, u.nome as professor_nome, u.telefone_whatsapp,
-            (SELECT r.id FROM relatorios_hae r WHERE r.solicitacao_id = s.id AND r.mes_referencia = ? AND r.ano_referencia = ? AND r.status = 'Publicado' LIMIT 1) as relatorio_entregue_id
+            r.id as relatorio_entregue_id
             FROM solicitacoes_hae s 
             JOIN usuarios u ON s.professor_id = u.id 
+            LEFT JOIN relatorios_hae r ON (r.solicitacao_id = s.id AND r.mes_referencia = ? AND r.ano_referencia = ? AND r.status = 'Publicado')
             WHERE " . implode(" AND ", $where) . " 
             ORDER BY u.nome ASC, s.titulo_projeto ASC";
             
@@ -66,13 +73,11 @@ if ($visualizando_projeto_id > 0) {
     $stmt->execute($params);
     $projetos = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
-    // 1. Agrupamento Total para o Acordeão
     $projetos_agrupados_total = [];
     foreach ($projetos as $proj) {
         $projetos_agrupados_total[$proj['professor_nome']][] = $proj;
     }
 
-    // 2. Lógica de Paginação Profissional
     $limite_por_pagina = 10;
     $total_professores = count($projetos_agrupados_total);
     $total_paginas = ceil($total_professores / $limite_por_pagina);
@@ -82,13 +87,10 @@ if ($visualizando_projeto_id > 0) {
     if ($pagina_atual_pag > $total_paginas && $total_paginas > 0) $pagina_atual_pag = $total_paginas;
 
     $offset = ($pagina_atual_pag - 1) * $limite_por_pagina;
-    
-    // Fatiar o array agrupado para mostrar apenas os 10 professores da página atual
     $projetos_agrupados = array_slice($projetos_agrupados_total, $offset, $limite_por_pagina, true);
 
-    // Construtor de links para paginação manter os filtros aplicados
     $query_params = $_GET;
-    unset($query_params['pagina']); // Remove a página atual da URL base
+    unset($query_params['pagina']);
     $query_string = http_build_query($query_params);
     $url_base = "acompanhar_relatorios.php?" . ($query_string ? $query_string . "&" : "");
 }
@@ -119,7 +121,6 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
         th, td { padding: 15px 20px; text-align: left; font-size: 14px; border-bottom: 1px solid #eee; }
         th { background-color: #f8f9fa; color: #555; font-weight: 600; text-transform: uppercase; font-size: 12px; }
         
-        /* ESTILOS DO ACORDEÃO (LINHA MESTRA E DETALHES) */
         .linha-mestra { cursor: pointer; transition: 0.2s; }
         .linha-mestra:hover { background-color: #f4f6f9; }
         .linha-mestra td { border-bottom: 1px solid #e0e0e0; }
@@ -150,7 +151,6 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
         .btn-voltar { display: inline-flex; align-items: center; gap: 8px; margin-bottom: 20px; color: #666; text-decoration: none; font-weight: bold; font-size: 14px; }
         .page-header { background: #fff; padding: 25px; border-radius: 10px; margin-bottom: 25px; border-left: 5px solid var(--fatec-red); box-shadow: 0 4px 10px rgba(0,0,0,0.03); }
 
-        /* Paginação Profissional */
         .paginacao { display: flex; justify-content: center; gap: 8px; margin-bottom: 40px; }
         .paginacao a { display: inline-block; padding: 10px 15px; background: #fff; border: 1px solid #ddd; color: #444; text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 13px; transition: 0.3s; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
         .paginacao a:hover { background: #f8f9fa; border-color: #ccc; transform: translateY(-1px); }
@@ -159,75 +159,23 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
 </head>
 <body>
 
-<aside class="sidebar" id="sidebar">
+    <aside class="sidebar" id="sidebar">
         <div class="sidebar-header">
             <a href="painel.php" class="brand">
                 <img src="img/cps_fatecgarca_logo.jfif" alt="Logo Fatec">
                 <h2 class="brand-text">HAE</h2>
             </a>
-            <button class="collapse-btn" id="collapse-btn" title="Minimizar Menu">
-                <i class="fa-solid fa-bars-staggered"></i>
-            </button>
+            <button class="collapse-btn" id="collapse-btn" title="Minimizar Menu"><i class="fa-solid fa-bars-staggered"></i></button>
         </div>
-        
         <nav class="menu">
             <div class="menu-title">Navegação</div>
             <ul>
-                <li>
-                    <a href="painel.php" class="<?php echo ($pagina_atual == 'painel.php') ? 'active' : ''; ?>">
-                        <i class="fa-solid fa-chart-pie"></i> <span class="menu-text">Dashboard</span>
-                    </a>
-                </li>
-                
-                <?php if ($_SESSION['usuario_funcao'] == 'Professor'): ?>
-                    <li>
-                        <a href="nova_solicitacao.php" class="<?php echo ($pagina_atual == 'nova_solicitacao.php') ? 'active' : ''; ?>">
-                            <i class="fa-solid fa-file-circle-plus"></i> <span class="menu-text">Nova Solicitação</span>
-                        </a>
-                    </li>
-                    <li>
-                        <a href="meus_projetos.php" class="<?php echo ($pagina_atual == 'meus_projetos.php') ? 'active' : ''; ?>">
-                            <i class="fa-solid fa-folder-open"></i> <span class="menu-text">Meus Projetos</span>
-                        </a>
-                    </li>
-                    <li>
-                        <a href="enviar_relatorio.php" class="<?php echo ($pagina_atual == 'enviar_relatorio.php') ? 'active' : ''; ?>">
-                            <i class="fa-solid fa-calendar-check"></i> <span class="menu-text">Enviar Relatório</span>
-                        </a>
-                    </li>
-                    <li>
-                        <a href="meus_relatorios.php" class="<?php echo ($pagina_atual == 'meus_relatorios.php') ? 'active' : ''; ?>">
-                            <i class="fa-solid fa-list-check"></i> <span class="menu-text">Meus Relatórios</span>
-                        </a>
-                    </li>
-                <?php else: ?>
-                    <li>
-                        <a href="analisar_solicitacoes.php" class="<?php echo ($pagina_atual == 'analisar_solicitacoes.php') ? 'active' : ''; ?>">
-                            <i class="fa-solid fa-clipboard-check"></i> <span class="menu-text">Analisar Solicitações</span>
-                        </a>
-                    </li>
-                    <li>
-                        <a href="acompanhar_relatorios.php" class="<?php echo ($pagina_atual == 'acompanhar_relatorios.php') ? 'active' : ''; ?>">
-                            <i class="fa-solid fa-chart-line"></i> <span class="menu-text">Acompanhar Relatórios</span>
-                        </a>
-                    </li>
-                    <li>
-                        <a href="cadastrar_professor.php" class="<?php echo ($pagina_atual == 'cadastrar_professor.php') ? 'active' : ''; ?>">
-                            <i class="fa-solid fa-user-plus"></i> <span class="menu-text">Cadastrar Usuário</span>
-                        </a>
-                    </li>
-                <?php endif; ?>
-                
-                <li>
-                    <a href="perfil.php" class="<?php echo ($pagina_atual == 'perfil.php') ? 'active' : ''; ?>">
-                        <i class="fa-solid fa-user-gear"></i> <span class="menu-text">Meu Perfil</span>
-                    </a>
-                </li>
-                <li>
-                    <a href="logout.php" class="logout-link">
-                        <i class="fa-solid fa-right-from-bracket"></i> <span class="menu-text">Sair do Sistema</span>
-                    </a>
-                </li>
+                <li><a href="painel.php" class="<?php echo ($pagina_atual == 'painel.php') ? 'active' : ''; ?>"><i class="fa-solid fa-chart-pie"></i> <span class="menu-text">Dashboard</span></a></li>
+                <li><a href="analisar_solicitacoes.php" class="<?php echo ($pagina_atual == 'analisar_solicitacoes.php') ? 'active' : ''; ?>"><i class="fa-solid fa-clipboard-check"></i> <span class="menu-text">Analisar Solicitações</span></a></li>
+                <li><a href="acompanhar_relatorios.php" class="<?php echo ($pagina_atual == 'acompanhar_relatorios.php') ? 'active' : ''; ?>"><i class="fa-solid fa-chart-line"></i> <span class="menu-text">Acompanhar Relatórios</span></a></li>
+                <li><a href="cadastrar_professor.php" class="<?php echo ($pagina_atual == 'cadastrar_professor.php') ? 'active' : ''; ?>"><i class="fa-solid fa-user-plus"></i> <span class="menu-text">Cadastrar Usuário</span></a></li>
+                <li><a href="perfil.php" class="<?php echo ($pagina_atual == 'perfil.php') ? 'active' : ''; ?>"><i class="fa-solid fa-user-gear"></i> <span class="menu-text">Meu Perfil</span></a></li>
+                <li><a href="logout.php" class="logout-link"><i class="fa-solid fa-right-from-bracket"></i> <span class="menu-text">Sair do Sistema</span></a></li>
             </ul>
         </nav>
     </aside>
@@ -238,11 +186,10 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
                 <button class="mobile-toggle" id="mobile-toggle"><i class="fa-solid fa-bars"></i></button>
                 <h1>Gestão de Relatórios Mensais</h1>
             </div>
-            <div class="user-info">Olá, <strong><?php echo $_SESSION['usuario_nome']; ?></strong></div>
+            <div class="user-info">Olá, <strong><?php echo htmlspecialchars($_SESSION['usuario_nome']); ?></strong></div>
         </header>
 
         <?php if ($visualizando_projeto_id > 0): ?>
-            <!-- TELA 2: HISTÓRICO DE RELATÓRIOS DO PROJETO SELECIONADO -->
             <a href="acompanhar_relatorios.php" class="btn-voltar"><i class="fa-solid fa-arrow-left"></i> Voltar para a visão geral</a>
             
             <div class="page-header">
@@ -295,7 +242,6 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
             </div>
 
         <?php else: ?>
-            <!-- TELA 1: GRID PRINCIPAL (ACORDEÃO) E FILTROS -->
             <form method="GET" class="filter-bar">
                 <div class="filter-group" style="flex: 2;">
                     <label>Buscar Professor ou Projeto</label>
@@ -352,7 +298,6 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
                                 <?php foreach ($projetos_agrupados as $nome_prof => $lista_projetos): ?>
                                     
                                     <?php 
-                                        // Calcula o resumo daquele professor
                                         $qtd_projetos = count($lista_projetos);
                                         $qtd_entregues = 0;
                                         $qtd_pendentes = 0;
@@ -362,7 +307,6 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
                                         }
                                     ?>
                                     
-                                    <!-- LINHA MESTRA (RESUMO DO PROFESSOR) -->
                                     <tr class="linha-mestra" id="mestra_<?php echo $id_accordion; ?>" onclick="toggleGaveta(<?php echo $id_accordion; ?>)">
                                         <td>
                                             <i class="fa-solid fa-chevron-down icone-expandir"></i>
@@ -382,7 +326,6 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
                                         </td>
                                     </tr>
                                     
-                                    <!-- GAVETA OCULTA COM OS PROJETOS DELE -->
                                     <tr class="gaveta-detalhes" id="gaveta_<?php echo $id_accordion; ?>">
                                         <td colspan="4" style="padding: 0;">
                                             <table class="tabela-interna">
@@ -448,7 +391,6 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
                 </div>
             </div>
 
-            <!-- CONTROLES DE PAGINAÇÃO PROFISSIONAL -->
             <?php if ($total_paginas > 1): ?>
                 <div class="paginacao">
                     <?php if ($pagina_atual_pag > 1): ?>
