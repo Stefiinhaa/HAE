@@ -33,9 +33,15 @@ if ($visualizando_projeto_id > 0) {
     // TELA 1: GRID GERAL COM ACORDEÃO E PAGINAÇÃO
     // ==============================================================================
     
-    // CORREÇÃO: Agora o filtro padrão é SEMPRE o mês e ano do momento exato do acesso
-    $mes_padrao = (int)date('n');
-    $ano_padrao = (int)date('Y');
+    // =========================================================================
+    // ⏳ MÁQUINA DO TEMPO (SIMULAÇÃO) - Forçando o filtro para abrir em Julho
+    // =========================================================================
+    // $mes_padrao = (int)date('n'); // <-- MUNDO REAL (Desativado)
+    // $ano_padrao = (int)date('Y'); // <-- MUNDO REAL (Desativado)
+    
+    $mes_padrao = 7; // JULHO
+    $ano_padrao = 2026;
+    // =========================================================================
 
     $filtro_mes = isset($_GET['mes']) ? (int)$_GET['mes'] : $mes_padrao;
     $filtro_ano = isset($_GET['ano']) ? (int)$_GET['ano'] : $ano_padrao;
@@ -172,7 +178,17 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
             <ul>
                 <li><a href="painel.php" class="<?php echo ($pagina_atual == 'painel.php') ? 'active' : ''; ?>"><i class="fa-solid fa-chart-pie"></i> <span class="menu-text">Dashboard</span></a></li>
                 <li><a href="analisar_solicitacoes.php" class="<?php echo ($pagina_atual == 'analisar_solicitacoes.php') ? 'active' : ''; ?>"><i class="fa-solid fa-clipboard-check"></i> <span class="menu-text">Analisar Solicitações</span></a></li>
-                <li><a href="acompanhar_relatorios.php" class="<?php echo ($pagina_atual == 'acompanhar_relatorios.php') ? 'active' : ''; ?>"><i class="fa-solid fa-chart-line"></i> <span class="menu-text">Acompanhar Relatórios</span></a></li>
+               <!-- Substitua o link de "Acompanhar Relatórios" ou adicione este abaixo -->
+<li>
+    <a href="acompanhar_relatorios.php" class="<?php echo ($pagina_atual == 'acompanhar_relatorios.php') ? 'active' : ''; ?>">
+        <i class="fa-solid fa-chart-line"></i> <span class="menu-text">Acompanhar Relatórios</span>
+    </a>
+</li>
+<li>
+    <a href="relatorio_inadimplentes.php" class="<?php echo ($pagina_atual == 'relatorio_inadimplentes.php') ? 'active' : ''; ?>">
+        <i class="fa-solid fa-file-invoice"></i> <span class="menu-text">Relatório de Inadimplência</span>
+    </a>
+</li>
                 <li><a href="cadastrar_professor.php" class="<?php echo ($pagina_atual == 'cadastrar_professor.php') ? 'active' : ''; ?>"><i class="fa-solid fa-user-plus"></i> <span class="menu-text">Cadastrar Usuário</span></a></li>
                 <li><a href="perfil.php" class="<?php echo ($pagina_atual == 'perfil.php') ? 'active' : ''; ?>"><i class="fa-solid fa-user-gear"></i> <span class="menu-text">Meu Perfil</span></a></li>
                 <li><a href="logout.php" class="logout-link"><i class="fa-solid fa-right-from-bracket"></i> <span class="menu-text">Sair do Sistema</span></a></li>

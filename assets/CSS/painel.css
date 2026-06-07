@@ -211,6 +211,15 @@ body {
     box-shadow: 0 4px 15px rgba(231, 76, 60, 0.12) !important;
 }
 
+
+@media print {
+    .sidebar, .filter-bar, .header, .acoes-flex, .btn-filtrar { display: none !important; }
+    .main-content { width: 100% !important; margin: 0 !important; padding: 0 !important; }
+    .card-table { border: none; box-shadow: none; }
+}
+
+
+
 /* Animação de entrada suave do alerta */
 @keyframes slideDownAlert {
     0% { 

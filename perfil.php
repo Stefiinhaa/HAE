@@ -192,6 +192,9 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
                         </a>
                     </li>
                     <li>
+                        <a href="relatorio_inadimplentes.php" class="<?php echo ($pagina_atual == 'relatorio_inadimplentes.php') ? 'active' : ''; ?>">
+                        <i class="fa-solid fa-file-invoice"></i> <span class="menu-text">Relatório de Inadimplência</span></a></li>
+                    <li>
                         <a href="cadastrar_professor.php" class="<?php echo ($pagina_atual == 'cadastrar_professor.php') ? 'active' : ''; ?>">
                             <i class="fa-solid fa-user-plus"></i> <span class="menu-text">Cadastrar Usuário</span>
                         </a>
