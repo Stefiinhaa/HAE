@@ -33,15 +33,9 @@ if ($visualizando_projeto_id > 0) {
     // TELA 1: GRID GERAL COM ACORDEÃO E PAGINAÇÃO
     // ==============================================================================
     
-    // =========================================================================
-    // ⏳ MÁQUINA DO TEMPO (SIMULAÇÃO) - Forçando o filtro para abrir em Julho
-    // =========================================================================
-    // $mes_padrao = (int)date('n'); // <-- MUNDO REAL (Desativado)
-    // $ano_padrao = (int)date('Y'); // <-- MUNDO REAL (Desativado)
-    
-    $mes_padrao = 7; // JULHO
-    $ano_padrao = 2026;
-    // =========================================================================
+    // MUNDO REAL ATIVADO (Filtro padrão no mês atual)
+    $mes_padrao = (int)date('n'); 
+    $ano_padrao = (int)date('Y'); 
 
     $filtro_mes = isset($_GET['mes']) ? (int)$_GET['mes'] : $mes_padrao;
     $filtro_ano = isset($_GET['ano']) ? (int)$_GET['ano'] : $ano_padrao;
@@ -178,17 +172,8 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
             <ul>
                 <li><a href="painel.php" class="<?php echo ($pagina_atual == 'painel.php') ? 'active' : ''; ?>"><i class="fa-solid fa-chart-pie"></i> <span class="menu-text">Dashboard</span></a></li>
                 <li><a href="analisar_solicitacoes.php" class="<?php echo ($pagina_atual == 'analisar_solicitacoes.php') ? 'active' : ''; ?>"><i class="fa-solid fa-clipboard-check"></i> <span class="menu-text">Analisar Solicitações</span></a></li>
-               <!-- Substitua o link de "Acompanhar Relatórios" ou adicione este abaixo -->
-<li>
-    <a href="acompanhar_relatorios.php" class="<?php echo ($pagina_atual == 'acompanhar_relatorios.php') ? 'active' : ''; ?>">
-        <i class="fa-solid fa-chart-line"></i> <span class="menu-text">Acompanhar Relatórios</span>
-    </a>
-</li>
-<li>
-    <a href="relatorio_inadimplentes.php" class="<?php echo ($pagina_atual == 'relatorio_inadimplentes.php') ? 'active' : ''; ?>">
-        <i class="fa-solid fa-file-invoice"></i> <span class="menu-text">Relatório de Inadimplência</span>
-    </a>
-</li>
+                <li><a href="acompanhar_relatorios.php" class="<?php echo ($pagina_atual == 'acompanhar_relatorios.php') ? 'active' : ''; ?>"><i class="fa-solid fa-chart-line"></i> <span class="menu-text">Acompanhar Relatórios</span></a></li>
+                <li><a href="relatorio_inadimplentes.php" class="<?php echo ($pagina_atual == 'relatorio_inadimplentes.php') ? 'active' : ''; ?>"><i class="fa-solid fa-file-invoice"></i> <span class="menu-text">Relatório de Inadimplência</span></a></li>
                 <li><a href="cadastrar_professor.php" class="<?php echo ($pagina_atual == 'cadastrar_professor.php') ? 'active' : ''; ?>"><i class="fa-solid fa-user-plus"></i> <span class="menu-text">Cadastrar Usuário</span></a></li>
                 <li><a href="perfil.php" class="<?php echo ($pagina_atual == 'perfil.php') ? 'active' : ''; ?>"><i class="fa-solid fa-user-gear"></i> <span class="menu-text">Meu Perfil</span></a></li>
                 <li><a href="logout.php" class="logout-link"><i class="fa-solid fa-right-from-bracket"></i> <span class="menu-text">Sair do Sistema</span></a></li>
@@ -258,44 +243,48 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
             </div>
 
         <?php else: ?>
-            <form method="GET" class="filter-bar">
-                <div class="filter-group" style="flex: 2;">
-                    <label>Buscar Professor ou Projeto</label>
-                    <input type="text" name="busca" placeholder="Digite um nome..." value="<?php echo htmlspecialchars($filtro_busca); ?>">
-                </div>
-                <div class="filter-group">
-                    <label>Mês de Referência</label>
-                    <select name="mes">
-                        <?php foreach($meses as $num => $nome): ?>
-                            <option value="<?php echo $num; ?>" <?php echo $filtro_mes == $num ? 'selected' : ''; ?>><?php echo $nome; ?></option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-                <div class="filter-group">
-                    <label>Ano</label>
-                    <select name="ano">
-                        <option value="2024" <?php echo $filtro_ano == 2024 ? 'selected' : ''; ?>>2024</option>
-                        <option value="2025" <?php echo $filtro_ano == 2025 ? 'selected' : ''; ?>>2025</option>
-                        <option value="2026" <?php echo $filtro_ano == 2026 ? 'selected' : ''; ?>>2026</option>
-                    </select>
-                </div>
-                <div class="filter-group">
-                    <label>Filtro Rápido</label>
-                    <select name="status_filtro">
-                        <option value="Todos" <?php echo $filtro_status == 'Todos' ? 'selected' : ''; ?>>Todos os Professores</option>
-                        <option value="Pendente" <?php echo $filtro_status == 'Pendente' ? 'selected' : ''; ?>>Somente Atrasados</option>
-                        <option value="Entregue" <?php echo $filtro_status == 'Entregue' ? 'selected' : ''; ?>>Somente Entregues</option>
-                    </select>
-                </div>
-                <div style="display: flex; gap: 10px;">
-                    <button type="submit" class="btn-filtrar"><i class="fa-solid fa-magnifying-glass"></i> Consultar</button>
-                    <a href="acompanhar_relatorios.php" class="btn-limpar">Limpar</a>
-                </div>
-            </form>
+            <div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
+                <form method="GET" class="filter-bar" style="margin-bottom: 0; width: 100%;">
+                    <div class="filter-group" style="flex: 2;">
+                        <label>Buscar Professor ou Projeto</label>
+                        <input type="text" name="busca" placeholder="Digite um nome..." value="<?php echo htmlspecialchars($filtro_busca); ?>">
+                    </div>
+                    <div class="filter-group">
+                        <label>Mês de Referência</label>
+                        <select name="mes">
+                            <?php foreach($meses as $num => $nome): ?>
+                                <option value="<?php echo $num; ?>" <?php echo $filtro_mes == $num ? 'selected' : ''; ?>><?php echo $nome; ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Ano</label>
+                        <select name="ano">
+                            <option value="2024" <?php echo $filtro_ano == 2024 ? 'selected' : ''; ?>>2024</option>
+                            <option value="2025" <?php echo $filtro_ano == 2025 ? 'selected' : ''; ?>>2025</option>
+                            <option value="2026" <?php echo $filtro_ano == 2026 ? 'selected' : ''; ?>>2026</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Filtro Rápido</label>
+                        <select name="status_filtro">
+                            <option value="Todos" <?php echo $filtro_status == 'Todos' ? 'selected' : ''; ?>>Todos os Professores</option>
+                            <option value="Pendente" <?php echo $filtro_status == 'Pendente' ? 'selected' : ''; ?>>Somente Atrasados</option>
+                            <option value="Entregue" <?php echo $filtro_status == 'Entregue' ? 'selected' : ''; ?>>Somente Entregues</option>
+                        </select>
+                    </div>
+                    <div style="display: flex; gap: 10px;">
+                        <button type="submit" class="btn-filtrar"><i class="fa-solid fa-magnifying-glass"></i> Consultar</button>
+                        <a href="acompanhar_relatorios.php" class="btn-limpar">Limpar</a>
+                    </div>
+                </form>
+            </div>
 
-            <h3 style="margin-bottom: 15px; font-size: 16px; color: #333;">
-                Situação no período: <span style="color: var(--fatec-red);"><?php echo $meses[$filtro_mes] . '/' . $filtro_ano; ?></span>
-            </h3>
+            <div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
+                <h3 style="color: #333;">
+                    Situação no período: <span style="color: var(--fatec-red);"><?php echo $meses[$filtro_mes] . '/' . $filtro_ano; ?></span>
+                </h3>
+            </div>
 
             <div class="card-table">
                 <div style="overflow-x: auto;">

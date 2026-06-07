@@ -16,11 +16,8 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
 
 $meses_nome = [1=>'Janeiro', 2=>'Fevereiro', 3=>'Março', 4=>'Abril', 5=>'Maio', 6=>'Junho', 7=>'Julho', 8=>'Agosto', 9=>'Setembro', 10=>'Outubro', 11=>'Novembro', 12=>'Dezembro'];
 
-// =========================================================================
-// ⏳ MÁQUINA DO TEMPO (SIMULAÇÃO) - Mude a data abaixo para testar!
-// =========================================================================
-$hoje = new DateTime('2026-07-11'); // Testando o dia 11 (Gera Inadimplência)
-// =========================================================================
+// MUNDO REAL ATIVADO
+$hoje = new DateTime(); 
 
 $dia_atual = (int)$hoje->format('d');
 $mes_atual = (int)$hoje->format('m');
@@ -160,7 +157,6 @@ if ($funcao == 'Professor') {
                 <?php else: ?>
                     <li><a href="analisar_solicitacoes.php"><i class="fa-solid fa-clipboard-check"></i> <span class="menu-text">Analisar Solicitações</span></a></li>
                     <li><a href="acompanhar_relatorios.php"><i class="fa-solid fa-chart-line"></i> <span class="menu-text">Acompanhar Relatórios</span></a></li>
-                    <!-- NOVO MENU EXCLUSIVO PARA O DOCUMENTO DE INADIMPLENTES -->
                     <li><a href="relatorio_inadimplentes.php"><i class="fa-solid fa-file-invoice"></i> <span class="menu-text">Relatório de Inadimplência</span></a></li>
                     <li><a href="cadastrar_professor.php"><i class="fa-solid fa-user-plus"></i> <span class="menu-text">Cadastrar Usuário</span></a></li>
                 <?php endif; ?>
@@ -177,7 +173,6 @@ if ($funcao == 'Professor') {
                 <h1>Visão Geral do Sistema</h1>
             </div>
             <div class="user-info">
-                <span style="background: #e74c3c; color: white; padding: 4px 10px; border-radius: 4px; font-size: 12px; font-weight: bold; margin-right: 10px;"><i class="fa-solid fa-flask"></i> MODO SIMULAÇÃO</span>
                 Hoje é <strong><?php echo $hoje->format('d/m/Y'); ?></strong>
             </div>
         </header>
@@ -228,7 +223,7 @@ if ($funcao == 'Professor') {
                 </a>
                 <a href="acompanhar_relatorios.php" class="card">
                     <div class="card-icon" style="background: #e8f5e9; color: #2e7d32;"><i class="fa-solid fa-calendar-check"></i></div>
-                    <div class="card-info"><h3>Relatórios Rec. (Mês <?php echo $mes_passado_num; ?>)</h3><p><?php echo $kpi_relatorios_mes; ?></p></div>
+                    <div class="card-info"><h3>Relatórios de <?php echo $meses_nome[$mes_passado_num]; ?></h3><p><?php echo $kpi_relatorios_mes; ?></p></div>
                 </a>
                 <a href="analisar_solicitacoes.php?status_filtro=Aprovados" class="card">
                     <div class="card-icon" style="background: #e1f5fe; color: #0288d1;"><i class="fa-solid fa-diagram-project"></i></div>
@@ -236,7 +231,6 @@ if ($funcao == 'Professor') {
                 </a>
             </div>
 
-            <!-- O PAINEL AGORA FICA LIMPO! MOSTRAMOS APENAS OS ALERTAS DEPENDENDO DO DIA -->
             <?php if ($dia_atual >= 11): ?>
                 <?php if (count($inadimplentes_geral) > 0): ?>
                     <div class="alerta-box atrasado">

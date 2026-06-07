@@ -10,11 +10,8 @@ if (!isset($_SESSION['usuario_id']) || !in_array($_SESSION['usuario_funcao'], ['
 
 $meses = [1=>'Janeiro', 2=>'Fevereiro', 3=>'Março', 4=>'Abril', 5=>'Maio', 6=>'Junho', 7=>'Julho', 8=>'Agosto', 9=>'Setembro', 10=>'Outubro', 11=>'Novembro', 12=>'Dezembro'];
 
-// =========================================================================
-// ⏳ MÁQUINA DO TEMPO (SIMULAÇÃO) - Sincronizado com o painel
-// =========================================================================
-$hoje = new DateTime('2026-07-11'); 
-// =========================================================================
+// MUNDO REAL ATIVADO
+$hoje = new DateTime(); 
 
 $mes_atual = (int)$hoje->format('m');
 $ano_atual = (int)$hoje->format('Y');
@@ -99,7 +96,6 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
                 <li><a href="painel.php"><i class="fa-solid fa-chart-pie"></i> <span class="menu-text">Dashboard</span></a></li>
                 <li><a href="analisar_solicitacoes.php"><i class="fa-solid fa-clipboard-check"></i> <span class="menu-text">Analisar Solicitações</span></a></li>
                 <li><a href="acompanhar_relatorios.php"><i class="fa-solid fa-chart-line"></i> <span class="menu-text">Acompanhar Relatórios</span></a></li>
-                <!-- MENU ATIVO AQUI -->
                 <li><a href="relatorio_inadimplentes.php" class="active"><i class="fa-solid fa-file-invoice"></i> <span class="menu-text">Relatório de Inadimplência</span></a></li>
                 <li><a href="cadastrar_professor.php"><i class="fa-solid fa-user-plus"></i> <span class="menu-text">Cadastrar Usuário</span></a></li>
                 <li><a href="perfil.php"><i class="fa-solid fa-user-gear"></i> <span class="menu-text">Meu Perfil</span></a></li>
@@ -115,14 +111,11 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
                 <h1>Documento Oficial de Cobrança</h1>
             </div>
             <div class="user-info">
-                <span style="background: #e74c3c; color: white; padding: 4px 10px; border-radius: 4px; font-size: 12px; font-weight: bold; margin-right: 10px;">MODO SIMULAÇÃO</span>
                 Data base: <strong><?php echo $hoje->format('d/m/Y'); ?></strong>
             </div>
         </header>
 
-        <!-- CABEÇALHO QUE SÓ APARECE NA HORA DE IMPRIMIR -->
         <div class="print-header">
-            <!-- Certifique-se de que a logo da fatec está na pasta img -->
             <img src="img/cps_fatecgarca_logo.jfif" alt="Logo Fatec">
             <h1>Relatório de Inadimplência HAE</h1>
             <p>Professores com relatórios pendentes referentes ao período de: <strong><?php echo $meses[$mes_alvo] . ' / ' . $ano_alvo; ?></strong></p>
@@ -167,7 +160,6 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
                 </div>
             <?php endif; ?>
 
-            <!-- ASSINATURA QUE SÓ APARECE NA IMPRESSÃO -->
             <div class="assinatura-box">
                 <div class="assinatura-linha"></div>
                 <div class="assinatura-texto">Coordenação / Direção Fatec</div>
