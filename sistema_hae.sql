@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Tempo de geração: 06/06/2026 às 13:13
+-- Tempo de geração: 07/06/2026 às 18:12
 -- Versão do servidor: 10.4.32-MariaDB
 -- Versão do PHP: 8.2.12
 
@@ -165,7 +165,8 @@ INSERT INTO `usuarios` (`id`, `nome`, `email`, `telefone_whatsapp`, `funcao`, `d
 (6, 'Victor Matheus', 'victor.matheus@cps.sp.gov.br', '(14) 99837-3207', 'Professor', '1999-12-08', '2023-03-02', 'Indeterminado', 'ADS', 'uploads/assinaturas/79f9c768743cb1228a7d8ae3e3129edd.jpg', '1d8bbc4294d306e8ba3ec733b0b06180', 0),
 (7, 'Adriano Nakamura', 'nakamura@cps.sp.gov.br', '(14) 99837-3207', 'Coordenador', '1957-10-28', '2009-04-12', 'Indeterminado', 'nakamura@cps.sp.gov.br', 'uploads/assinaturas/5e53c2367047a679b99234e8cd7962a9.avif', '1d8bbc4294d306e8ba3ec733b0b06180', 0),
 (8, 'eduarda professora', 'eduardaprofessora@gmail.com', '(14) 99837-3207', 'Professor', '2007-02-03', '2022-05-04', 'Indeterminado', 'eduardaprofessora@gmail.com', 'uploads/assinaturas/23c6560e00f19601811392924978be82.jpg', '1d8bbc4294d306e8ba3ec733b0b06180', 0),
-(9, 'joao professor', 'joao@gmail.com', '(14) 99837-3207', 'Professor', '2000-11-12', '2023-03-04', 'Indeterminado', 'joao@gmail.com', 'uploads/assinaturas/9dd5bb59783570ede18df44b647cf7ca.svg', '1d8bbc4294d306e8ba3ec733b0b06180', 0);
+(9, 'joao professor', 'joao@gmail.com', '(14) 99837-3207', 'Professor', '2000-11-12', '2023-03-04', 'Indeterminado', 'joao@gmail.com', 'uploads/assinaturas/9dd5bb59783570ede18df44b647cf7ca.svg', '1d8bbc4294d306e8ba3ec733b0b06180', 0),
+(10, 'maria teste', 'maria@gmail.com', '(14) 99837-3207', 'Professor', '2007-11-12', NULL, NULL, NULL, NULL, 'c0d5186fbca9cf93928bff8d214a6676', 1);
 
 --
 -- Índices para tabelas despejadas
@@ -226,7 +227,7 @@ ALTER TABLE `solicitacoes_hae`
 -- AUTO_INCREMENT de tabela `usuarios`
 --
 ALTER TABLE `usuarios`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
 
 --
 -- Restrições para tabelas despejadas
