@@ -60,7 +60,7 @@ $caminho_assinatura = $dados['assinatura_path'];
             max-width: 210mm; /* Proporção A4 */
             width: 100%;
             min-height: 297mm; 
-            padding: 25mm 20mm; /* Espaçamento interno da folha (margens) */
+           padding: 15mm 10mm; /* Espaçamento interno da folha (margens) */
             box-sizing: border-box; 
             box-shadow: 0 0 10px rgba(0,0,0,0.5);
             font-size: 15px; /* Tamanho de fonte ideal para leitura impressa */
@@ -70,7 +70,7 @@ $caminho_assinatura = $dados['assinatura_path'];
             position: relative;
         }
 
-        .header-doc { text-align: center; margin-bottom: 40px; }
+        .header-doc { text-align: center; margin-bottom: 30px; }
         .header-doc img { max-height: 80px; }
         .header-doc h2 { margin: 0; font-size: 20px; font-weight: bold; }
 
@@ -78,11 +78,11 @@ $caminho_assinatura = $dados['assinatura_path'];
         .info-table { width: 100%; margin-bottom: 20px; border-collapse: collapse; }
         .info-table td { padding: 5px 0; vertical-align: top; border: 1px solid #000; padding: 6px; }
 
-        .campo-texto { margin-bottom: 15px; text-align: justify; border: 1px solid #000; padding: 6px; }
+        .campo-texto { margin-bottom: 10px; text-align: justify; border: 1px solid #000; padding: 6px; }
         
-        .acoes-realizadas { margin-top: 30px; text-align: justify; line-height: 1.7; min-height: 200px; border: 1px solid #000; padding: 6px; }
+        .acoes-realizadas { margin-top: 25px; text-align: justify; line-height: 1.7; min-height: 200px; border: 1px solid #000; padding: 6px; }
 
-        .assinatura-box { text-align: center; margin-top: 80px; }
+        .assinatura-box { text-align: center; margin-top: 70px; }
         .assinatura-img { max-height: 120px; max-width: 300px; margin-bottom: -10px; }
         .linha-assinatura { display: inline-block; width: 350px; border-top: 1px solid #000; padding-top: 5px; font-size: 15px; }
 

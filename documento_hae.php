@@ -82,7 +82,7 @@ $caminho_assinatura = $dados['assinatura_path'];
         .titulo-quadrado { background-color: #f2f2f2; border-bottom: 1px solid #000; padding: 8px 5px; font-weight: bold; font-size: 11px; text-transform: uppercase; }
         .valor-quadrado { padding: 15px; font-size: 24px; font-weight: bold; flex: 1; display: flex; align-items: center; justify-content: center; }
 
-        .parecer-box { border: 1px solid #000; padding: 15px; margin-top: 20px; margin-bottom: 20px; }
+        .parecer-box { border: 1px solid #000; padding: 15px;  }
         .grid-parecer { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 15px; text-align: center; }
         .assinatura-responsavel { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 70px; }
         .assinatura-responsavel img { max-height: 55px; max-width: 200px; margin-bottom: -10px; }
@@ -106,12 +106,12 @@ $caminho_assinatura = $dados['assinatura_path'];
             .btn-imprimir { display: none; } 
         }
 
-         .header-doc { text-align: center; margin-bottom: 40px; }
-        .header-doc img { max-height: 80px; }
+         .header-doc { text-align: center; margin-bottom: 10px; }
+        .header-doc img { max-height: 70px; }
         .header-doc h2 { margin: 0; font-size: 20px; font-weight: bold; }
 
          .titulo-fatec{
-            margin-bottom: 55px;
+            margin-bottom: 30px;
         }
     </style>
 </head>
