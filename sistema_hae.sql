@@ -1,11 +1,11 @@
 -- phpMyAdmin SQL Dump
--- version 5.2.1
+-- version 5.2.0
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Tempo de geração: 07/06/2026 às 18:12
--- Versão do servidor: 10.4.32-MariaDB
--- Versão do PHP: 8.2.12
+-- Tempo de geração: 08-Jun-2026 às 20:34
+-- Versão do servidor: 10.4.27-MariaDB
+-- versão do PHP: 8.2.0
 
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
 START TRANSACTION;
@@ -24,7 +24,7 @@ SET time_zone = "+00:00";
 -- --------------------------------------------------------
 
 --
--- Estrutura para tabela `categorias_projeto`
+-- Estrutura da tabela `categorias_projeto`
 --
 
 CREATE TABLE `categorias_projeto` (
@@ -33,7 +33,7 @@ CREATE TABLE `categorias_projeto` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
--- Despejando dados para a tabela `categorias_projeto`
+-- Extraindo dados da tabela `categorias_projeto`
 --
 
 INSERT INTO `categorias_projeto` (`id`, `nome`) VALUES
@@ -44,7 +44,7 @@ INSERT INTO `categorias_projeto` (`id`, `nome`) VALUES
 -- --------------------------------------------------------
 
 --
--- Estrutura para tabela `relatorios_hae`
+-- Estrutura da tabela `relatorios_hae`
 --
 
 CREATE TABLE `relatorios_hae` (
@@ -58,7 +58,7 @@ CREATE TABLE `relatorios_hae` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
--- Despejando dados para a tabela `relatorios_hae`
+-- Extraindo dados da tabela `relatorios_hae`
 --
 
 INSERT INTO `relatorios_hae` (`id`, `solicitacao_id`, `mes_referencia`, `ano_referencia`, `acoes_realizadas`, `status`, `data_envio`) VALUES
@@ -67,12 +67,13 @@ INSERT INTO `relatorios_hae` (`id`, `solicitacao_id`, `mes_referencia`, `ano_ref
 (15, 4, 5, 2026, 'vixiiii', 'Rascunho', '2026-06-05 01:04:23'),
 (16, 10, 5, 2026, 'hahaha', 'Publicado', '2026-06-05 01:06:46'),
 (17, 12, 5, 2026, 'hahahahahaha hahaha haha ahahah ahahah ahha bababa babba attatata tatt', 'Publicado', '2026-06-05 22:38:07'),
-(18, 12, 6, 2026, 'eiiiitaaaaaaaaaaaaaa hahahahhahahah ahhahahha hahhah hah', 'Publicado', '2026-06-05 22:40:29');
+(18, 12, 6, 2026, 'eiiiitaaaaaaaaaaaaaa hahahahhahahah ahhahahha hahhah hah', 'Publicado', '2026-06-05 22:40:29'),
+(19, 13, 6, 2026, 'Dia 06/11/2024 reunião do comitê organizador do evento a pedido do Fábio Dias foi reagendado, pois o presidente da ACIG Fábio Raniel não poderá participar.\r\n\r\nDia 11/11/2024 reunião do comitê organizador do evento a pedido do presidente da Acig, Fábio Raniel foi adiado.\r\n\r\nDia 19/11/2024 reunião com Wagner, empresa Fulltime que está apoiando e nos ajudando a trazer a Amazon para o evento. Discutimos possíveis eventos (Deep Racer e Hackathon) a serem inseridos na feira e a questão da Acig.\r\n\r\nDia 26/11/2024 reunião com Wilson e Fernando da Fulltime, onde a Amazon pediu ajustes no site e redes sociais para conseguir a aprovação da participação do evento. Será também agendada reunião com o Mauro que faz parte do conselho deliberativo da Acig para novos alinhamentos, na primeira semana de Dezembro.\r\n\r\nDia 28/11/2024 atualizado o site e as redes sociais as melhorias solicitadas pela Amazon para a aprovação de sua participação no evento.\r\n\r\n          Site:  http://fitecgarca.com.br\r\n\r\n          Instagram: https://www.instagram.com/fitec.garca?igsh=MWtvZ21pMG8wajRhbA==', 'Publicado', '2026-06-08 16:56:43');
 
 -- --------------------------------------------------------
 
 --
--- Estrutura para tabela `solicitacoes_hae`
+-- Estrutura da tabela `solicitacoes_hae`
 --
 
 CREATE TABLE `solicitacoes_hae` (
@@ -115,7 +116,7 @@ CREATE TABLE `solicitacoes_hae` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
--- Despejando dados para a tabela `solicitacoes_hae`
+-- Extraindo dados da tabela `solicitacoes_hae`
 --
 
 INSERT INTO `solicitacoes_hae` (`id`, `professor_id`, `coordenador_id`, `diretor_id`, `parecer_coordenador`, `data_aprovacao_coordenador`, `data_parecer_coordenador`, `semestre`, `quantidade_horas`, `horas_aprovadas`, `titulo_projeto`, `projeto_anterior`, `nome_projeto_anterior`, `objetivos_escola`, `horas_aula`, `horas_atividade`, `horas_especificas`, `total_semanal`, `total_mensal`, `categoria`, `justificativa`, `objetivo`, `metodologia`, `envolvidos`, `recursos_necessarios`, `detalhamento_recursos`, `cronograma`, `resultados_esperados`, `status_aprovacao`, `status_coordenador`, `status_diretor`, `parecer_diretor`, `data_aprovacao_diretor`, `assinatura_coordenador`, `assinatura_diretor`, `data_criacao`) VALUES
@@ -130,12 +131,13 @@ INSERT INTO `solicitacoes_hae` (`id`, `professor_id`, `coordenador_id`, `diretor
 (9, 3, 7, 2, 'otimo', '2026-06-03', NULL, '2/2026', 8, NULL, 'Gestao Empresarial', 0, NULL, 'uhulllll uhuulll uhluuu hulllll uhullll uuu hulllll uhullll uuu hulllll uhullll', 24, 12, 8, 44, 198, 'Administrativo', 'uhulllll uhuulll uhluuu hulllll uhullll uuu hulllll uhullll uuu hulllll uhullll', 'uhulllll uhuulll uhluuu hulllll uhullll uuu hulllll uhullll uuu hulllll uhullll', 'uhulllll uhuulll uhluuu hulllll uhullll uuu hulllll uhullll uuu hulllll uhullll', 'uhulllll uhuulll uhluuu hulllll uhullll uuu hulllll uhullll uuu hulllll uhullll', '', 'uhulllll uhuulll uhluuu hulllll uhullll uuu hulllll uhullll uuu hulllll uhullll', 'uhulllll uhuulll uhluuu hulllll uhullll uuu hulllll uhullll uuu hulllll uhullll', 'uhulllll uhuulll uhluuu hulllll uhullll uuu hulllll uhullll uuu hulllll uhullll', 'Aprovado', 'Aprovado', 'Aprovado', 'beeeeeeeeeeeeeeellllllleeeeeeeeeeeeeeezzzzzzaaaaaaaaaaa', '2026-06-03', NULL, NULL, '2026-06-03 00:57:24'),
 (10, 8, 7, 2, 'otimo esta tudo certo com seu documeto HAE. Aprovado!!', '2026-06-05', NULL, '1/2026', 8, NULL, 'Testando projeto eduarda', 0, NULL, 'aaaaaaaaaa aaaaaaaaaaa aaaaa aaaaa aa a aaaa aaaa  aaaaaa  a a', 24, 12, 8, 44, 198, 'Acadêmico', 'aaaa aaa aaaaaa aaa aaaaaa aaaaaaaaaa aaaaaaaaaaa aaaaa aaaaa aa a aaaa aaaa  aaaaaa  a a', 'aaaaaaaaaa aaaaaaaaaaa aaaaa aaaaa aa a aaaa aaaa  aaaaaa  a a', 'aaaaaaaaaa aaaaaaaaaaa aaaaa aaaaa aa a aaaa aaaa  aaaaaa  a a', 'aaaaaaaaaa aaaaaaaaaaa aaaaa aaaaa aa a aaaa aaaa  aaaaaa  a a', 'Financeiro,Humano', 'aaaaaaaaaa aaaaaaaaaaa aaaaa aaaaa aa a aaaa aaaa  aaaaaa  a a', 'aaaaaaaaaa aaaaaaaaaaa aaaaa aaaaa aa a aaaa aaaa  aaaaaa  a a', 'aaaaaaaaaa aaaaaaaaaaa aaaaa aaaaa aa a aaaa aaaa  aaaaaa  a a', 'Aprovado', 'Aprovado', 'Aprovado', 'otimo esta tudo certo com seu documeto HAE. Aprovado!!!!!', '2026-06-05', NULL, NULL, '2026-06-03 22:50:35'),
 (11, 8, NULL, 2, NULL, NULL, NULL, '2/2026', 8, NULL, 'projeto de teste novamente haha', 0, NULL, 'mds meu senhor me ajuda por favor ', 24, 12, 8, 44, 198, 'Administrativo', 'mds meu senhor me ajuda por favor ', 'mds meu senhor me ajuda por favor ', 'mds meu senhor me ajuda por favor ', 'mds meu senhor me ajuda por favor ', 'Financeiro', 'mds meu senhor me ajuda por favor ', 'mds meu senhor me ajuda por favor ', 'mds meu senhor me ajuda por favor ', 'Pendente', 'Pendente', 'Aprovado', 'correto haha', '2026-06-06', NULL, NULL, '2026-06-05 21:22:03'),
-(12, 9, 7, 2, 'otimo, perfeito', '2026-06-06', NULL, '2/2026', 8, NULL, 'Projeto do professor João', 0, NULL, 'eitaaaaaaaaaaaaaaaaaaaa eitaaaaaaaaaaa eeeeeeeeeeeeiiiiiiiiiiiiitttttttttttttaaaaaaaaaaaaaa', 24, 12, 8, 44, 198, 'Administrativo', 'eitaaaaaaaaaaaaaaaaaaaa eitaaaaaaaaaaa eeeeeeeeeeeeiiiiiiiiiiiiitttttttttttttaaaaaaaaaaaaaa', 'eitaaaaaaaaaaaaaaaaaaaa eitaaaaaaaaaaa eeeeeeeeeeeeiiiiiiiiiiiiitttttttttttttaaaaaaaaaaaaaa', 'eitaaaaaaaaaaaaaaaaaaaa eitaaaaaaaaaaa eeeeeeeeeeeeiiiiiiiiiiiiitttttttttttttaaaaaaaaaaaaaa', 'eitaaaaaaaaaaaaaaaaaaaa eitaaaaaaaaaaa eeeeeeeeeeeeiiiiiiiiiiiiitttttttttttttaaaaaaaaaaaaaa', 'Financeiro', 'eitaaaaaaaaaaaaaaaaaaaa eitaaaaaaaaaaa eeeeeeeeeeeeiiiiiiiiiiiiitttttttttttttaaaaaaaaaaaaaa', 'eitaaaaaaaaaaaaaaaaaaaa eitaaaaaaaaaaa eeeeeeeeeeeeiiiiiiiiiiiiitttttttttttttaaaaaaaaaaaaaa', 'eitaaaaaaaaaaaaaaaaaaaa eitaaaaaaaaaaa eeeeeeeeeeeeiiiiiiiiiiiiitttttttttttttaaaaaaaaaaaaaa', 'Aprovado', 'Aprovado', 'Aprovado', 'Otimo, perfeito', '2026-06-06', NULL, NULL, '2026-06-05 22:31:27');
+(12, 9, 7, 2, 'otimo, perfeito', '2026-06-06', NULL, '2/2026', 8, NULL, 'Projeto do professor João', 0, NULL, 'eitaaaaaaaaaaaaaaaaaaaa eitaaaaaaaaaaa eeeeeeeeeeeeiiiiiiiiiiiiitttttttttttttaaaaaaaaaaaaaa', 24, 12, 8, 44, 198, 'Administrativo', 'eitaaaaaaaaaaaaaaaaaaaa eitaaaaaaaaaaa eeeeeeeeeeeeiiiiiiiiiiiiitttttttttttttaaaaaaaaaaaaaa', 'eitaaaaaaaaaaaaaaaaaaaa eitaaaaaaaaaaa eeeeeeeeeeeeiiiiiiiiiiiiitttttttttttttaaaaaaaaaaaaaa', 'eitaaaaaaaaaaaaaaaaaaaa eitaaaaaaaaaaa eeeeeeeeeeeeiiiiiiiiiiiiitttttttttttttaaaaaaaaaaaaaa', 'eitaaaaaaaaaaaaaaaaaaaa eitaaaaaaaaaaa eeeeeeeeeeeeiiiiiiiiiiiiitttttttttttttaaaaaaaaaaaaaa', 'Financeiro', 'eitaaaaaaaaaaaaaaaaaaaa eitaaaaaaaaaaa eeeeeeeeeeeeiiiiiiiiiiiiitttttttttttttaaaaaaaaaaaaaa', 'eitaaaaaaaaaaaaaaaaaaaa eitaaaaaaaaaaa eeeeeeeeeeeeiiiiiiiiiiiiitttttttttttttaaaaaaaaaaaaaa', 'eitaaaaaaaaaaaaaaaaaaaa eitaaaaaaaaaaa eeeeeeeeeeeeiiiiiiiiiiiiitttttttttttttaaaaaaaaaaaaaa', 'Aprovado', 'Aprovado', 'Aprovado', 'Otimo, perfeito', '2026-06-06', NULL, NULL, '2026-06-05 22:31:27'),
+(13, 11, 7, 2, 'aprovado com louvor', '2026-06-08', NULL, '2/2026', 8, NULL, 'Relacionamentos com empresas de TI.', 0, NULL, 'Realizar o relacionamento junto às empresas de TI, tornando a Fatec Garça mais conhecida e buscar junto a estas parcerias, apoio para a unidade e fortalecimento dos cursos.', 24, 12, 8, 44, 198, 'Administrativo', 'Buscar junto a empresas de tecnologia da informação uma integração (Faculdade x Empresas) proporcionando ganhos de conhecimentos e troca de experiências para as partes. ', 'Realizar o relacionamento junto às empresas de TI, tornando a Fatec Garça mais conhecida e buscar junto a estas parcerias, apoio para a unidade e fortalecimento dos cursos.', 'Este relacionamento acontecerá através de visitas e reuniões entre as partes, tanto na unidade de ensino como nas empresas.', 'Professor, Direção e Empresas de TI.', 'Físico,Humano', '- Físico.....: Sala dos professores ou residência do professor\r\n- Humano: Acordado com as partes interessadas no projeto.\r\n', 'As atividades irão transcorrer nos meses que compreende o segundo semestre do ano de 2026.', 'Conseguir agregar benefícios para a Fatec Garça e para as empresas de TI.', 'Aprovado', 'Aprovado', 'Aprovado', 'ok, aprovado!', '2026-06-08', NULL, NULL, '2026-06-08 16:39:56');
 
 -- --------------------------------------------------------
 
 --
--- Estrutura para tabela `usuarios`
+-- Estrutura da tabela `usuarios`
 --
 
 CREATE TABLE `usuarios` (
@@ -154,7 +156,7 @@ CREATE TABLE `usuarios` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
--- Despejando dados para a tabela `usuarios`
+-- Extraindo dados da tabela `usuarios`
 --
 
 INSERT INTO `usuarios` (`id`, `nome`, `email`, `telefone_whatsapp`, `funcao`, `data_nascimento`, `data_admissao`, `tipo_contrato`, `formacao_academica`, `assinatura_path`, `senha`, `primeiro_acesso`) VALUES
@@ -166,21 +168,23 @@ INSERT INTO `usuarios` (`id`, `nome`, `email`, `telefone_whatsapp`, `funcao`, `d
 (7, 'Adriano Nakamura', 'nakamura@cps.sp.gov.br', '(14) 99837-3207', 'Coordenador', '1957-10-28', '2009-04-12', 'Indeterminado', 'nakamura@cps.sp.gov.br', 'uploads/assinaturas/5e53c2367047a679b99234e8cd7962a9.avif', '1d8bbc4294d306e8ba3ec733b0b06180', 0),
 (8, 'eduarda professora', 'eduardaprofessora@gmail.com', '(14) 99837-3207', 'Professor', '2007-02-03', '2022-05-04', 'Indeterminado', 'eduardaprofessora@gmail.com', 'uploads/assinaturas/23c6560e00f19601811392924978be82.jpg', '1d8bbc4294d306e8ba3ec733b0b06180', 0),
 (9, 'joao professor', 'joao@gmail.com', '(14) 99837-3207', 'Professor', '2000-11-12', '2023-03-04', 'Indeterminado', 'joao@gmail.com', 'uploads/assinaturas/9dd5bb59783570ede18df44b647cf7ca.svg', '1d8bbc4294d306e8ba3ec733b0b06180', 0),
-(10, 'maria teste', 'maria@gmail.com', '(14) 99837-3207', 'Professor', '2007-11-12', NULL, NULL, NULL, NULL, 'c0d5186fbca9cf93928bff8d214a6676', 1);
+(10, 'maria teste', 'maria@gmail.com', '(14) 99837-3207', 'Professor', '2007-11-12', NULL, NULL, NULL, NULL, 'c0d5186fbca9cf93928bff8d214a6676', 1),
+(11, 'Fabio Rodrigues Gonçalves', 'fabio@gmail.com', '(14) 98180-0001', 'Professor', '1968-11-02', '2011-03-04', 'Indeterminado', 'fabio@gmail.com', 'uploads/assinaturas/fb5a28125b31ae489040ccb7b4a765a2.png', '1d8bbc4294d306e8ba3ec733b0b06180', 0),
+(12, 'maria teste', 'maaaria@gmail.com', '(14) 99837-3207', 'Professor', '2006-11-12', NULL, NULL, NULL, NULL, '01d2960db8e87a1ddd3a140378d87d29', 1);
 
 --
 -- Índices para tabelas despejadas
 --
 
 --
--- Índices de tabela `categorias_projeto`
+-- Índices para tabela `categorias_projeto`
 --
 ALTER TABLE `categorias_projeto`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `nome` (`nome`);
 
 --
--- Índices de tabela `relatorios_hae`
+-- Índices para tabela `relatorios_hae`
 --
 ALTER TABLE `relatorios_hae`
   ADD PRIMARY KEY (`id`),
@@ -188,59 +192,59 @@ ALTER TABLE `relatorios_hae`
   ADD KEY `solicitacao_id` (`solicitacao_id`);
 
 --
--- Índices de tabela `solicitacoes_hae`
+-- Índices para tabela `solicitacoes_hae`
 --
 ALTER TABLE `solicitacoes_hae`
   ADD PRIMARY KEY (`id`),
   ADD KEY `professor_id` (`professor_id`);
 
 --
--- Índices de tabela `usuarios`
+-- Índices para tabela `usuarios`
 --
 ALTER TABLE `usuarios`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `email` (`email`);
 
 --
--- AUTO_INCREMENT para tabelas despejadas
+-- AUTO_INCREMENT de tabelas despejadas
 --
 
 --
 -- AUTO_INCREMENT de tabela `categorias_projeto`
 --
 ALTER TABLE `categorias_projeto`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
 
 --
 -- AUTO_INCREMENT de tabela `relatorios_hae`
 --
 ALTER TABLE `relatorios_hae`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=19;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=20;
 
 --
 -- AUTO_INCREMENT de tabela `solicitacoes_hae`
 --
 ALTER TABLE `solicitacoes_hae`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=13;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=14;
 
 --
 -- AUTO_INCREMENT de tabela `usuarios`
 --
 ALTER TABLE `usuarios`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=13;
 
 --
--- Restrições para tabelas despejadas
+-- Restrições para despejos de tabelas
 --
 
 --
--- Restrições para tabelas `relatorios_hae`
+-- Limitadores para a tabela `relatorios_hae`
 --
 ALTER TABLE `relatorios_hae`
   ADD CONSTRAINT `relatorios_hae_ibfk_1` FOREIGN KEY (`solicitacao_id`) REFERENCES `solicitacoes_hae` (`id`);
 
 --
--- Restrições para tabelas `solicitacoes_hae`
+-- Limitadores para a tabela `solicitacoes_hae`
 --
 ALTER TABLE `solicitacoes_hae`
   ADD CONSTRAINT `solicitacoes_hae_ibfk_1` FOREIGN KEY (`professor_id`) REFERENCES `usuarios` (`id`);
