@@ -105,6 +105,14 @@ $caminho_assinatura = $dados['assinatura_path'];
             .page:last-child { page-break-after: auto; }
             .btn-imprimir { display: none; } 
         }
+
+         .header-doc { text-align: center; margin-bottom: 40px; }
+        .header-doc img { max-height: 80px; }
+        .header-doc h2 { margin: 0; font-size: 20px; font-weight: bold; }
+
+         .titulo-fatec{
+            margin-bottom: 55px;
+        }
     </style>
 </head>
 <body>
@@ -112,6 +120,13 @@ $caminho_assinatura = $dados['assinatura_path'];
     <button class="btn-imprimir" onclick="window.print()">🖨️ Gerar / Salvar PDF</button>
 
     <div class="page">
+ <div class="header-doc">
+            <!-- Puxando a logo do CPS diretamente da pasta Img -->
+            <img src="img/header-cps-documento.jpeg" alt="Logo CPS Fatec"> <hr>
+            <h4 class="titulo-fatec">Faculdade de Tecnologia de Garça “Deputado Júlio Julinho Marcondes de Moura”</h4>
+    
+        </div>
+
         <h3>FORMULÁRIO PARA SOLICITAÇÃO DE PROJETO COM<br>HORA ATIVIDADE ESPECÍFICA – <?php echo $ano_projeto; ?></h3>
         
         <div class="info-topo">
@@ -182,7 +197,14 @@ $caminho_assinatura = $dados['assinatura_path'];
             </div>
         </div>
     </div> <div class="page" style="page-break-before: always;">
-        <h4 style="margin-top: 0;">APRESENTAÇÃO DO PROJETO</h4>
+
+     <div class="header-doc">
+            <!-- Puxando a logo do CPS diretamente da pasta Img -->
+            <img src="img/header-cps-documento.jpeg" alt="Logo CPS Fatec"> <hr>
+            <h4 class="titulo-fatec">Faculdade de Tecnologia de Garça “Deputado Júlio Julinho Marcondes de Moura”</h4>
+            <h2>APRESENTAÇÃO DO PROJETO</h2>
+        </div>
+      
         <p><strong>1.- Título do Projeto:</strong> <?php echo htmlspecialchars($dados['titulo_projeto']); ?></p>
         <p><strong>2.- Professor Responsável:</strong> <?php echo htmlspecialchars($dados['nome']); ?></p>
         <p><strong>3.- Categoria:</strong> <?php echo htmlspecialchars($dados['categoria']); ?></p>

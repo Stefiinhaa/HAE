@@ -135,8 +135,8 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
                         </a>
                     </li>
                     <li>
-                        <a href="relatorio_inadimplentes.php" class="<?php echo ($pagina_atual == 'relatorio_inadimplentes.php') ? 'active' : ''; ?>">
-                            <i class="fa-solid fa-file-invoice"></i> <span class="menu-text">Inadimplentes</span>
+                        <a href="relatorios_atrasados.php" class="<?php echo ($pagina_atual == 'relatorios_atrasados.php') ? 'active' : ''; ?>">
+                            <i class="fa-solid fa-file-invoice"></i> <span class="menu-text">Relatórios Atrasados</span>
                         </a>
                     </li>
                     <li>

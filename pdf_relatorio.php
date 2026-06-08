@@ -71,16 +71,16 @@ $caminho_assinatura = $dados['assinatura_path'];
         }
 
         .header-doc { text-align: center; margin-bottom: 40px; }
-        .header-doc img { max-height: 80px; margin-bottom: 15px; }
+        .header-doc img { max-height: 80px; }
         .header-doc h2 { margin: 0; font-size: 20px; font-weight: bold; }
 
         /* Tabela invisível para deixar Período e Quantidade lado a lado */
         .info-table { width: 100%; margin-bottom: 20px; border-collapse: collapse; }
-        .info-table td { padding: 5px 0; vertical-align: top; }
+        .info-table td { padding: 5px 0; vertical-align: top; border: 1px solid #000; padding: 6px; }
 
-        .campo-texto { margin-bottom: 15px; text-align: justify; }
+        .campo-texto { margin-bottom: 15px; text-align: justify; border: 1px solid #000; padding: 6px; }
         
-        .acoes-realizadas { margin-top: 30px; text-align: justify; line-height: 1.7; min-height: 200px; }
+        .acoes-realizadas { margin-top: 30px; text-align: justify; line-height: 1.7; min-height: 200px; border: 1px solid #000; padding: 6px; }
 
         .assinatura-box { text-align: center; margin-top: 80px; }
         .assinatura-img { max-height: 120px; max-width: 300px; margin-bottom: -10px; }
@@ -104,6 +104,9 @@ $caminho_assinatura = $dados['assinatura_path'];
             z-index: 1000;
             transition: 0.3s;
         }
+        .titulo-fatec{
+            margin-bottom: 55px;
+        }
         .btn-imprimir:hover { background: #8a0000; }
 
         @media print {
@@ -122,7 +125,8 @@ $caminho_assinatura = $dados['assinatura_path'];
 
         <div class="header-doc">
             <!-- Puxando a logo do CPS diretamente da pasta Img -->
-            <img src="img/header-cps-documento.jpeg" alt="Logo CPS Fatec">
+            <img src="img/header-cps-documento.jpeg" alt="Logo CPS Fatec"> <hr>
+            <h4 class="titulo-fatec">Faculdade de Tecnologia de Garça “Deputado Júlio Julinho Marcondes de Moura”</h4>
             <h2>Relatório de H.A.E.</h2>
         </div>
 

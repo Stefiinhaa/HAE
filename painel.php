@@ -157,7 +157,7 @@ if ($funcao == 'Professor') {
                 <?php else: ?>
                     <li><a href="analisar_solicitacoes.php"><i class="fa-solid fa-clipboard-check"></i> <span class="menu-text">Analisar Solicitações</span></a></li>
                     <li><a href="acompanhar_relatorios.php"><i class="fa-solid fa-chart-line"></i> <span class="menu-text">Acompanhar Relatórios</span></a></li>
-                    <li><a href="relatorio_inadimplentes.php"><i class="fa-solid fa-file-invoice"></i> <span class="menu-text">Relatório de Inadimplência</span></a></li>
+                    <li><a href="relatorios_atrasados.php"><i class="fa-solid fa-file-invoice"></i> <span class="menu-text">Relatórios Atrasados</span></a></li>
                     <li><a href="cadastrar_professor.php"><i class="fa-solid fa-user-plus"></i> <span class="menu-text">Cadastrar Usuário</span></a></li>
                 <?php endif; ?>
                 <li><a href="perfil.php"><i class="fa-solid fa-user-gear"></i> <span class="menu-text">Meu Perfil</span></a></li>
@@ -238,7 +238,7 @@ if ($funcao == 'Professor') {
                         <div class="alerta-info">
                             <h4>Atenção: Relatório de Inadimplentes Disponível</h4>
                             <p>Existem <strong><?php echo count($inadimplentes_geral); ?></strong> ocorrências de professores que ultrapassaram o prazo de envio estipulado pela coordenação.</p>
-                            <a href="relatorio_inadimplentes.php" style="display:inline-block; margin-top:8px; color:inherit; font-weight:bold; text-decoration: none; border-bottom: 1px solid currentColor;">Gerar Documento de Cobrança <i class="fa-solid fa-arrow-right"></i></a>
+                            <a href="relatorios_atrasados.php" style="display:inline-block; margin-top:8px; color:inherit; font-weight:bold; text-decoration: none; border-bottom: 1px solid currentColor;">Gerar Documento de Cobrança <i class="fa-solid fa-arrow-right"></i></a>
                         </div>
                     </div>
                 <?php else: ?>
