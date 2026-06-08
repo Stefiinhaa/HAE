@@ -10,6 +10,13 @@ if (!isset($_SESSION['usuario_id']) || $_SESSION['primeiro_acesso'] != 1) {
 
 $erro = "";
 
+// BUSCA OS DADOS JÁ CADASTRADOS (Para pré-preencher o formulário)
+$stmt_user = $pdo->prepare("SELECT data_nascimento FROM usuarios WHERE id = ?");
+$stmt_user->execute([$_SESSION['usuario_id']]);
+$user_data = $stmt_user->fetch(PDO::FETCH_ASSOC);
+
+$data_nascimento_db = $user_data ? $user_data['data_nascimento'] : '';
+
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $data_nascimento = $_POST['data_nascimento'];
     $data_admissao = $_POST['data_admissao'];
@@ -136,7 +143,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         <div class="grid">
             <div class="input-group">
                 <label>Data de Nascimento</label>
-                <input type="date" name="data_nascimento" id="data_nascimento" required oninput="calculateAge(this.value)">
+                <input type="date" name="data_nascimento" id="data_nascimento" required value="<?php echo htmlspecialchars($data_nascimento_db); ?>" oninput="calculateAge(this.value)">
                 <span id="idade-display" class="idade-info"></span>
             </div>
             <div class="input-group"><label>Data de Admissão na Fatec</label><input type="date" name="data_admissao" required></div>
@@ -194,6 +201,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         const dob = new Date(dobString);
         const today = new Date();
         
+        // Ajuste de fuso horário para evitar bugs de data no JS
+        dob.setMinutes(dob.getMinutes() + dob.getTimezoneOffset());
+        
         let age = today.getFullYear() - dob.getFullYear();
         const m = today.getMonth() - dob.getMonth();
         
@@ -210,6 +220,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             display.style.color = "var(--fatec-red)";
         }
     }
+
+    // Aciona o cálculo da idade imediatamente ao carregar a página se já houver uma data preenchida
+    document.addEventListener("DOMContentLoaded", function() {
+        const dataNascimentoInput = document.getElementById('data_nascimento').value;
+        if(dataNascimentoInput) {
+            calculateAge(dataNascimentoInput);
+        }
+    });
 
     function toggleVisibility(inputId, element) {
         const input = document.getElementById(inputId);

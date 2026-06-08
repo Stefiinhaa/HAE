@@ -63,7 +63,10 @@ $caminho_assinatura = $dados['assinatura_path'];
     <title>HAE - <?php echo $dados['nome']; ?></title>
     <style>
         body { background: #525659; padding: 20px; font-family: 'Arial', sans-serif; margin: 0; }
-        .page { background: white; max-width: 210mm; width: 100%; min-height: 297mm; padding: 20mm; box-sizing: border-box; box-shadow: 0 0 10px rgba(0,0,0,0.5); font-size: 14px; line-height: 1.5; color: #000; margin: 0 auto; overflow-x: hidden; }
+        
+        /* Adicionado margin-bottom para separar as folhas na visualização da tela */
+        .page { background: white; max-width: 210mm; width: 100%; min-height: 297mm; padding: 20mm; box-sizing: border-box; box-shadow: 0 0 10px rgba(0,0,0,0.5); font-size: 14px; line-height: 1.5; color: #000; margin: 0 auto 30px auto; overflow-x: hidden; }
+        
         h2, h3, h4 { text-align: center; margin-bottom: 15px; }
         p { margin-bottom: 10px; }
         .table-responsive { width: 100%; overflow-x: auto; margin-bottom: 20px; }
@@ -84,7 +87,7 @@ $caminho_assinatura = $dados['assinatura_path'];
         .assinatura-responsavel { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 70px; }
         .assinatura-responsavel img { max-height: 55px; max-width: 200px; margin-bottom: -10px; }
         .linha-assinatura-pequena { width: 100%; border-top: 1px solid #000; padding-top: 5px; }
-
+        #td_centralizado{ text-align: center; }
         .assinatura-box { margin-top: 40px; display: flex; flex-direction: column; align-items: center; text-align: center; }
         .assinatura-img { max-height: 100px; max-width: 250px; margin-bottom: -15px; }
         .linha-assinatura { width: 300px; max-width: 100%; border-top: 1px solid #000; margin-top: 20px; padding-top: 5px; }
@@ -93,7 +96,15 @@ $caminho_assinatura = $dados['assinatura_path'];
 
         .btn-imprimir { position: fixed; bottom: 20px; right: 20px; background: #b20000; color: white; border: none; padding: 15px 25px; border-radius: 5px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.3); z-index: 1000; transition: 0.3s; }
         .btn-imprimir:hover { background: #8a0000; }
-        @media print { body { background: white; padding: 0; } .page { box-shadow: none; max-width: 100%; padding: 0; margin: 0; } .btn-imprimir { display: none; } }
+        
+        /* Configuração de Impressão */
+        @media print { 
+            body { background: white; padding: 0; } 
+            /* Retira sombras e margens, e força a quebra de página automática entre os blocos .page */
+            .page { box-shadow: none; max-width: 100%; padding: 0; margin: 0; min-height: auto; page-break-after: always; } 
+            .page:last-child { page-break-after: auto; }
+            .btn-imprimir { display: none; } 
+        }
     </style>
 </head>
 <body>
@@ -103,7 +114,6 @@ $caminho_assinatura = $dados['assinatura_path'];
     <div class="page">
         <h3>FORMULÁRIO PARA SOLICITAÇÃO DE PROJETO COM<br>HORA ATIVIDADE ESPECÍFICA – <?php echo $ano_projeto; ?></h3>
         
-        <!-- CABEÇALHO LADO A LADO -->
         <div class="info-topo">
             <div class="dados-professor">
                 <p><strong>Professor Responsável:</strong> <?php echo htmlspecialchars($dados['nome']); ?></p>
@@ -132,16 +142,15 @@ $caminho_assinatura = $dados['assinatura_path'];
 
         <div class="table-responsive">
             <table class="tabela-horas">
-                <tr><th style="width: 70%;">Carga Horária Semanal</th><th><?php echo htmlspecialchars($dados['semestre']); ?></th></tr>
-                <tr><td>Horas aula</td><td><?php echo $dados['horas_aula']; ?></td></tr>
-                <tr><td>Hora Atividade (50% das Horas-aula)</td><td><?php echo $dados['horas_atividade']; ?></td></tr>
-                <tr><td>Hora – Atividade Específica do Projeto -</td><td><?php echo $dados['horas_especificas']; ?></td></tr>
-                <tr><td><strong>Total Semanal</strong></td><td><strong><?php echo $dados['total_semanal']; ?></strong></td></tr>
-                <tr><td><strong>Total Mensal (Total-Semanal x 4,5 Semanas)</strong></td><td><strong><?php echo $dados['total_mensal']; ?></strong></td></tr>
+                <tr><th style="width: 70%;">Carga Horária Semanal</th><th id="td_centralizado"><?php echo htmlspecialchars($dados['semestre']); ?></th></tr>
+                <tr><td>Horas aula</td><td id="td_centralizado"><?php echo $dados['horas_aula']; ?></td></tr>
+                <tr><td>Hora Atividade (50% das Horas-aula)</td><td id="td_centralizado"><?php echo $dados['horas_atividade']; ?></td></tr>
+                <tr><td>Hora – Atividade Específica do Projeto -</td><td id="td_centralizado"><?php echo $dados['horas_especificas']; ?></td></tr>
+                <tr><td><strong>Total Semanal</strong></td><td id="td_centralizado"><strong><?php echo $dados['total_semanal']; ?></strong></td></tr>
+                <tr><td><strong>Total Mensal (Total-Semanal x 4,5 Semanas)</strong></td><td id="td_centralizado"><strong><?php echo $dados['total_mensal']; ?></strong></td></tr>
             </table>
         </div>
 
-        <!-- PARECERES INTEGRADOS -->
         <div class="parecer-box">
             <p>
                 <strong>Parecer do(a) coordenador(a):</strong> 
@@ -172,8 +181,8 @@ $caminho_assinatura = $dados['assinatura_path'];
                 </div>
             </div>
         </div>
-
-        <h4 style="margin-top: 30px;">APRESENTAÇÃO DO PROJETO</h4>
+    </div> <div class="page" style="page-break-before: always;">
+        <h4 style="margin-top: 0;">APRESENTAÇÃO DO PROJETO</h4>
         <p><strong>1.- Título do Projeto:</strong> <?php echo htmlspecialchars($dados['titulo_projeto']); ?></p>
         <p><strong>2.- Professor Responsável:</strong> <?php echo htmlspecialchars($dados['nome']); ?></p>
         <p><strong>3.- Categoria:</strong> <?php echo htmlspecialchars($dados['categoria']); ?></p>
@@ -192,6 +201,5 @@ $caminho_assinatura = $dados['assinatura_path'];
             <div class="linha-assinatura">Assinatura do Professor</div>
             <p><strong>Data:</strong> <?php echo $data_envio; ?></p>
         </div>
-    </div>
-</body>
+    </div> </body>
 </html>

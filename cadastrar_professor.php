@@ -44,7 +44,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             // Gera o link do WhatsApp para notificar o novo usuário
             $num_limpo = preg_replace('/\D/', '', $whatsapp);
             if (substr($num_limpo, 0, 2) !== '55') $num_limpo = '55' . $num_limpo;
-            $msg = "Olá, $saudacao $nome! Seu acesso ao Portal HAE Fatec foi criado.\n\n*E-mail:* $email\n*Senha provisória:* $senha_provisoria (Sua data de nascimento)\n\nPor favor, acesse o sistema para completar seu perfil, cadastrar sua assinatura e criar uma nova senha definitiva.";
+            $msg = "Olá, $saudacao $nome! Seu acesso ao Portal HAE Fatec foi criado.\n\n*E-mail:* $email\n*Senha provisória:* $senha_provisoria (Sua data de nascimento)\n\nPor favor, acesse o sistema para completar seu perfil, cadastrar sua imagem de assinatura digital e criar uma nova senha definitiva.";
             $link_wa = "https://wa.me/{$num_limpo}?text=" . urlencode($msg);
 
             $sucesso = "Usuário ($funcao) cadastrado com sucesso!";
@@ -75,6 +75,9 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
         .btn-submit:hover { background: #8a0000; }
         .btn-whatsapp { display: block; text-align: center; background: #25D366; color: white; padding: 15px; border-radius: 6px; text-decoration: none; font-weight: bold; margin-top: 15px; transition: 0.3s; }
         .btn-whatsapp:hover { background: #128C7E; }
+        
+        /* Estilo da caixinha de idade calculada */
+        #idade_display { font-size: 12px; color: #27ae60; font-weight: bold; margin-top: 5px; display: none; }
     </style>
 </head>
 <body>
@@ -115,7 +118,6 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
                             <i class="fa-solid fa-calendar-check"></i> <span class="menu-text">Enviar Relatório</span>
                         </a>
                     </li>
-                    <!-- O LINK ATUALIZADO AQUI -->
                     <li>
                         <a href="meus_rascunhos.php" class="<?php echo ($pagina_atual == 'meus_rascunhos.php') ? 'active' : ''; ?>">
                             <i class="fa-solid fa-file-pen"></i> <span class="menu-text">Meus Rascunhos</span>
@@ -127,17 +129,16 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
                             <i class="fa-solid fa-clipboard-check"></i> <span class="menu-text">Analisar Solicitações</span>
                         </a>
                     </li>
-                    <!-- Substitua o link de "Acompanhar Relatórios" ou adicione este abaixo -->
-<li>
-    <a href="acompanhar_relatorios.php" class="<?php echo ($pagina_atual == 'acompanhar_relatorios.php') ? 'active' : ''; ?>">
-        <i class="fa-solid fa-chart-line"></i> <span class="menu-text">Acompanhar Relatórios</span>
-    </a>
-</li>
-<li>
-    <a href="relatorio_inadimplentes.php" class="<?php echo ($pagina_atual == 'relatorio_inadimplentes.php') ? 'active' : ''; ?>">
-        <i class="fa-solid fa-file-invoice"></i> <span class="menu-text">Relatório de Inadimplência</span>
-    </a>
-</li>
+                    <li>
+                        <a href="acompanhar_relatorios.php" class="<?php echo ($pagina_atual == 'acompanhar_relatorios.php') ? 'active' : ''; ?>">
+                            <i class="fa-solid fa-chart-line"></i> <span class="menu-text">Acompanhar Relatórios</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="relatorio_inadimplentes.php" class="<?php echo ($pagina_atual == 'relatorio_inadimplentes.php') ? 'active' : ''; ?>">
+                            <i class="fa-solid fa-file-invoice"></i> <span class="menu-text">Inadimplentes</span>
+                        </a>
+                    </li>
                     <li>
                         <a href="cadastrar_professor.php" class="<?php echo ($pagina_atual == 'cadastrar_professor.php') ? 'active' : ''; ?>">
                             <i class="fa-solid fa-user-plus"></i> <span class="menu-text">Cadastrar Usuário</span>
@@ -163,7 +164,6 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
         <header class="header">
             <div class="header-top">
                 <button class="mobile-toggle" id="mobile-toggle"><i class="fa-solid fa-bars"></i></button>
-                <!-- O título agora é genérico -->
                 <h1>Cadastrar Novo Usuário</h1>
             </div>
         </header>
@@ -193,7 +193,6 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
                             <input type="email" name="email" required placeholder="exemplo@fatec.sp.gov.br">
                         </div>
                         
-                        <!-- NOVO CAMPO: FUNÇÃO NO SISTEMA -->
                         <div class="input-group">
                             <label>Função no Sistema</label>
                             <select name="funcao" required>
@@ -207,7 +206,8 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
                     <div class="grid-2">
                         <div class="input-group">
                             <label>Data de Nascimento</label>
-                            <input type="date" name="data_nascimento" required>
+                            <input type="date" name="data_nascimento" id="data_nascimento" required>
+                            <div id="idade_display"></div>
                         </div>
                         <div class="input-group">
                             <label>Número do WhatsApp</label>
@@ -234,6 +234,37 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
             if (value.length > 2) value = `(${value.slice(0,2)}) ${value.slice(2)}`;
             if (value.length > 10) value = `${value.slice(0,10)}-${value.slice(10)}`;
             e.target.value = value;
+        });
+
+        // Cálculo da idade em tempo real
+        document.getElementById('data_nascimento').addEventListener('input', function() {
+            let valData = this.value;
+            let displayIdade = document.getElementById('idade_display');
+            
+            if(valData) {
+                let hoje = new Date();
+                let nascimento = new Date(valData);
+                
+                // Compensa o fuso horário para evitar erros no dia
+                nascimento.setMinutes(nascimento.getMinutes() + nascimento.getTimezoneOffset());
+                
+                let idade = hoje.getFullYear() - nascimento.getFullYear();
+                let mes = hoje.getMonth() - nascimento.getMonth();
+                
+                // Se o mês ainda não chegou, ou se estamos no mês mas o dia ainda não chegou, diminui 1 ano
+                if (mes < 0 || (mes === 0 && hoje.getDate() < nascimento.getDate())) {
+                    idade--;
+                }
+
+                if (idade >= 0) {
+                    displayIdade.innerHTML = `<i class="fa-solid fa-user-clock"></i> Idade: ${idade} anos`;
+                    displayIdade.style.display = 'block';
+                } else {
+                    displayIdade.style.display = 'none'; // Evita mostrar idade negativa
+                }
+            } else {
+                displayIdade.style.display = 'none';
+            }
         });
     </script>
 </body>
