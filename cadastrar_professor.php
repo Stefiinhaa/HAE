@@ -44,7 +44,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             // Gera o link do WhatsApp para notificar o novo usuário
             $num_limpo = preg_replace('/\D/', '', $whatsapp);
             if (substr($num_limpo, 0, 2) !== '55') $num_limpo = '55' . $num_limpo;
-            $msg = "Olá, $saudacao $nome! Seu acesso ao Portal HAE Fatec foi criado.\n\n*E-mail:* $email\n*Senha provisória:* $senha_provisoria (Sua data de nascimento)\n\nPor favor, acesse o sistema para completar seu perfil, cadastrar sua imagem de assinatura digital e criar uma nova senha definitiva.";
+            $msg = "Olá, $saudacao $nome! Seu acesso ao Portal HAE Fatec foi criado.\n\n*E-mail:* $email\n*Senha provisória:* $senha_provisoria (Sua data de nascimento)\n\nPor favor, acesse o sistema para completar seu perfil, cadastrar sua imagem de assinatura digital e criar uma nova senha definitiva.\nAcesse: http://sistemahae.page.gd/";
             $link_wa = "https://wa.me/{$num_limpo}?text=" . urlencode($msg);
 
             $sucesso = "Usuário ($funcao) cadastrado com sucesso!";
