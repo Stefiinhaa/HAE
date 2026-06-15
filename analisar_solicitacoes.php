@@ -83,6 +83,7 @@ if ($visualizando_id) {
     // TELA 1: GRID INTELIGENTE (ACORDEÃO) COM FILTROS E PAGINAÇÃO
     // ==============================================================================
     $filtro_busca = isset($_GET['busca']) ? trim($_GET['busca']) : '';
+    // ATUALIZAÇÃO: Filtro padrão inteligente dependendo da função
     $filtro_status = isset($_GET['status_filtro']) ? trim($_GET['status_filtro']) : 'Aguardando'; 
     $filtro_semestre = isset($_GET['semestre']) ? trim($_GET['semestre']) : '';
 
@@ -103,20 +104,19 @@ if ($visualizando_id) {
         $params[] = $filtro_semestre;
     }
 
-    // Filtro de Status Inteligente (ATUALIZADO COM O FILTRO DO DIRETOR)
+    // Filtro de Status Inteligente (COM LÓGICA EXCLUSIVA PARA O DIRETOR)
     if ($filtro_status == 'Aguardando') {
         if ($funcao_logada == 'Coordenador') {
             $where[] = "s.status_coordenador = 'Pendente' AND s.status_aprovacao != 'Rejeitado'";
-            // Só mostra se não tiver alvo definido OU se o alvo for o próprio coordenador logado
             $where[] = "(s.coordenador_alvo_id IS NULL OR s.coordenador_alvo_id = ?)";
             $params[] = $usuario_id;
         } else {
-            // Diretor avalia todos os projetos, independentemente do alvo da coordenação
-            $where[] = "s.status_diretor = 'Pendente' AND s.status_aprovacao != 'Rejeitado'";
+            // DIRETOR: Mostra APENAS os que a coordenação já aprovou (Workflow Prático)
+            $where[] = "s.status_diretor = 'Pendente' AND s.status_coordenador = 'Aprovado' AND s.status_aprovacao != 'Rejeitado'";
         }
-    } elseif ($filtro_status == 'PreAprovados' && $funcao_logada == 'Diretor') {
-        // Novo filtro exclusivo para o Diretor ver apenas o que já passou pelo Coordenador
-        $where[] = "s.status_diretor = 'Pendente' AND s.status_coordenador = 'Aprovado' AND s.status_aprovacao != 'Rejeitado'";
+    } elseif ($filtro_status == 'Pendentes_Geral' && $funcao_logada == 'Diretor') {
+        // DIRETOR: Vê todas as pendências dele (inclusive as que o coordenador não olhou ainda)
+        $where[] = "s.status_diretor = 'Pendente' AND s.status_aprovacao != 'Rejeitado'";
     } elseif ($filtro_status == 'Aprovados') {
         $where[] = "s.status_aprovacao = 'Aprovado'";
     } elseif ($filtro_status == 'Rejeitados') {
@@ -425,16 +425,16 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
                     </select>
                 </div>
 
+                <!-- SELECT ATUALIZADO PARA EXIBIR A REGRA DO DIRETOR -->
                 <div class="filter-group">
                     <label>Filtro de Status</label>
                     <select name="status_filtro">
-                        <option value="Aguardando" <?php echo $filtro_status == 'Aguardando' ? 'selected' : ''; ?>>Aguardando Minha Ação</option>
-                        
-                        <!-- NOVO FILTRO EXCLUSIVO PARA O DIRETOR -->
                         <?php if ($funcao_logada == 'Diretor'): ?>
-                            <option value="PreAprovados" <?php echo $filtro_status == 'PreAprovados' ? 'selected' : ''; ?>>Pré-aprovados pela Coord.</option>
+                            <option value="Aguardando" <?php echo $filtro_status == 'Aguardando' ? 'selected' : ''; ?>>Prontos p/ Mim (Coord. Aprovou)</option>
+                            <option value="Pendentes_Geral" <?php echo $filtro_status == 'Pendentes_Geral' ? 'selected' : ''; ?>>Todas Minhas Pendências</option>
+                        <?php else: ?>
+                            <option value="Aguardando" <?php echo $filtro_status == 'Aguardando' ? 'selected' : ''; ?>>Aguardando Minha Ação</option>
                         <?php endif; ?>
-                        
                         <option value="Todos" <?php echo $filtro_status == 'Todos' ? 'selected' : ''; ?>>Todos os Projetos</option>
                         <option value="Aprovados" <?php echo $filtro_status == 'Aprovados' ? 'selected' : ''; ?>>Aprovados Totalmente</option>
                         <option value="Rejeitados" <?php echo $filtro_status == 'Rejeitados' ? 'selected' : ''; ?>>Rejeitados</option>
@@ -467,6 +467,7 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
                                         $qtd_projetos = count($lista_projetos);
                                         $qtd_minha_acao = 0;
                                         
+                                        // CONTADOR ATUALIZADO (Acompanha a mesma lógica inteligente da tela)
                                         foreach($lista_projetos as $p) {
                                             if ($p['status_aprovacao'] != 'Rejeitado') {
                                                 if ($funcao_logada == 'Coordenador' && $p['status_coordenador'] == 'Pendente') {
@@ -474,13 +475,9 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
                                                         $qtd_minha_acao++;
                                                     }
                                                 }
-                                                // Ajuste para o diretor contar certinho com base no filtro que ele escolher
-                                                if ($funcao_logada == 'Diretor' && $p['status_diretor'] == 'Pendente') {
-                                                    if ($filtro_status == 'PreAprovados') {
-                                                        if ($p['status_coordenador'] == 'Aprovado') $qtd_minha_acao++;
-                                                    } else {
-                                                        $qtd_minha_acao++;
-                                                    }
+                                                // Diretor: a pendência só "grita" pra ele no contador se a coordenação já aprovou
+                                                if ($funcao_logada == 'Diretor' && $p['status_diretor'] == 'Pendente' && $p['status_coordenador'] == 'Aprovado') {
+                                                    $qtd_minha_acao++;
                                                 }
                                             }
                                         }
@@ -523,13 +520,11 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
                                                                 $badge_class = 'badge-aprovado';
                                                             } else if($proj['status_aprovacao'] == 'Rejeitado') {
                                                                 $badge_class = 'badge-rejeitado';
-                                                            
-                                                            // ATUALIZADO: O TEXTO DA BADGE AGORA É BEM MAIS DIRETO PARA O DIRETOR
                                                             } else if($proj['status_coordenador'] == 'Aprovado' && $proj['status_diretor'] == 'Pendente') {
-                                                                $texto_status = 'Coord. Aprovou';
+                                                                $texto_status = 'Aguardando Diretor';
                                                                 $badge_class = 'badge-espera';
                                                             } else if($proj['status_diretor'] == 'Aprovado' && $proj['status_coordenador'] == 'Pendente') {
-                                                                $texto_status = 'Dir. Aprovou';
+                                                                $texto_status = 'Aguardando Coord.';
                                                                 $badge_class = 'badge-espera';
                                                             } else {
                                                                 $texto_status = 'Pendente (Ambos)';
@@ -540,6 +535,7 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
                                                                 <span style="font-size:11px; color:#888;"><?php echo date('d/m/Y', strtotime($proj['data_criacao'])); ?></span><br>
                                                                 <strong><?php echo htmlspecialchars($proj['titulo_projeto']); ?></strong>
                                                                 
+                                                                <!-- EXIBIÇÃO DA INDICAÇÃO DE COORDENADOR -->
                                                                 <?php if (!empty($proj['nome_coordenador_alvo'])): ?>
                                                                     <br>
                                                                     <?php if ($funcao_logada == 'Coordenador' && $proj['coordenador_alvo_id'] == $_SESSION['usuario_id']): ?>
@@ -574,6 +570,7 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
                 </div>
             </div>
 
+            <!-- CONTROLES DE PAGINAÇÃO PROFISSIONAL -->
             <?php if ($total_paginas > 1): ?>
                 <div class="paginacao">
                     <?php if ($pagina_atual_pag > 1): ?>
