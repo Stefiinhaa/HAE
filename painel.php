@@ -69,12 +69,17 @@ if ($funcao == 'Professor') {
         }
     }
 } else {
+    // ATUALIZAÇÃO DA LÓGICA DO CARD "AGUARDANDO SUA ANÁLISE"
     if ($funcao == 'Coordenador') {
-        $stmt_kpi1 = $pdo->query("SELECT COUNT(*) FROM solicitacoes_hae WHERE status_coordenador = 'Pendente' AND status_aprovacao != 'Rejeitado'");
+        // Conta apenas projetos pendentes onde o alvo é Nulo OU o alvo é o próprio coordenador logado
+        $stmt_kpi1 = $pdo->prepare("SELECT COUNT(*) FROM solicitacoes_hae WHERE status_coordenador = 'Pendente' AND status_aprovacao != 'Rejeitado' AND (coordenador_alvo_id IS NULL OR coordenador_alvo_id = ?)");
+        $stmt_kpi1->execute([$usuario_id]);
+        $kpi_analises = $stmt_kpi1->fetchColumn();
     } else {
+        // O Diretor continua vendo o total de pendências para ele
         $stmt_kpi1 = $pdo->query("SELECT COUNT(*) FROM solicitacoes_hae WHERE status_diretor = 'Pendente' AND status_aprovacao != 'Rejeitado'");
+        $kpi_analises = $stmt_kpi1->fetchColumn();
     }
-    $kpi_analises = $stmt_kpi1->fetchColumn();
 
     $kpi_projetos_ativos = $pdo->query("SELECT COUNT(*) FROM solicitacoes_hae WHERE status_aprovacao = 'Aprovado'")->fetchColumn();
 
