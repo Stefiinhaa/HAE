@@ -69,7 +69,11 @@ if ($visualizando_id) {
     // ==============================================================================
     // TELA 2: VISÃO DETALHADA E PARECER (SPLIT VIEW)
     // ==============================================================================
-    $sql = "SELECT s.*, u.nome AS professor_nome FROM solicitacoes_hae s JOIN usuarios u ON s.professor_id = u.id WHERE s.id = ?";
+    $sql = "SELECT s.*, u.nome AS professor_nome, coord.nome AS nome_coordenador_alvo 
+            FROM solicitacoes_hae s 
+            JOIN usuarios u ON s.professor_id = u.id 
+            LEFT JOIN usuarios coord ON s.coordenador_alvo_id = coord.id
+            WHERE s.id = ?";
     $stmt = $pdo->prepare($sql);
     $stmt->execute([$visualizando_id]);
     $detalhes = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -99,11 +103,15 @@ if ($visualizando_id) {
         $params[] = $filtro_semestre;
     }
 
-    // Filtro de Status Inteligente (CORRIGIDO: Oculta se o outro já rejeitou)
+    // Filtro de Status Inteligente (ATUALIZADO COM A REGRA DO ALVO)
     if ($filtro_status == 'Aguardando') {
         if ($funcao_logada == 'Coordenador') {
             $where[] = "s.status_coordenador = 'Pendente' AND s.status_aprovacao != 'Rejeitado'";
+            // Só mostra se não tiver alvo definido OU se o alvo for o próprio coordenador logado
+            $where[] = "(s.coordenador_alvo_id IS NULL OR s.coordenador_alvo_id = ?)";
+            $params[] = $usuario_id;
         } else {
+            // Diretor avalia todos os projetos, independentemente do alvo da coordenação
             $where[] = "s.status_diretor = 'Pendente' AND s.status_aprovacao != 'Rejeitado'";
         }
     } elseif ($filtro_status == 'Aprovados') {
@@ -115,9 +123,11 @@ if ($visualizando_id) {
     $stmt_sem = $pdo->query("SELECT DISTINCT semestre FROM solicitacoes_hae ORDER BY semestre DESC");
     $semestres_disponiveis = $stmt_sem->fetchAll(PDO::FETCH_COLUMN);
 
-    $sql = "SELECT s.*, u.nome AS professor_nome 
+    // SQL Aprimorado com LEFT JOIN para buscar o coordenador_alvo
+    $sql = "SELECT s.*, u.nome AS professor_nome, coord.nome AS nome_coordenador_alvo
             FROM solicitacoes_hae s 
             JOIN usuarios u ON s.professor_id = u.id 
+            LEFT JOIN usuarios coord ON s.coordenador_alvo_id = coord.id
             WHERE " . implode(" AND ", $where) . " 
             ORDER BY u.nome ASC, s.data_criacao DESC";
     $stmt = $pdo->prepare($sql);
@@ -263,7 +273,6 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
                             <i class="fa-solid fa-calendar-check"></i> <span class="menu-text">Enviar Relatório</span>
                         </a>
                     </li>
-                    <!-- O LINK ATUALIZADO AQUI -->
                     <li>
                         <a href="meus_rascunhos.php" class="<?php echo ($pagina_atual == 'meus_rascunhos.php') ? 'active' : ''; ?>">
                             <i class="fa-solid fa-file-pen"></i> <span class="menu-text">Meus Rascunhos</span>
@@ -275,17 +284,16 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
                             <i class="fa-solid fa-clipboard-check"></i> <span class="menu-text">Analisar Solicitações</span>
                         </a>
                     </li>
-                    <!-- Substitua o link de "Acompanhar Relatórios" ou adicione este abaixo -->
-<li>
-    <a href="acompanhar_relatorios.php" class="<?php echo ($pagina_atual == 'acompanhar_relatorios.php') ? 'active' : ''; ?>">
-        <i class="fa-solid fa-chart-line"></i> <span class="menu-text">Acompanhar Relatórios</span>
-    </a>
-</li>
-<li>
-    <a href="relatorios_atrasados.php" class="<?php echo ($pagina_atual == 'relatorios_atrasados.php') ? 'active' : ''; ?>">
-        <i class="fa-solid fa-file-invoice"></i> <span class="menu-text">Relatórios Atrasados</span>
-    </a>
-</li>
+                    <li>
+                        <a href="acompanhar_relatorios.php" class="<?php echo ($pagina_atual == 'acompanhar_relatorios.php') ? 'active' : ''; ?>">
+                            <i class="fa-solid fa-chart-line"></i> <span class="menu-text">Acompanhar Relatórios</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="relatorios_atrasados.php" class="<?php echo ($pagina_atual == 'relatorios_atrasados.php') ? 'active' : ''; ?>">
+                            <i class="fa-solid fa-file-invoice"></i> <span class="menu-text">Relatórios Atrasados</span>
+                        </a>
+                    </li>
                     <li>
                         <a href="cadastrar_professor.php" class="<?php echo ($pagina_atual == 'cadastrar_professor.php') ? 'active' : ''; ?>">
                             <i class="fa-solid fa-user-plus"></i> <span class="menu-text">Cadastrar Usuário</span>
@@ -331,6 +339,19 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
                     <h3 style="margin-bottom: 20px; color: var(--fatec-red); font-size: 18px;">Emitir Parecer (<?php echo $funcao_logada; ?>)</h3>
                     <a href="documento_hae.php?id=<?php echo $visualizando_id; ?>" target="_blank" class="btn-ver-pdf-mobile">📄 Abrir Documento em Tela Cheia</a>
                     
+                    <?php 
+                        // AVISO DO ENCAMINHAMENTO ESPECÍFICO
+                        if (!empty($detalhes['nome_coordenador_alvo'])): 
+                    ?>
+                        <div style="background: #f8f9fa; border: 1px solid #e9ecef; padding: 12px 15px; border-radius: 6px; margin-bottom: 20px; font-size: 13px; color: #495057; display: flex; align-items: center; gap: 12px; border-left: 4px solid #3498db;">
+                            <i class="fa-solid fa-bullseye" style="color: #3498db; font-size: 18px;"></i>
+                            <div>
+                                <strong>Análise Direcionada:</strong><br>
+                                O professor solicitou que este projeto seja avaliado prioritariamente por: <strong><?php echo htmlspecialchars($detalhes['nome_coordenador_alvo']); ?></strong>
+                            </div>
+                        </div>
+                    <?php endif; ?>
+
                     <?php 
                         if ($funcao_logada == 'Diretor' && !empty($detalhes['parecer_coordenador'])) {
                             echo "<div class='historico-box'><strong>Parecer Prévio do Coordenador:</strong><br>".nl2br(htmlspecialchars($detalhes['parecer_coordenador']))."</div>";
@@ -437,11 +458,17 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
                                         $qtd_projetos = count($lista_projetos);
                                         $qtd_minha_acao = 0;
                                         
-                                        // CORRIGIDO: O contador só sobe se o projeto não estiver rejeitado
+                                        // ATUALIZADO: Contador só sobe se o coordenador logado for o alvo ou se não tiver alvo
                                         foreach($lista_projetos as $p) {
                                             if ($p['status_aprovacao'] != 'Rejeitado') {
-                                                if ($funcao_logada == 'Coordenador' && $p['status_coordenador'] == 'Pendente') $qtd_minha_acao++;
-                                                if ($funcao_logada == 'Diretor' && $p['status_diretor'] == 'Pendente') $qtd_minha_acao++;
+                                                if ($funcao_logada == 'Coordenador' && $p['status_coordenador'] == 'Pendente') {
+                                                    if (empty($p['coordenador_alvo_id']) || $p['coordenador_alvo_id'] == $usuario_id) {
+                                                        $qtd_minha_acao++;
+                                                    }
+                                                }
+                                                if ($funcao_logada == 'Diretor' && $p['status_diretor'] == 'Pendente') {
+                                                    $qtd_minha_acao++;
+                                                }
                                             }
                                         }
                                     ?>
@@ -497,6 +524,17 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
                                                             <td style="width: 50%; color: #444;">
                                                                 <span style="font-size:11px; color:#888;"><?php echo date('d/m/Y', strtotime($proj['data_criacao'])); ?></span><br>
                                                                 <strong><?php echo htmlspecialchars($proj['titulo_projeto']); ?></strong>
+                                                                
+                                                                <!-- EXIBIÇÃO DA INDICAÇÃO DE COORDENADOR -->
+                                                                <?php if (!empty($proj['nome_coordenador_alvo'])): ?>
+                                                                    <br>
+                                                                    <?php if ($funcao_logada == 'Coordenador' && $proj['coordenador_alvo_id'] == $_SESSION['usuario_id']): ?>
+                                                                        <span class="badge" style="background: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9; margin-top: 4px; font-size: 10px;"><i class="fa-solid fa-bullseye"></i> Direcionado a Você</span>
+                                                                    <?php else: ?>
+                                                                        <span class="badge" style="background: #f1f3f5; color: #6c757d; border: 1px solid #dee2e6; margin-top: 4px; font-size: 10px;"><i class="fa-solid fa-user-tag"></i> Direcionado p/ <?php echo htmlspecialchars($proj['nome_coordenador_alvo']); ?></span>
+                                                                    <?php endif; ?>
+                                                                <?php endif; ?>
+                                                                
                                                             </td>
                                                             <td><?php echo htmlspecialchars($proj['semestre']); ?></td>
                                                             <td><span class="badge <?php echo $badge_class; ?>"><?php echo $texto_status; ?></span></td>

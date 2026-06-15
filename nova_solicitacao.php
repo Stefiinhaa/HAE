@@ -17,6 +17,10 @@ $stmt_cat = $pdo->query("SELECT nome FROM categorias_projeto ORDER BY nome ASC")
 $categorias_db = $stmt_cat->fetchAll(PDO::FETCH_COLUMN);
 $categorias_padrao = ['Acadêmico', 'Administrativo', 'Extensão à comunidade'];
 
+// BUSCA OS COORDENADORES PARA O DROPDOWN
+$stmt_coords = $pdo->query("SELECT id, nome FROM usuarios WHERE funcao = 'Coordenador' ORDER BY nome ASC");
+$lista_coordenadores = $stmt_coords->fetchAll(PDO::FETCH_ASSOC);
+
 // LÓGICA DE CLONAGEM
 $clone_id = isset($_GET['clone_id']) ? (int)$_GET['clone_id'] : 0;
 $clone = null;
@@ -43,6 +47,7 @@ $c_envolvidos = $clone['envolvidos'] ?? '';
 $c_detalhamento = $clone['detalhamento_recursos'] ?? '';
 $c_cronograma = $clone['cronograma'] ?? '';
 $c_resultados = $clone['resultados_esperados'] ?? '';
+$c_coordenador_alvo = $clone['coordenador_alvo_id'] ?? '';
 
 $recursos_array = [];
 if ($clone && !empty($clone['recursos_necessarios'])) {
@@ -74,21 +79,24 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $detalhamento_recursos = $_POST['detalhamento_recursos'];
     $cronograma = $_POST['cronograma'];
     $resultados_esperados = $_POST['resultados_esperados'];
+    
+    // Pega o coordenador escolhido
+    $coordenador_alvo_id = !empty($_POST['coordenador_alvo_id']) ? $_POST['coordenador_alvo_id'] : null;
 
     if ($total_mensal > 200) {
         $erro = "O total mensal não pode ultrapassar 200 horas.";
     } else {
         try {
             $sql = "INSERT INTO solicitacoes_hae 
-                    (professor_id, semestre, quantidade_horas, titulo_projeto, projeto_anterior, nome_projeto_anterior, 
+                    (professor_id, coordenador_alvo_id, semestre, quantidade_horas, titulo_projeto, projeto_anterior, nome_projeto_anterior, 
                     objetivos_escola, horas_aula, horas_atividade, horas_especificas, total_semanal, total_mensal, 
                     categoria, justificativa, objetivo, metodologia, envolvidos, recursos_necessarios, detalhamento_recursos, 
                     cronograma, resultados_esperados) 
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
             
             $stmt = $pdo->prepare($sql);
             $stmt->execute([
-                $professor_id, $semestre, $quantidade_horas, $titulo_projeto, $projeto_anterior, $nome_projeto_anterior,
+                $professor_id, $coordenador_alvo_id, $semestre, $quantidade_horas, $titulo_projeto, $projeto_anterior, $nome_projeto_anterior,
                 $objetivos_escola, $horas_aula, $horas_atividade, $horas_especificas, $total_semanal, $total_mensal,
                 $categoria, $justificativa, $objetivo, $metodologia, $envolvidos, $recursos_necessarios, $detalhamento_recursos,
                 $cronograma, $resultados_esperados
@@ -177,6 +185,17 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             transition: 0.2s; 
         }
         .btn-excluir-cat:hover { color: #e74c3c; }
+
+        /* Nova box do alvo de coordenador */
+        .box-encaminhamento {
+            background-color: #f8f9fa; 
+            padding: 20px; 
+            border-radius: 8px; 
+            border-left: 4px solid #3498db;
+            margin-bottom: 30px;
+        }
+        .box-encaminhamento h3 { color: #2c3e50; border-left: none; padding-left: 0; margin-top: 0; }
+        .box-encaminhamento p { font-size: 13px; color: #666; margin-bottom: 15px; }
     </style>
 </head>
 <body>
@@ -312,6 +331,24 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     </div>
                 </div>
 
+                <div class="box-encaminhamento">
+                    <h3><i class="fa-solid fa-user-check"></i> Encaminhamento da Solicitação</h3>
+                    <p>Indique o coordenador principal para analisar este projeto. A solicitação continuará visível para toda a equipe de coordenação e direção.</p>
+                    <div class="grid-2">
+                        <div class="full-width">
+                            <label>Coordenador Responsável pela Análise (Opcional)</label>
+                            <select name="coordenador_alvo_id">
+                                <option value="">-- Selecionar Coordenador --</option>
+                                <?php foreach($lista_coordenadores as $coord): ?>
+                                    <option value="<?php echo $coord['id']; ?>" <?php echo ($c_coordenador_alvo == $coord['id']) ? 'selected' : ''; ?>>
+                                         <?php echo htmlspecialchars($coord['nome']); ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
                 <div style="overflow: hidden; margin-top: 20px;">
                     <button type="submit" class="btn-submit" id="btn_submit">Enviar Solicitação de HAE</button>
                 </div>
@@ -387,7 +424,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     .then(response => response.json())
                     .then(data => {
                         if (data.sucesso && data.nova) {
-                            // Cria a nova linha na lista dinamicamente
                             let li = document.createElement('li');
                             li.onmousedown = function(e) { e.preventDefault(); selecionarCategoria(valor); };
                             li.innerHTML = `<span class="cat-text" style="flex:1;">${valor}</span>
@@ -420,16 +456,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             listaCat.style.display = 'none';
         };
 
-        // EXCLUSÃO INSTANTÂNEA E SILENCIOSA (SEM MENSAGEM DE CONFIRMAÇÃO)
         window.excluirCategoria = function(event, nome, liElement) {
-            event.stopPropagation(); // Impede de selecionar ao clicar no X
+            event.stopPropagation();
             
             fetch('api_categoria.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                 body: 'acao=excluir&categoria=' + encodeURIComponent(nome)
             }).then(() => {
-                liElement.remove(); // Remove o item da tela na mesma hora!
+                liElement.remove(); 
             }).catch(err => console.error('Erro ao excluir:', err));
         };
 
