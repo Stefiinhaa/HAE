@@ -198,7 +198,7 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
                             <select name="funcao" required>
                                 <option value="Professor">Professor(a)</option>
                                 <option value="Coordenador">Coordenador(a)</option>
-                                <option value="Diretor">Diretor(a)</option>
+                                <option value="Diretor">Diretor(a) / ATA</option>
                             </select>
                         </div>
                     </div>

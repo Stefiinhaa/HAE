@@ -129,6 +129,28 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
         
         .aviso-rascunho { background: #fff3cd; color: #856404; padding: 15px; border-radius: 6px; border-left: 4px solid #f39c12; margin-bottom: 20px; font-size: 14px; display: flex; align-items: center; gap: 10px; }
         .btn-voltar { display: inline-flex; align-items: center; gap: 8px; margin-bottom: 20px; color: #666; text-decoration: none; font-weight: bold; font-size: 14px; }
+
+        /* =========================================================
+           REGRAS DE RESPONSIVIDADE (MOBILE & TABLETS)
+           ========================================================= */
+        @media (max-width: 768px) {
+            .form-card { padding: 20px; }
+            .grid-3 { grid-template-columns: 1fr; gap: 15px; } /* Quebra as colunas para o formulário ficar em pé */
+            
+            .botoes-container { 
+                flex-direction: column-reverse; /* Coloca o botão de Enviar em cima e o Rascunho embaixo */
+                align-items: stretch; /* Faz os botões ocuparem 100% da largura */
+                gap: 12px; 
+            }
+            .btn { justify-content: center; padding: 15px; } /* Aumenta a área de toque no mobile */
+            
+            .aviso-rascunho { 
+                flex-direction: column; 
+                text-align: center; 
+                padding: 20px;
+            }
+            .aviso-rascunho i { font-size: 24px; margin-bottom: 5px; }
+        }
     </style>
 </head>
 <body>

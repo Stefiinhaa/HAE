@@ -64,55 +64,61 @@ $caminho_assinatura = $dados['assinatura_path'];
     <style>
         body { background: #525659; padding: 20px; font-family: 'Arial', sans-serif; margin: 0; }
         
-        /* Adicionado margin-bottom para separar as folhas na visualização da tela */
-        .page { background: white; max-width: 210mm; width: 100%; min-height: 297mm; padding: 20mm; box-sizing: border-box; box-shadow: 0 0 10px rgba(0,0,0,0.5); font-size: 14px; line-height: 1.5; color: #000; margin: 0 auto 30px auto; overflow-x: hidden; }
+        /* OTIMIZAÇÃO DE ESPAÇO: Redução de padding, font-size e line-height */
+        .page { background: white; max-width: 210mm; width: 100%; min-height: 297mm; padding: 12mm 15mm; box-sizing: border-box; box-shadow: 0 0 10px rgba(0,0,0,0.5); font-size: 13px; line-height: 1.35; color: #000; margin: 0 auto 30px auto; overflow-x: hidden; }
         
-        h2, h3, h4 { text-align: center; margin-bottom: 15px; }
-        p { margin-bottom: 10px; }
-        .table-responsive { width: 100%; overflow-x: auto; margin-bottom: 20px; }
+        h2, h3, h4 { text-align: center; margin-bottom: 8px; margin-top: 5px; }
+        p { margin-bottom: 6px; margin-top: 2px; }
+        
+        .table-responsive { width: 100%; overflow-x: auto; margin-bottom: 12px; }
         .tabela-horas { width: 100%; border-collapse: collapse; min-width: 500px; }
-        .tabela-horas th, .tabela-horas td { border: 1px solid #000; padding: 8px; text-align: left; }
+        .tabela-horas th, .tabela-horas td { border: 1px solid #000; padding: 5px 8px; text-align: left; }
         .tabela-horas th { background-color: #f2f2f2; }
         
-        /* NOVO LAYOUT DO CABEÇALHO LADO A LADO */
-        .info-topo { display: flex; justify-content: space-between; align-items: stretch; margin-bottom: 20px; }
+        .info-topo { display: flex; justify-content: space-between; align-items: stretch; margin-bottom: 12px; }
         .dados-professor { flex: 1; padding-right: 20px; }
-        .dados-professor p { margin-top: 0; margin-bottom: 10px; }
-        .quadrado-hae { width: 160px; border: 1px solid #000; display: flex; flex-direction: column; text-align: center; }
-        .titulo-quadrado { background-color: #f2f2f2; border-bottom: 1px solid #000; padding: 8px 5px; font-weight: bold; font-size: 11px; text-transform: uppercase; }
-        .valor-quadrado { padding: 15px; font-size: 24px; font-weight: bold; flex: 1; display: flex; align-items: center; justify-content: center; }
+        .dados-professor p { margin-top: 0; margin-bottom: 6px; }
+        
+        .quadrado-hae { width: 140px; border: 1px solid #000; display: flex; flex-direction: column; text-align: center; }
+        .titulo-quadrado { background-color: #f2f2f2; border-bottom: 1px solid #000; padding: 5px; font-weight: bold; font-size: 11px; text-transform: uppercase; }
+        .valor-quadrado { padding: 10px; font-size: 22px; font-weight: bold; flex: 1; display: flex; align-items: center; justify-content: center; }
 
-        .parecer-box { border: 1px solid #000; padding: 15px;  }
-        .grid-parecer { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 15px; text-align: center; }
-        .assinatura-responsavel { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 70px; }
-        .assinatura-responsavel img { max-height: 55px; max-width: 200px; margin-bottom: -10px; }
-        .linha-assinatura-pequena { width: 100%; border-top: 1px solid #000; padding-top: 5px; }
+        /* PARECER COMPACTADO */
+        .parecer-box { border: 1px solid #000; padding: 10px 15px; margin-top: 10px; }
+        .grid-parecer { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 8px; text-align: center; }
+        .assinatura-responsavel { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 60px; }
+        .assinatura-responsavel img { max-height: 50px; max-width: 180px; margin-bottom: -5px; }
+        .linha-assinatura-pequena { width: 100%; border-top: 1px solid #000; padding-top: 3px; font-size: 11px; }
+        
         #td_centralizado{ text-align: center; }
-        .assinatura-box { margin-top: 40px; display: flex; flex-direction: column; align-items: center; text-align: center; }
-        .assinatura-img { max-height: 100px; max-width: 250px; margin-bottom: -15px; }
-        .linha-assinatura { width: 300px; max-width: 100%; border-top: 1px solid #000; margin-top: 20px; padding-top: 5px; }
+        
+        .assinatura-box { margin-top: 25px; display: flex; flex-direction: column; align-items: center; text-align: center; page-break-inside: avoid; }
+        .assinatura-img { max-height: 80px; max-width: 220px; margin-bottom: -10px; }
+        .linha-assinatura { width: 250px; max-width: 100%; border-top: 1px solid #000; margin-top: 10px; padding-top: 5px; font-size: 12px; }
 
         .texto-parecer { color: #333; margin-left: 5px; font-style: italic; }
 
         .btn-imprimir { position: fixed; bottom: 20px; right: 20px; background: #b20000; color: white; border: none; padding: 15px 25px; border-radius: 5px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.3); z-index: 1000; transition: 0.3s; }
         .btn-imprimir:hover { background: #8a0000; }
         
-        /* Configuração de Impressão */
+        /* IMPRESSÃO: Mantém em 2 folhas e remove sobras */
         @media print { 
             body { background: white; padding: 0; } 
-            /* Retira sombras e margens, e força a quebra de página automática entre os blocos .page */
             .page { box-shadow: none; max-width: 100%; padding: 0; margin: 0; min-height: auto; page-break-after: always; } 
             .page:last-child { page-break-after: auto; }
             .btn-imprimir { display: none; } 
         }
 
-         .header-doc { text-align: center; margin-bottom: 10px; }
-        .header-doc img { max-height: 70px; }
-        .header-doc h2 { margin: 0; font-size: 20px; font-weight: bold; }
-
-         .titulo-fatec{
-            margin-bottom: 30px;
-        }
+        /* CABEÇALHO COMPACTADO */
+        .header-doc { text-align: center; margin-bottom: 5px; }
+        .header-doc img { max-height: 60px; }
+        .header-doc hr { margin: 5px 0; }
+        .header-doc h2 { margin: 0; font-size: 16px; font-weight: bold; }
+        
+        .titulo-fatec{ margin-bottom: 12px; font-size: 14px; margin-top: 5px; }
+        
+        /* Garante que os tópicos não quebrem na metade da impressão */
+        .topico { page-break-inside: avoid; }
     </style>
 </head>
 <body>
@@ -120,11 +126,9 @@ $caminho_assinatura = $dados['assinatura_path'];
     <button class="btn-imprimir" onclick="window.print()">🖨️ Gerar / Salvar PDF</button>
 
     <div class="page">
- <div class="header-doc">
-            <!-- Puxando a logo do CPS diretamente da pasta Img -->
+        <div class="header-doc">
             <img src="img/header-cps-documento.jpeg" alt="Logo CPS Fatec"> <hr>
             <h4 class="titulo-fatec">Faculdade de Tecnologia de Garça “Deputado Júlio Julinho Marcondes de Moura”</h4>
-    
         </div>
 
         <h3>FORMULÁRIO PARA SOLICITAÇÃO DE PROJETO COM<br>HORA ATIVIDADE ESPECÍFICA – <?php echo $ano_projeto; ?></h3>
@@ -181,7 +185,7 @@ $caminho_assinatura = $dados['assinatura_path'];
                 </div>
             </div>
             
-            <p style="margin-top: 25px;">
+            <p style="margin-top: 15px;">
                 <strong>Parecer do(a) diretor(a):</strong>
                 <span class="texto-parecer"><?php echo !empty($dados['parecer_diretor']) ? htmlspecialchars($dados['parecer_diretor']) : '__________________________________________________________________'; ?></span>
             </p>
@@ -196,32 +200,33 @@ $caminho_assinatura = $dados['assinatura_path'];
                 </div>
             </div>
         </div>
-    </div> <div class="page" style="page-break-before: always;">
+    </div> 
 
-     <div class="header-doc">
-            <!-- Puxando a logo do CPS diretamente da pasta Img -->
+    <div class="page" style="page-break-before: always;">
+        <div class="header-doc">
             <img src="img/header-cps-documento.jpeg" alt="Logo CPS Fatec"> <hr>
             <h4 class="titulo-fatec">Faculdade de Tecnologia de Garça “Deputado Júlio Julinho Marcondes de Moura”</h4>
             <h2>APRESENTAÇÃO DO PROJETO</h2>
         </div>
       
-        <p><strong>1.- Título do Projeto:</strong> <?php echo htmlspecialchars($dados['titulo_projeto']); ?></p>
-        <p><strong>2.- Professor Responsável:</strong> <?php echo htmlspecialchars($dados['nome']); ?></p>
-        <p><strong>3.- Categoria:</strong> <?php echo htmlspecialchars($dados['categoria']); ?></p>
-        <p><strong>4.- Justificativa:</strong><br><?php echo nl2br(htmlspecialchars($dados['justificativa'])); ?></p>
-        <p><strong>5.- Objetivo:</strong><br><?php echo nl2br(htmlspecialchars($dados['objetivo'])); ?></p>
-        <p><strong>6.- Metodologia:</strong><br><?php echo nl2br(htmlspecialchars($dados['metodologia'])); ?></p>
-        <p><strong>7.- Envolvidos no Projeto:</strong><br><?php echo nl2br(htmlspecialchars($dados['envolvidos'])); ?></p>
-        <p><strong>8.- Recurso(s) Necessário(s):</strong><br><?php echo $dados['recursos_necessarios']; ?><br><em>Detalhamento:</em> <?php echo nl2br(htmlspecialchars($dados['detalhamento_recursos'])); ?></p>
-        <p><strong>9.- Cronograma de execução:</strong><br><?php echo nl2br(htmlspecialchars($dados['cronograma'])); ?></p>
-        <p><strong>10.- Resultados esperados:</strong><br><?php echo nl2br(htmlspecialchars($dados['resultados_esperados'])); ?></p>
+        <p class="topico"><strong>1.- Título do Projeto:</strong> <?php echo htmlspecialchars($dados['titulo_projeto']); ?></p>
+        <p class="topico"><strong>2.- Professor Responsável:</strong> <?php echo htmlspecialchars($dados['nome']); ?></p>
+        <p class="topico"><strong>3.- Categoria:</strong> <?php echo htmlspecialchars($dados['categoria']); ?></p>
+        <p class="topico"><strong>4.- Justificativa:</strong><br><?php echo nl2br(htmlspecialchars($dados['justificativa'])); ?></p>
+        <p class="topico"><strong>5.- Objetivo:</strong><br><?php echo nl2br(htmlspecialchars($dados['objetivo'])); ?></p>
+        <p class="topico"><strong>6.- Metodologia:</strong><br><?php echo nl2br(htmlspecialchars($dados['metodologia'])); ?></p>
+        <p class="topico"><strong>7.- Envolvidos no Projeto:</strong><br><?php echo nl2br(htmlspecialchars($dados['envolvidos'])); ?></p>
+        <p class="topico"><strong>8.- Recurso(s) Necessário(s):</strong><br><?php echo $dados['recursos_necessarios']; ?><br><em>Detalhamento:</em> <?php echo nl2br(htmlspecialchars($dados['detalhamento_recursos'])); ?></p>
+        <p class="topico"><strong>9.- Cronograma de execução:</strong><br><?php echo nl2br(htmlspecialchars($dados['cronograma'])); ?></p>
+        <p class="topico"><strong>10.- Resultados esperados:</strong><br><?php echo nl2br(htmlspecialchars($dados['resultados_esperados'])); ?></p>
 
         <div class="assinatura-box">
             <?php if (!empty($caminho_assinatura) && file_exists($caminho_assinatura)): ?>
                 <img src="<?php echo $caminho_assinatura; ?>" alt="Assinatura do Professor" class="assinatura-img">
             <?php else: ?><br><br><br><?php endif; ?>
             <div class="linha-assinatura">Assinatura do Professor</div>
-            <p><strong>Data:</strong> <?php echo $data_envio; ?></p>
+            <p style="margin-top: 5px;"><strong>Data:</strong> <?php echo $data_envio; ?></p>
         </div>
-    </div> </body>
+    </div> 
+</body>
 </html>

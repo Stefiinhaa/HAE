@@ -33,9 +33,13 @@ if ($visualizando_projeto_id > 0) {
     // TELA 1: GRID GERAL COM ACORDEÃO E PAGINAÇÃO
     // ==============================================================================
     
-    // MUNDO REAL ATIVADO (Filtro padrão no mês atual)
-    $mes_padrao = (int)date('n'); 
-    $ano_padrao = (int)date('Y'); 
+    // MUNDO REAL ATIVADO (Filtro inteligente: padrão é o mês de cobrança, ou seja, o mês passado)
+    $hoje_obj = new DateTime();
+    $primeiro_dia_mes = new DateTime($hoje_obj->format('Y-m-01'));
+    $primeiro_dia_mes->modify('-1 month'); // Volta 1 mês automaticamente
+    
+    $mes_padrao = (int)$primeiro_dia_mes->format('n'); 
+    $ano_padrao = (int)$primeiro_dia_mes->format('Y'); 
 
     $filtro_mes = isset($_GET['mes']) ? (int)$_GET['mes'] : $mes_padrao;
     $filtro_ano = isset($_GET['ano']) ? (int)$_GET['ano'] : $ano_padrao;
@@ -260,9 +264,13 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
                     <div class="filter-group">
                         <label>Ano</label>
                         <select name="ano">
-                            <option value="2024" <?php echo $filtro_ano == 2024 ? 'selected' : ''; ?>>2024</option>
-                            <option value="2025" <?php echo $filtro_ano == 2025 ? 'selected' : ''; ?>>2025</option>
-                            <option value="2026" <?php echo $filtro_ano == 2026 ? 'selected' : ''; ?>>2026</option>
+                            <?php 
+                                $ano_inicio = 2024;
+                                $ano_atual = max((int)date('Y'), $filtro_ano);
+                                for ($a = $ano_inicio; $a <= $ano_atual; $a++): 
+                            ?>
+                                <option value="<?php echo $a; ?>" <?php echo $filtro_ano == $a ? 'selected' : ''; ?>><?php echo $a; ?></option>
+                            <?php endfor; ?>
                         </select>
                     </div>
                     <div class="filter-group">

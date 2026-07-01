@@ -68,7 +68,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     <form method="POST">
         <div class="input-group">
             <label>E-mail Institucional</label>
-            <input type="email" name="email" required placeholder="exemplo@fatec.sp.gov.br">
+            <input type="email" name="email" required placeholder="exemplo@cps.sp.gov.br">
         </div>
         
         <div class="input-group">

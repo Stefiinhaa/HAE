@@ -134,7 +134,17 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
         .strength-bar { height: 100%; width: 0%; transition: all 0.4s ease; }
         .strength-text { font-size: 11px; margin-top: 4px; font-weight: bold; text-transform: uppercase; }
 
-        @media (max-width: 1024px) { .perfil-container { grid-template-columns: 1fr; } }
+        /* REGRAS DE RESPONSIVIDADE ADICIONADAS */
+        @media (max-width: 1024px) { 
+            .perfil-container { grid-template-columns: 1fr; } 
+        }
+        
+        @media (max-width: 768px) {
+            .grid { grid-template-columns: 1fr; gap: 15px; }
+            .full { grid-column: 1 / -1; }
+            .form-card { padding: 20px; }
+            .signature-preview { padding: 15px; }
+        }
     </style>
 </head>
 <body>
@@ -174,7 +184,6 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
                             <i class="fa-solid fa-calendar-check"></i> <span class="menu-text">Enviar Relatório</span>
                         </a>
                     </li>
-                    <!-- O LINK ATUALIZADO AQUI -->
                     <li>
                         <a href="meus_rascunhos.php" class="<?php echo ($pagina_atual == 'meus_rascunhos.php') ? 'active' : ''; ?>">
                             <i class="fa-solid fa-file-pen"></i> <span class="menu-text">Meus Rascunhos</span>
@@ -226,9 +235,10 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
         <?php if($sucesso) echo "<div class='alert-success'>✅ $sucesso</div>"; ?>
         <?php if($erro) echo "<div class='alert-success' style='background:#fee2e2; color:#b91c1c; border-color:#b91c1c;'>❌ $erro</div>"; ?>
 
-        <div class="perfil-container">
-            <div class="form-card">
-                <form method="POST" enctype="multipart/form-data" id="perfil-form" autocomplete="off">
+        <!-- FORMULÁRIO AGORA ENVOLVE O CONTAINER INTEIRO PARA GARANTIR O ENVIO DO ARQUIVO -->
+        <form method="POST" enctype="multipart/form-data" id="perfil-form" autocomplete="off">
+            <div class="perfil-container">
+                <div class="form-card">
                     <div class="grid">
                         <div class="full">
                             <label>Nome Completo</label>
@@ -284,26 +294,26 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
                     <div style="margin-top: 30px;">
                         <button type="submit" class="btn-save" id="submitBtn"><i class="fa-solid fa-floppy-disk"></i> Salvar Alterações</button>
                     </div>
-                </form>
-            </div>
+                </div>
 
-            <div class="signature-column">
-                <div class="signature-preview">
-                    <label style="text-align: left;">Assinatura Atual</label>
-                    <?php if($user['assinatura_path']): ?>
-                        <img src="<?php echo $user['assinatura_path']; ?>" alt="Assinatura">
-                    <?php else: ?>
-                        <p style="font-size: 12px; color: #999; margin: 20px 0;">Nenhuma assinatura cadastrada.</p>
-                    <?php endif; ?>
-                    
-                    <div style="margin-top: 25px; text-align: left;">
-                        <label>Atualizar Assinatura</label>
-                        <input type="file" name="assinatura" form="perfil-form" style="padding: 5px; font-size: 12px;">
-                        <p style="font-size: 11px; color: #888; margin-top: 5px;">Formatos aceitos: PNG, JPG.</p>
+                <div class="signature-column">
+                    <div class="signature-preview">
+                        <label style="text-align: left;">Assinatura Atual</label>
+                        <?php if($user['assinatura_path']): ?>
+                            <img src="<?php echo $user['assinatura_path']; ?>" alt="Assinatura">
+                        <?php else: ?>
+                            <p style="font-size: 12px; color: #999; margin: 20px 0;">Nenhuma assinatura cadastrada.</p>
+                        <?php endif; ?>
+                        
+                        <div style="margin-top: 25px; text-align: left;">
+                            <label>Atualizar Assinatura</label>
+                            <input type="file" name="assinatura" style="padding: 5px; font-size: 12px; width: 100%;">
+                            <p style="font-size: 11px; color: #888; margin-top: 5px;">Formatos aceitos: PNG, JPG.</p>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
+        </form>
     </main>
 
     <script src="assets/js/painel.js"></script>

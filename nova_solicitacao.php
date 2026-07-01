@@ -22,7 +22,7 @@ $stmt_coords = $pdo->query("SELECT id, nome FROM usuarios WHERE funcao = 'Coorde
 $lista_coordenadores = $stmt_coords->fetchAll(PDO::FETCH_ASSOC);
 
 // LÓGICA DE CLONAGEM
-$clone_id = isset($_GET['clone_id']) ? (int)$_GET['clone_id'] : 0;
+$clone_id = isset($_GET['clone_id']) ? (int) $_GET['clone_id'] : 0;
 $clone = null;
 
 if ($clone_id > 0) {
@@ -62,24 +62,24 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $projeto_anterior = $_POST['projeto_anterior'] == 'Sim' ? 1 : 0;
     $nome_projeto_anterior = $projeto_anterior ? $_POST['nome_projeto_anterior'] : null;
     $objetivos_escola = $_POST['objetivos_escola'];
-    
+
     $horas_aula = $_POST['horas_aula'];
     $horas_atividade = $_POST['horas_atividade'];
     $horas_especificas = $_POST['horas_especificas'];
     $total_semanal = $_POST['total_semanal'];
     $total_mensal = $_POST['total_mensal'];
-    
+
     $categoria = trim($_POST['categoria']);
     $justificativa = $_POST['justificativa'];
     $objetivo = $_POST['objetivo'];
     $metodologia = $_POST['metodologia'];
     $envolvidos = $_POST['envolvidos'];
-    
-    $recursos_necessarios = isset($_POST['recursos']) ? implode(', ', $_POST['recursos']) : '';
+
+    $recursos_necessarios = isset($_POST['recursos']) ? implode(',', $_POST['recursos']) : '';
     $detalhamento_recursos = $_POST['detalhamento_recursos'];
     $cronograma = $_POST['cronograma'];
     $resultados_esperados = $_POST['resultados_esperados'];
-    
+
     // Pega o coordenador escolhido
     $coordenador_alvo_id = !empty($_POST['coordenador_alvo_id']) ? $_POST['coordenador_alvo_id'] : null;
 
@@ -93,17 +93,38 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     categoria, justificativa, objetivo, metodologia, envolvidos, recursos_necessarios, detalhamento_recursos, 
                     cronograma, resultados_esperados) 
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-            
+
             $stmt = $pdo->prepare($sql);
             $stmt->execute([
-                $professor_id, $coordenador_alvo_id, $semestre, $quantidade_horas, $titulo_projeto, $projeto_anterior, $nome_projeto_anterior,
-                $objetivos_escola, $horas_aula, $horas_atividade, $horas_especificas, $total_semanal, $total_mensal,
-                $categoria, $justificativa, $objetivo, $metodologia, $envolvidos, $recursos_necessarios, $detalhamento_recursos,
-                $cronograma, $resultados_esperados
+                $professor_id,
+                $coordenador_alvo_id,
+                $semestre,
+                $quantidade_horas,
+                $titulo_projeto,
+                $projeto_anterior,
+                $nome_projeto_anterior,
+                $objetivos_escola,
+                $horas_aula,
+                $horas_atividade,
+                $horas_especificas,
+                $total_semanal,
+                $total_mensal,
+                $categoria,
+                $justificativa,
+                $objetivo,
+                $metodologia,
+                $envolvidos,
+                $recursos_necessarios,
+                $detalhamento_recursos,
+                $cronograma,
+                $resultados_esperados
             ]);
-            
+
             $sucesso = "Solicitação de HAE enviada com sucesso para análise da coordenação!";
-            $clone = null; $c_titulo = ''; $c_obj_escola = ''; $c_justificativa = ''; 
+            $clone = null;
+            $c_titulo = '';
+            $c_obj_escola = '';
+            $c_justificativa = '';
         } catch (PDOException $e) {
             $erro = "Erro ao enviar solicitação: " . $e->getMessage();
         }
@@ -196,6 +217,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         }
         .box-encaminhamento h3 { color: #2c3e50; border-left: none; padding-left: 0; margin-top: 0; }
         .box-encaminhamento p { font-size: 13px; color: #666; margin-bottom: 15px; }
+
+        /* RESPONSIVIDADE - ÁREA DA CARGA HORÁRIA E CAMPOS DE FORMULÁRIO */
+        @media (max-width: 768px) {
+            .form-card { padding: 20px; }
+            .grid-2, .grid-3 { grid-template-columns: 1fr; gap: 15px; } /* Quebra os campos lado a lado em uma coluna */
+            .calc-box { padding: 15px; } /* Mantém a caixa de cálculo mais confortável */
+            .checkbox-group { flex-direction: column; align-items: flex-start; gap: 10px; } /* Melhora as opções de recursos */
+        }
     </style>
 </head>
 <body>
@@ -232,14 +261,16 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             <div class="user-info">Olá, <strong><?php echo htmlspecialchars($_SESSION['usuario_nome']); ?></strong></div>
         </header>
 
-        <?php if($clone): ?>
-            <div class="aviso-clone">
-                <i class="fa-solid fa-clone"></i> <strong>Modo Clonagem:</strong> O formulário foi preenchido com as informações do seu projeto antigo. Atualize o Semestre e faça as alterações necessárias antes de enviar.
-            </div>
+        <?php if ($clone): ?>
+                <div class="aviso-clone">
+                    <i class="fa-solid fa-clone"></i> <strong>Modo Clonagem:</strong> O formulário foi preenchido com as informações do seu projeto antigo. Atualize o Semestre e faça as alterações necessárias antes de enviar.
+                </div>
         <?php endif; ?>
 
-        <?php if($sucesso) echo "<div class='alert-success'>$sucesso</div>"; ?>
-        <?php if($erro) echo "<div class='alert-success' style='background:#fee2e2; color:#b91c1c; border-color:#b91c1c;'>$erro</div>"; ?>
+        <?php if ($sucesso)
+            echo "<div class='alert-success'>$sucesso</div>"; ?>
+        <?php if ($erro)
+            echo "<div class='alert-success' style='background:#fee2e2; color:#b91c1c; border-color:#b91c1c;'>$erro</div>"; ?>
 
         <div class="form-card">
             <form method="POST">
@@ -292,16 +323,16 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                             <div class="dropdown-container">
                                 <input type="text" name="categoria" id="categoria" autocomplete="off" value="<?php echo htmlspecialchars($c_categoria); ?>" required placeholder="Selecione na lista ou digite uma nova categoria para salvar...">
                                 <ul id="lista_categorias" class="custom-dropdown">
-                                    <?php foreach($categorias_db as $cat): ?>
-                                        <li onmousedown="event.preventDefault(); selecionarCategoria('<?php echo htmlspecialchars($cat); ?>')">
-                                            <span class="cat-text" style="flex:1;"><?php echo htmlspecialchars($cat); ?></span>
+                                    <?php foreach ($categorias_db as $cat): ?>
+                                            <li onmousedown="event.preventDefault(); selecionarCategoria('<?php echo htmlspecialchars($cat); ?>')">
+                                                <span class="cat-text" style="flex:1;"><?php echo htmlspecialchars($cat); ?></span>
                                             
-                                            <?php if (!in_array($cat, $categorias_padrao)): ?>
-                                                <button type="button" class="btn-excluir-cat" title="Remover da lista" onmousedown="event.preventDefault(); excluirCategoria(event, '<?php echo htmlspecialchars($cat); ?>', this.parentElement)">
-                                                    <i class="fa-solid fa-xmark"></i>
-                                                </button>
-                                            <?php endif; ?>
-                                        </li>
+                                                <?php if (!in_array($cat, $categorias_padrao)): ?>
+                                                        <button type="button" class="btn-excluir-cat" title="Remover da lista" onmousedown="event.preventDefault(); excluirCategoria(event, '<?php echo htmlspecialchars($cat); ?>', this.parentElement)">
+                                                            <i class="fa-solid fa-xmark"></i>
+                                                        </button>
+                                                <?php endif; ?>
+                                            </li>
                                     <?php endforeach; ?>
                                 </ul>
                             </div>
@@ -339,10 +370,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                             <label>Coordenador Responsável pela Análise (Opcional)</label>
                             <select name="coordenador_alvo_id">
                                 <option value="">-- Selecionar Coordenador --</option>
-                                <?php foreach($lista_coordenadores as $coord): ?>
-                                    <option value="<?php echo $coord['id']; ?>" <?php echo ($c_coordenador_alvo == $coord['id']) ? 'selected' : ''; ?>>
-                                         <?php echo htmlspecialchars($coord['nome']); ?>
-                                    </option>
+                                <?php foreach ($lista_coordenadores as $coord): ?>
+                                        <option value="<?php echo $coord['id']; ?>" <?php echo ($c_coordenador_alvo == $coord['id']) ? 'selected' : ''; ?>>
+                                             <?php echo htmlspecialchars($coord['nome']); ?>
+                                        </option>
                                 <?php endforeach; ?>
                             </select>
                         </div>
