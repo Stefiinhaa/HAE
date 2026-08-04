@@ -2,6 +2,16 @@
 session_start();
 require 'config/conexao.php';
 
+// =========================================================================
+// BUSCA AS CONFIGURAÇÕES GLOBAIS NO BANCO DE DADOS
+// =========================================================================
+$stmt_conf = $pdo->query("SELECT chave, valor FROM configuracoes");
+$config_db = $stmt_conf->fetchAll(PDO::FETCH_KEY_PAIR);
+
+$ano_eleitoral = ($config_db['ano_eleitoral'] === '1'); 
+$logo_institucional = $config_db['logo_institucional'] ?? 'img/header-cps-documento.jpeg';
+// =========================================================================
+
 // Segurança: Apenas logados podem acessar
 if (!isset($_SESSION['usuario_id'])) {
     die("Acesso negado.");
@@ -12,7 +22,6 @@ $usuario_logado_id = $_SESSION['usuario_id'];
 $funcao_logada = $_SESSION['usuario_funcao'];
 
 // Busca todos os dados do relatório, cruzando com o projeto e o professor
-// ATENÇÃO: Adicionado 's.envolvidos' para puxar do banco de dados e exibir no relatório
 $sql = "SELECT r.*, 
                s.titulo_projeto, s.quantidade_horas, s.semestre, s.professor_id, s.envolvidos,
                u.nome AS professor_nome, u.assinatura_path 
@@ -47,6 +56,9 @@ $caminho_assinatura = $dados['assinatura_path'];
     <meta charset="UTF-8">
     <title>Relatório HAE - <?php echo htmlspecialchars($dados['professor_nome']); ?></title>
     <style>
+        /* Reset básico para evitar vazamento de bordas na largura 100% */
+        * { box-sizing: border-box; }
+
         /* Estilos base para a folha A4 */
         body { 
             background: #525659; 
@@ -60,34 +72,33 @@ $caminho_assinatura = $dados['assinatura_path'];
             max-width: 210mm; /* Proporção A4 */
             width: 100%;
             min-height: 297mm; 
-           padding: 15mm 10mm; /* Espaçamento interno da folha (margens) */
-            box-sizing: border-box; 
+            padding: 15mm; /* Espaçamento interno da folha na visualização */
             box-shadow: 0 0 10px rgba(0,0,0,0.5);
-            font-size: 15px; /* Tamanho de fonte ideal para leitura impressa */
+            font-size: 15px; 
             line-height: 1.6;
             color: #000;
             margin: 0 auto; 
             position: relative;
         }
 
-        .header-doc { text-align: center; margin-bottom: 30px; }
-        .header-doc img { max-height: 80px; }
-        .header-doc h2 { margin: 0; font-size: 20px; font-weight: bold; }
+        /* Cabeçalho com Logo e Título */
+        .header-doc { text-align: center; margin-bottom: 20px; }
+        .header-doc img { max-height: 70px; }
+        .header-doc hr { margin: 5px 0; border: 0; border-top: 1px solid #ccc; }
+        .titulo-fatec { margin-bottom: 15px; font-size: 14px; margin-top: 5px; font-weight: bold; }
+        .header-doc h2 { margin: 0; font-size: 20px; font-weight: bold; text-transform: uppercase; }
 
-        /* Tabela invisível para deixar Período e Quantidade lado a lado */
-        .info-table { width: 100%; margin-bottom: 20px; border-collapse: collapse; }
-        .info-table td { padding: 5px 0; vertical-align: top; border: 1px solid #000; padding: 6px; }
+        /* Tabela e Caixas de Texto (Garantindo que fiquem dentro do limite da folha) */
+        .info-table { width: 100%; margin-bottom: 10px; border-collapse: collapse; }
+        .info-table td { padding: 6px 10px; vertical-align: top; border: 1px solid #000; }
 
-        .campo-texto { margin-bottom: 10px; text-align: justify; border: 1px solid #000; padding: 6px; }
+        .campo-texto { margin-bottom: 10px; text-align: justify; border: 1px solid #000; padding: 6px 10px; width: 100%; }
         
-        .acoes-realizadas { margin-top: 25px; text-align: justify; line-height: 1.7; min-height: 200px; border: 1px solid #000; padding: 6px; }
+        .acoes-realizadas { margin-top: 15px; text-align: justify; line-height: 1.7; min-height: 200px; border: 1px solid #000; padding: 10px; width: 100%; }
 
-        .assinatura-box { text-align: center; margin-top: 70px; }
+        .assinatura-box { text-align: center; margin-top: 60px; }
         .assinatura-img { max-height: 120px; max-width: 300px; margin-bottom: -10px; }
         .linha-assinatura { display: inline-block; width: 350px; border-top: 1px solid #000; padding-top: 5px; font-size: 15px; }
-
-        /* Badge de status no topo (escondido na impressão) */
-        .status-badge { position: absolute; top: 20mm; right: 20mm; padding: 5px 15px; font-weight: bold; border-radius: 4px; font-size: 12px; border: 1px solid #000; }
         
         .btn-imprimir {
             position: fixed; 
@@ -104,15 +115,25 @@ $caminho_assinatura = $dados['assinatura_path'];
             z-index: 1000;
             transition: 0.3s;
         }
-        .titulo-fatec{
-            margin-bottom: 55px;
-        }
         .btn-imprimir:hover { background: #8a0000; }
 
+        /* REGRAS OFICIAIS DE IMPRESSÃO */
         @media print {
-            body { background: white; padding: 0; }
-            .page { box-shadow: none; max-width: 100%; padding: 0; margin: 0; border: none; }
-            .btn-imprimir, .status-badge { display: none !important; }
+            @page {
+                margin: 15mm; 
+                size: A4 portrait;
+            }
+            body { background: white; padding: 0; margin: 0; }
+            .page { 
+                box-shadow: none; 
+                width: 100%; 
+                max-width: none; 
+                padding: 0; 
+                margin: 0; 
+                border: none;
+                min-height: auto;
+            }
+            .btn-imprimir { display: none !important; }
         }
     </style>
 </head>
@@ -122,11 +143,15 @@ $caminho_assinatura = $dados['assinatura_path'];
 
     <div class="page">
         
-
-        <div class="header-doc">
-            <!-- Puxando a logo do CPS diretamente da pasta Img -->
-            <img src="img/header-cps-documento.jpeg" alt="Logo CPS Fatec"> <hr>
-            <h4 class="titulo-fatec">Faculdade de Tecnologia de Garça “Deputado Júlio Julinho Marcondes de Moura”</h4>
+    <div class="header-doc">
+            <?php if (!$ano_eleitoral): ?>
+                <img src="<?php echo htmlspecialchars($logo_institucional); ?>?v=<?php echo time(); ?>" alt="Logo CPS Fatec">
+            <?php else: ?>
+                <!-- Bloco vazio para manter a estrutura e o espaçamento -->
+                <div style="height: 70px; width: 100%;"></div> 
+            <?php endif; ?>
+            <hr>
+            <div class="titulo-fatec">Faculdade de Tecnologia de Garça “Deputado Júlio Julinho Marcondes de Moura”</div>
             <h2>Relatório de H.A.E.</h2>
         </div>
 
@@ -154,12 +179,11 @@ $caminho_assinatura = $dados['assinatura_path'];
             <?php echo nl2br(htmlspecialchars($dados['acoes_realizadas'])); ?>
         </div>
 
-        <!-- Bloco de Assinatura Centralizado -->
         <div class="assinatura-box">
             <?php if (!empty($caminho_assinatura) && file_exists($caminho_assinatura) && $dados['status'] == 'Publicado'): ?>
                 <img src="<?php echo $caminho_assinatura; ?>" alt="Assinatura Professor" class="assinatura-img">
             <?php else: ?>
-                <div style="height: 120px;"></div> <!-- Espaço em branco se não tiver assinatura ou for rascunho -->
+                <div style="height: 120px;"></div>
             <?php endif; ?>
             <br>
             <span class="linha-assinatura">

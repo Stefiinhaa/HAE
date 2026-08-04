@@ -69,7 +69,7 @@ if ($funcao == 'Professor') {
         }
     }
 } else {
-    // ATUALIZAÇÃO DA LÓGICA DO CARD "AGUARDANDO SUA ANÁLISE"
+    // ATUALIZAÇÃO DA LÓGICA DOS CARDS DA DIREÇÃO/COORDENAÇÃO
     if ($funcao == 'Coordenador') {
         $stmt_kpi1 = $pdo->prepare("SELECT COUNT(*) FROM solicitacoes_hae WHERE status_coordenador = 'Pendente' AND status_aprovacao != 'Rejeitado' AND (coordenador_alvo_id IS NULL OR coordenador_alvo_id = ?)");
         $stmt_kpi1->execute([$usuario_id]);
@@ -78,6 +78,9 @@ if ($funcao == 'Professor') {
         // DIRETOR: Mostra no card apenas os projetos que a coordenação JÁ aprovou
         $stmt_kpi1 = $pdo->query("SELECT COUNT(*) FROM solicitacoes_hae WHERE status_diretor = 'Pendente' AND status_coordenador = 'Aprovado' AND status_aprovacao != 'Rejeitado'");
         $kpi_analises = $stmt_kpi1->fetchColumn();
+        
+        // NOVO KPI: Conta o total de usuários cadastrados (Exclusivo para o Diretor)
+        $kpi_total_usuarios = $pdo->query("SELECT COUNT(*) FROM usuarios")->fetchColumn();
     }
 
     $kpi_projetos_ativos = $pdo->query("SELECT COUNT(*) FROM solicitacoes_hae WHERE status_aprovacao = 'Aprovado'")->fetchColumn();
@@ -122,7 +125,7 @@ if ($funcao == 'Professor') {
     <link rel="stylesheet" href="assets/css/painel.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        .dashboard-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-bottom: 35px; }
+        .dashboard-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; margin-bottom: 35px; }
         .card { background: #fff; padding: 25px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); display: flex; align-items: center; gap: 20px; transition: 0.3s; border: 1px solid #eee; border-bottom: 4px solid var(--fatec-red); text-decoration: none; color: inherit; cursor: pointer; }
         .card:hover { transform: translateY(-3px); box-shadow: 0 8px 20px rgba(0,0,0,0.08); }
         .card-icon { width: 65px; height: 65px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 26px; }
@@ -152,19 +155,31 @@ if ($funcao == 'Professor') {
         <nav class="menu">
             <div class="menu-title">Navegação</div>
             <ul>
-                <li><a href="painel.php" class="active"><i class="fa-solid fa-chart-pie"></i> <span class="menu-text">Dashboard</span></a></li>
+                <li><a href="painel.php" class="<?php echo ($pagina_atual == 'painel.php') ? 'active' : ''; ?>"><i class="fa-solid fa-chart-pie"></i> <span class="menu-text">Dashboard</span></a></li>
+                
                 <?php if ($_SESSION['usuario_funcao'] == 'Professor'): ?>
-                    <li><a href="nova_solicitacao.php"><i class="fa-solid fa-file-circle-plus"></i> <span class="menu-text">Nova Solicitação</span></a></li>
-                    <li><a href="meus_projetos.php"><i class="fa-solid fa-folder-open"></i> <span class="menu-text">Meus Projetos</span></a></li>
-                    <li><a href="enviar_relatorio.php"><i class="fa-solid fa-calendar-check"></i> <span class="menu-text">Enviar Relatório</span></a></li>
-                    <li><a href="meus_rascunhos.php"><i class="fa-solid fa-file-pen"></i> <span class="menu-text">Meus Rascunhos</span></a></li>
+                    <li><a href="nova_solicitacao.php" class="<?php echo ($pagina_atual == 'nova_solicitacao.php') ? 'active' : ''; ?>"><i class="fa-solid fa-file-circle-plus"></i> <span class="menu-text">Nova Solicitação</span></a></li>
+                    <li><a href="meus_projetos.php" class="<?php echo ($pagina_atual == 'meus_projetos.php') ? 'active' : ''; ?>"><i class="fa-solid fa-folder-open"></i> <span class="menu-text">Meus Projetos</span></a></li>
+                    <li><a href="enviar_relatorio.php" class="<?php echo ($pagina_atual == 'enviar_relatorio.php') ? 'active' : ''; ?>"><i class="fa-solid fa-calendar-check"></i> <span class="menu-text">Enviar Relatório</span></a></li>
+                    <li><a href="meus_rascunhos.php" class="<?php echo ($pagina_atual == 'meus_rascunhos.php') ? 'active' : ''; ?>"><i class="fa-solid fa-file-pen"></i> <span class="menu-text">Meus Rascunhos</span></a></li>
                 <?php else: ?>
-                    <li><a href="analisar_solicitacoes.php"><i class="fa-solid fa-clipboard-check"></i> <span class="menu-text">Analisar Solicitações</span></a></li>
-                    <li><a href="acompanhar_relatorios.php"><i class="fa-solid fa-chart-line"></i> <span class="menu-text">Acompanhar Relatórios</span></a></li>
-                    <li><a href="relatorios_atrasados.php"><i class="fa-solid fa-file-invoice"></i> <span class="menu-text">Relatórios Atrasados</span></a></li>
-                    <li><a href="cadastrar_professor.php"><i class="fa-solid fa-user-plus"></i> <span class="menu-text">Cadastrar Usuário</span></a></li>
+                    <li><a href="analisar_solicitacoes.php" class="<?php echo ($pagina_atual == 'analisar_solicitacoes.php') ? 'active' : ''; ?>"><i class="fa-solid fa-clipboard-check"></i> <span class="menu-text">Analisar Solicitações</span></a></li>
+                    <li><a href="acompanhar_relatorios.php" class="<?php echo ($pagina_atual == 'acompanhar_relatorios.php') ? 'active' : ''; ?>"><i class="fa-solid fa-chart-line"></i> <span class="menu-text">Acompanhar Relatórios</span></a></li>
+                    <li><a href="relatorios_atrasados.php" class="<?php echo ($pagina_atual == 'relatorios_atrasados.php') ? 'active' : ''; ?>"><i class="fa-solid fa-file-invoice"></i> <span class="menu-text">Relatórios Atrasados</span></a></li>
+                    <li><a href="cadastrar_professor.php" class="<?php echo ($pagina_atual == 'cadastrar_professor.php') ? 'active' : ''; ?>"><i class="fa-solid fa-user-plus"></i> <span class="menu-text">Cadastrar Usuário</span></a></li>
+                    
+                    <?php if ($_SESSION['usuario_funcao'] == 'Diretor'): ?>
+                        <li><a href="listar_usuarios.php" class="<?php echo ($pagina_atual == 'listar_usuarios.php') ? 'active' : ''; ?>"><i class="fa-solid fa-users"></i> <span class="menu-text">Lista de Usuários</span></a></li>
+                    <?php endif; ?>
                 <?php endif; ?>
-                <li><a href="perfil.php"><i class="fa-solid fa-user-gear"></i> <span class="menu-text">Meu Perfil</span></a></li>
+                
+                <li><a href="perfil.php" class="<?php echo ($pagina_atual == 'perfil.php') ? 'active' : ''; ?>"><i class="fa-solid fa-user-gear"></i> <span class="menu-text">Meu Perfil</span></a></li>
+                
+                <!-- MENU DE CONFIGURAÇÕES: Oculto para Coordenador/Professor, posicionado antes de Sair -->
+                <?php if ($_SESSION['usuario_funcao'] == 'Diretor'): ?>
+                    <li><a href="configuracoes.php" class="<?php echo ($pagina_atual == 'configuracoes.php') ? 'active' : ''; ?>"><i class="fa-solid fa-cogs"></i> <span class="menu-text">Configurações</span></a></li>
+                <?php endif; ?>
+                
                 <li><a href="logout.php" class="logout-link"><i class="fa-solid fa-right-from-bracket"></i> <span class="menu-text">Sair do Sistema</span></a></li>
             </ul>
         </nav>
@@ -233,6 +248,14 @@ if ($funcao == 'Professor') {
                     <div class="card-icon" style="background: #e1f5fe; color: #0288d1;"><i class="fa-solid fa-diagram-project"></i></div>
                     <div class="card-info"><h3>Projetos Ativos (Fatec)</h3><p><?php echo $kpi_projetos_ativos; ?></p></div>
                 </a>
+                
+                <!-- NOVO CARD: TOTAL DE USUÁRIOS (EXCLUSIVO PARA O DIRETOR) -->
+                <?php if ($funcao == 'Diretor'): ?>
+                <a href="listar_usuarios.php" class="card">
+                    <div class="card-icon" style="background: #fdf2e9; color: #e67e22;"><i class="fa-solid fa-users"></i></div>
+                    <div class="card-info"><h3>Total de Usuários</h3><p><?php echo $kpi_total_usuarios; ?></p></div>
+                </a>
+                <?php endif; ?>
             </div>
 
             <?php if ($dia_atual >= 11): ?>

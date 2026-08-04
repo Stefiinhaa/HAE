@@ -10,7 +10,26 @@ if (!isset($_SESSION['usuario_id']) || $_SESSION['usuario_funcao'] != 'Professor
 
 $usuario_id = $_SESSION['usuario_id'];
 
-$meses = [1=>'Janeiro', 2=>'Fevereiro', 3=>'Março', 4=>'Abril', 5=>'Maio', 6=>'Junho', 7=>'Julho', 8=>'Agosto', 9=>'Setembro', 10=>'Outubro', 11=>'Novembro', 12=>'Dezembro'];
+// ==============================================================================
+// 0. SISTEMA DE EXCLUSÃO DE PROJETOS
+// ==============================================================================
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['excluir_projeto_id'])) {
+    $id_excluir = (int)$_POST['excluir_projeto_id'];
+    try {
+        // Regra de Ouro: Só exclui se for do professor logado e NÃO estiver Aprovado
+        $stmt_del = $pdo->prepare("DELETE FROM solicitacoes_hae WHERE id = ? AND professor_id = ? AND status_aprovacao != 'Aprovado'");
+        $stmt_del->execute([$id_excluir, $usuario_id]);
+        
+        if ($stmt_del->rowCount() > 0) {
+            header("Location: meus_projetos.php?status=excluido");
+            exit;
+        }
+    } catch (PDOException $e) {
+        $erro = "Erro ao excluir o projeto: " . $e->getMessage();
+    }
+}
+
+$meses = [1 => 'Janeiro', 2 => 'Fevereiro', 3 => 'Março', 4 => 'Abril', 5 => 'Maio', 6 => 'Junho', 7 => 'Julho', 8 => 'Agosto', 9 => 'Setembro', 10 => 'Outubro', 11 => 'Novembro', 12 => 'Dezembro'];
 
 // ==============================================================================
 // 1. SISTEMA DE FILTRAGEM
@@ -54,9 +73,11 @@ $limite_por_pagina = 10;
 $total_projetos = count($projetos_total);
 $total_paginas = ceil($total_projetos / $limite_por_pagina);
 
-$pagina_atual_pag = isset($_GET['pagina']) ? (int)$_GET['pagina'] : 1;
-if ($pagina_atual_pag < 1) $pagina_atual_pag = 1;
-if ($pagina_atual_pag > $total_paginas && $total_paginas > 0) $pagina_atual_pag = $total_paginas;
+$pagina_atual_pag = isset($_GET['pagina']) ? (int) $_GET['pagina'] : 1;
+if ($pagina_atual_pag < 1)
+    $pagina_atual_pag = 1;
+if ($pagina_atual_pag > $total_paginas && $total_paginas > 0)
+    $pagina_atual_pag = $total_paginas;
 
 $offset = ($pagina_atual_pag - 1) * $limite_por_pagina;
 
@@ -83,7 +104,7 @@ $relatorios_raw = $stmt_rel->fetchAll(PDO::FETCH_ASSOC);
 
 // Agrupa os relatórios dentro do ID de cada projeto correspondente
 $relatorios_por_projeto = [];
-foreach($relatorios_raw as $r) {
+foreach ($relatorios_raw as $r) {
     $relatorios_por_projeto[$r['solicitacao_id']][] = $r;
 }
 
@@ -142,6 +163,10 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
         .btn-clone:hover { background: #2980b9; }
         .btn-motivo { background: #e74c3c; color: #fff; }
         .btn-motivo:hover { background: #c0392b; }
+        
+        /* NOVO BOTÃO EXCLUIR */
+        .btn-excluir { background: #c0392b; color: #fff; }
+        .btn-excluir:hover { background: #962d22; }
 
         /* PAGINAÇÃO */
         .paginacao { display: flex; justify-content: center; gap: 8px; margin-bottom: 40px; }
@@ -194,8 +219,16 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
             <div class="user-info">Olá, <strong><?php echo htmlspecialchars($_SESSION['usuario_nome']); ?></strong></div>
         </header>
 
+        <?php if (isset($erro)): ?>
+            <div class="alert-success" style="margin-bottom: 25px; background: #fee2e2; color: #b91c1c; border-left: 4px solid #b91c1c;">❌ <?php echo $erro; ?></div>
+        <?php endif; ?>
+
         <?php if (isset($_GET['status']) && $_GET['status'] == 'reenviado'): ?>
             <div class="alert-success" style="margin-bottom: 25px;">✅ Projeto editado e reenviado para análise com sucesso!</div>
+        <?php endif; ?>
+        
+        <?php if (isset($_GET['status']) && $_GET['status'] == 'excluido'): ?>
+            <div class="alert-success" style="margin-bottom: 25px; background: #fee2e2; color: #b91c1c; border-color: #b91c1c;">🗑️ Projeto excluído permanentemente com sucesso!</div>
         <?php endif; ?>
 
         <form method="GET" class="filter-bar">
@@ -207,10 +240,10 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
                 <label>Semestre</label>
                 <select name="semestre">
                     <option value="Todos">Todos os Semestres</option>
-                    <?php foreach($semestres_disponiveis as $sem): ?>
-                        <?php if(!empty($sem)): ?>
-                            <option value="<?php echo $sem; ?>" <?php echo $filtro_semestre == $sem ? 'selected' : ''; ?>><?php echo $sem; ?></option>
-                        <?php endif; ?>
+                    <?php foreach ($semestres_disponiveis as $sem): ?>
+                                <?php if (!empty($sem)): ?>
+                                            <option value="<?php echo $sem; ?>" <?php echo $filtro_semestre == $sem ? 'selected' : ''; ?>><?php echo $sem; ?></option>
+                                <?php endif; ?>
                     <?php endforeach; ?>
                 </select>
             </div>
@@ -243,79 +276,97 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
                     </thead>
                     <tbody>
                         <?php if (count($projetos) > 0): ?>
-                            <?php foreach ($projetos as $proj): ?>
-                                <?php 
-                                    $badge_class = 'badge-pendente';
-                                    if($proj['status_aprovacao'] == 'Aprovado') $badge_class = 'badge-aprovado';
-                                    if($proj['status_aprovacao'] == 'Rejeitado') $badge_class = 'badge-rejeitado';
+                                    <?php foreach ($projetos as $proj): ?>
+                                                <?php
+                                                $badge_class = 'badge-pendente';
+                                                if ($proj['status_aprovacao'] == 'Aprovado')
+                                                    $badge_class = 'badge-aprovado';
+                                                if ($proj['status_aprovacao'] == 'Rejeitado')
+                                                    $badge_class = 'badge-rejeitado';
 
-                                    $motivo_recusa = "";
-                                    if ($proj['status_aprovacao'] == 'Rejeitado') {
-                                        if ($proj['status_coordenador'] == 'Rejeitado') $motivo_recusa = $proj['parecer_coordenador'];
-                                        else if ($proj['status_diretor'] == 'Rejeitado') $motivo_recusa = $proj['parecer_diretor'];
-                                    }
-                                ?>
-                                <tr class="linha-mestra" id="mestra_<?php echo $proj['id']; ?>" onclick="toggleGaveta(<?php echo $proj['id']; ?>)">
-                                    <td><i class="fa-solid fa-chevron-down icone-expandir"></i> <?php echo date('d/m/Y', strtotime($proj['data_criacao'])); ?></td>
-                                    <td><strong><?php echo htmlspecialchars($proj['titulo_projeto']); ?></strong></td>
-                                    <td><?php echo htmlspecialchars($proj['semestre']); ?></td>
-                                    <td><span class="badge <?php echo $badge_class; ?>"><?php echo $proj['status_aprovacao']; ?></span></td>
+                                                $motivo_recusa = "";
+                                                if ($proj['status_aprovacao'] == 'Rejeitado') {
+                                                    if ($proj['status_coordenador'] == 'Rejeitado')
+                                                        $motivo_recusa = $proj['parecer_coordenador'];
+                                                    else if ($proj['status_diretor'] == 'Rejeitado')
+                                                        $motivo_recusa = $proj['parecer_diretor'];
+                                                }
+                                                ?>
+                                                <tr class="linha-mestra" id="mestra_<?php echo $proj['id']; ?>" onclick="toggleGaveta(<?php echo $proj['id']; ?>)">
+                                                    <td><i class="fa-solid fa-chevron-down icone-expandir"></i> <?php echo date('d/m/Y', strtotime($proj['data_criacao'])); ?></td>
+                                                    <td><strong><?php echo htmlspecialchars($proj['titulo_projeto']); ?></strong></td>
+                                                    <td><?php echo htmlspecialchars($proj['semestre']); ?></td>
+                                                    <td><span class="badge <?php echo $badge_class; ?>"><?php echo $proj['status_aprovacao']; ?></span></td>
                                     
-                                    <td onclick="event.stopPropagation();">
-                                        <div style="display: flex; gap: 5px; flex-wrap: wrap;">
-                                            <a href="documento_hae.php?id=<?php echo $proj['id']; ?>" target="_blank" class="btn-action btn-pdf"><i class="fa-solid fa-file-pdf"></i> Visualizar</a>
+                                                    <td onclick="event.stopPropagation();">
+                                                        <div style="display: flex; gap: 5px; flex-wrap: wrap;">
+                                                            <a href="documento_hae.php?id=<?php echo $proj['id']; ?>" target="_blank" class="btn-action btn-pdf"><i class="fa-solid fa-file-pdf"></i> Visualizar</a>
                                             
-                                            <?php if($proj['status_aprovacao'] == 'Aprovado'): ?>
-                                                <a href="nova_solicitacao.php?clone_id=<?php echo $proj['id']; ?>" class="btn-action btn-clone" title="Copiar este projeto para um novo semestre"><i class="fa-solid fa-copy"></i> Clonar</a>
-                                            <?php endif; ?>
+                                                            <?php if ($proj['status_aprovacao'] == 'Pendente'): ?>
+                                                                <a href="nova_solicitacao.php?edit_id=<?php echo $proj['id']; ?>" class="btn-action btn-historico" title="Editar Projeto">
+                                                                    <i class="fa-solid fa-pen"></i> Editar
+                                                                </a>
+                                                            <?php endif; ?>
+                                                            
+                                                            <?php if ($proj['status_aprovacao'] == 'Aprovado'): ?>
+                                                                <a href="nova_solicitacao.php?clone_id=<?php echo $proj['id']; ?>" class="btn-action btn-clone" title="Copiar este projeto para um novo semestre"><i class="fa-solid fa-copy"></i> Clonar</a>
+                                                            <?php endif; ?>
                                             
-                                            <?php if($proj['status_aprovacao'] == 'Rejeitado'): ?>
-                                                <button type="button" class="btn-action btn-motivo" data-motivo="<?php echo htmlspecialchars($motivo_recusa, ENT_QUOTES, 'UTF-8'); ?>" onclick="abrirModalMotivo(this, event)">
-                                                    <i class="fa-solid fa-circle-exclamation"></i> Ver Motivo
-                                                </button>
-                                                
-                                                <a href="editar_solicitacao.php?id=<?php echo $proj['id']; ?>" class="btn-action btn-editar"><i class="fa-solid fa-pen-to-square"></i> Corrigir</a>
-                                            <?php endif; ?>
-                                        </div>
-                                    </td>
-                                </tr>
+                                                            <?php if ($proj['status_aprovacao'] == 'Rejeitado'): ?>
+                                                                <button type="button" class="btn-action btn-motivo" data-motivo="<?php echo htmlspecialchars($motivo_recusa, ENT_QUOTES, 'UTF-8'); ?>" onclick="abrirModalMotivo(this, event)">
+                                                                    <i class="fa-solid fa-circle-exclamation"></i> Ver Motivo
+                                                                </button>
+                                                                
+                                                                <a href="editar_solicitacao.php?id=<?php echo $proj['id']; ?>" class="btn-action btn-editar"><i class="fa-solid fa-pen-to-square"></i> Corrigir</a>
+                                                            <?php endif; ?>
+                                                            
+                                                            <!-- BOTÃO EXCLUIR PARA PROJETOS NÃO APROVADOS -->
+                                                            <?php if ($proj['status_aprovacao'] != 'Aprovado'): ?>
+                                                                <form method="POST" style="display:inline; margin:0; padding:0;" onsubmit="return confirm('ATENÇÃO: Tem certeza que deseja excluir definitivamente este projeto? Esta ação não pode ser desfeita.');">
+                                                                    <input type="hidden" name="excluir_projeto_id" value="<?php echo $proj['id']; ?>">
+                                                                    <button type="submit" class="btn-action btn-excluir" title="Apagar Projeto"><i class="fa-solid fa-trash"></i> Excluir</button>
+                                                                </form>
+                                                            <?php endif; ?>
+                                                        </div>
+                                                    </td>
+                                                </tr>
                                 
-                                <tr class="gaveta-detalhes" id="gaveta_<?php echo $proj['id']; ?>">
-                                    <td colspan="5" style="padding: 0;">
-                                        <div style="padding: 15px 20px; background: #fafbfc; border-left: 4px solid var(--fatec-red);">
-                                            <h4 style="margin-bottom: 10px; font-size: 13px; color: #555; text-transform: uppercase;"><i class="fa-solid fa-folder-open" style="color: var(--fatec-red);"></i> Relatórios Entregues para este Projeto</h4>
+                                                <tr class="gaveta-detalhes" id="gaveta_<?php echo $proj['id']; ?>">
+                                                    <td colspan="5" style="padding: 0;">
+                                                        <div style="padding: 15px 20px; background: #fafbfc; border-left: 4px solid var(--fatec-red);">
+                                                            <h4 style="margin-bottom: 10px; font-size: 13px; color: #555; text-transform: uppercase;"><i class="fa-solid fa-folder-open" style="color: var(--fatec-red);"></i> Relatórios Entregues para este Projeto</h4>
                                             
-                                            <?php if(isset($relatorios_por_projeto[$proj['id']]) && count($relatorios_por_projeto[$proj['id']]) > 0): ?>
-                                                <table class="tabela-interna" style="width: 100%; border-collapse: collapse;">
-                                                    <thead>
-                                                        <tr>
-                                                            <th style="text-align: left; padding: 8px; border-bottom: 1px solid #ddd;">Mês de Referência</th>
-                                                            <th style="text-align: left; padding: 8px; border-bottom: 1px solid #ddd;">Data de Envio</th>
-                                                            <th style="text-align: left; padding: 8px; border-bottom: 1px solid #ddd;">Documento</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        <?php foreach($relatorios_por_projeto[$proj['id']] as $rel): ?>
-                                                            <tr>
-                                                                <td style="padding: 8px; border-bottom: 1px solid #eee;"><strong><?php echo $meses[$rel['mes_referencia']] . '/' . $rel['ano_referencia']; ?></strong></td>
-                                                                <td style="padding: 8px; border-bottom: 1px solid #eee;"><?php echo date('d/m/Y H:i', strtotime($rel['data_envio'])); ?></td>
-                                                                <td style="padding: 8px; border-bottom: 1px solid #eee;">
-                                                                    <a href="pdf_relatorio.php?id=<?php echo $rel['id']; ?>" target="_blank" style="color: var(--fatec-red); font-weight: bold; text-decoration: none;"><i class="fa-solid fa-file-pdf"></i> Abrir Relatório</a>
-                                                                </td>
-                                                            </tr>
-                                                        <?php endforeach; ?>
-                                                    </tbody>
-                                                </table>
-                                            <?php else: ?>
-                                                <p style="font-size: 13px; color: #888; margin: 0;">Nenhum relatório publicado para este projeto ainda.</p>
-                                            <?php endif; ?>
-                                        </div>
-                                    </td>
-                                </tr>
+                                                            <?php if (isset($relatorios_por_projeto[$proj['id']]) && count($relatorios_por_projeto[$proj['id']]) > 0): ?>
+                                                                        <table class="tabela-interna" style="width: 100%; border-collapse: collapse;">
+                                                                            <thead>
+                                                                                <tr>
+                                                                                    <th style="text-align: left; padding: 8px; border-bottom: 1px solid #ddd;">Mês de Referência</th>
+                                                                                    <th style="text-align: left; padding: 8px; border-bottom: 1px solid #ddd;">Data de Envio</th>
+                                                                                    <th style="text-align: left; padding: 8px; border-bottom: 1px solid #ddd;">Documento</th>
+                                                                                </tr>
+                                                                            </thead>
+                                                                            <tbody>
+                                                                                <?php foreach ($relatorios_por_projeto[$proj['id']] as $rel): ?>
+                                                                                            <tr>
+                                                                                                <td style="padding: 8px; border-bottom: 1px solid #eee;"><strong><?php echo $meses[$rel['mes_referencia']] . '/' . $rel['ano_referencia']; ?></strong></td>
+                                                                                                <td style="padding: 8px; border-bottom: 1px solid #eee;"><?php echo date('d/m/Y H:i', strtotime($rel['data_envio'])); ?></td>
+                                                                                                <td style="padding: 8px; border-bottom: 1px solid #eee;">
+                                                                                                    <a href="pdf_relatorio.php?id=<?php echo $rel['id']; ?>" target="_blank" style="color: var(--fatec-red); font-weight: bold; text-decoration: none;"><i class="fa-solid fa-file-pdf"></i> Abrir Relatório</a>
+                                                                                                </td>
+                                                                                            </tr>
+                                                                                <?php endforeach; ?>
+                                                                            </tbody>
+                                                                        </table>
+                                                            <?php else: ?>
+                                                                        <p style="font-size: 13px; color: #888; margin: 0;">Nenhum relatório publicado para este projeto ainda.</p>
+                                                            <?php endif; ?>
+                                                        </div>
+                                                    </td>
+                                                </tr>
                                 
-                            <?php endforeach; ?>
+                                    <?php endforeach; ?>
                         <?php else: ?>
-                            <tr><td colspan="5" style="text-align:center; padding: 40px; color: #888;">Nenhum projeto encontrado com estes filtros.</td></tr>
+                                    <tr><td colspan="5" style="text-align:center; padding: 40px; color: #888;">Nenhum projeto encontrado com estes filtros.</td></tr>
                         <?php endif; ?>
                     </tbody>
                 </table>
@@ -323,19 +374,19 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
         </div>
 
         <?php if ($total_paginas > 1): ?>
-            <div class="paginacao">
-                <?php if ($pagina_atual_pag > 1): ?>
-                    <a href="<?php echo $url_base . 'pagina=' . ($pagina_atual_pag - 1); ?>"><i class="fa-solid fa-angle-left"></i> Anterior</a>
-                <?php endif; ?>
+                    <div class="paginacao">
+                        <?php if ($pagina_atual_pag > 1): ?>
+                                    <a href="<?php echo $url_base . 'pagina=' . ($pagina_atual_pag - 1); ?>"><i class="fa-solid fa-angle-left"></i> Anterior</a>
+                        <?php endif; ?>
                 
-                <?php for ($i = 1; $i <= $total_paginas; $i++): ?>
-                    <a href="<?php echo $url_base . 'pagina=' . $i; ?>" class="<?php echo $i == $pagina_atual_pag ? 'active' : ''; ?>"><?php echo $i; ?></a>
-                <?php endfor; ?>
+                        <?php for ($i = 1; $i <= $total_paginas; $i++): ?>
+                                    <a href="<?php echo $url_base . 'pagina=' . $i; ?>" class="<?php echo $i == $pagina_atual_pag ? 'active' : ''; ?>"><?php echo $i; ?></a>
+                        <?php endfor; ?>
                 
-                <?php if ($pagina_atual_pag < $total_paginas): ?>
-                    <a href="<?php echo $url_base . 'pagina=' . ($pagina_atual_pag + 1); ?>">Próxima <i class="fa-solid fa-angle-right"></i></a>
-                <?php endif; ?>
-            </div>
+                        <?php if ($pagina_atual_pag < $total_paginas): ?>
+                                    <a href="<?php echo $url_base . 'pagina=' . ($pagina_atual_pag + 1); ?>">Próxima <i class="fa-solid fa-angle-right"></i></a>
+                        <?php endif; ?>
+                    </div>
         <?php endif; ?>
 
     </main>

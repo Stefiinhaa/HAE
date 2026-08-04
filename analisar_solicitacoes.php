@@ -1,6 +1,7 @@
 <?php
 session_start();
 require 'config/conexao.php';
+require_once 'enviar_email.php';
 
 // Segurança: Apenas Coordenador ou Diretor acessam
 if (!isset($_SESSION['usuario_id']) || !in_array($_SESSION['usuario_funcao'], ['Coordenador', 'Diretor'])) {
@@ -51,6 +52,122 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao'])) {
 
         $pdo->prepare("UPDATE solicitacoes_hae SET status_aprovacao = ? WHERE id = ?")->execute([$global_status, $solicitacao_id]);
         
+        // ==============================================================================
+        // 2. NOVA LÓGICA: AVISAR O DIRETOR SE O COORDENADOR APROVOU
+        // ==============================================================================
+        if ($funcao_logada == 'Coordenador' && $novo_status_individual == 'Aprovado') {
+            
+            // Busca todos os diretores do sistema
+            $stmt_dir = $pdo->query("SELECT nome, email FROM usuarios WHERE funcao = 'Diretor'");
+            $diretores = $stmt_dir->fetchAll(PDO::FETCH_ASSOC);
+
+            if (!empty($diretores)) {
+                $assunto_dir = "Nova Pendência: Projeto HAE Aguardando Análise";
+                
+                foreach ($diretores as $dir) {
+                    $corpo_dir = "
+                        <div style='font-family: Arial, sans-serif; color: #333; line-height: 1.6; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;'>
+                            <div style='background-color: #f39c12; padding: 20px; text-align: center; color: white;'>
+                                <h2 style='margin: 0; font-size: 20px;'>Ação Necessária - Sistema HAE</h2>
+                            </div>
+                            <div style='padding: 20px;'>
+                                <h3 style='color: #f39c12; margin-top: 0;'>Olá, Diretor(a) " . $dir['nome'] . ".</h3>
+                                <p>Um projeto HAE acabou de receber o parecer favorável da Coordenação.</p>
+                                <p>Este projeto agora está <strong>aguardando a sua análise final</strong> para ser totalmente aprovado e liberado para o professor.</p>
+                                
+                                <p>Acesse o portal para emitir o seu parecer:</p>
+                                <div style='text-align: center; margin: 20px 0;'>
+                                    <img src='cid:img_link_portal' alt='Link de Acesso' style='max-width: 250px; border: 1px solid #ccc; border-radius: 4px;'>
+                                </div>
+                                <p style='margin-top: 25px; font-size: 14px; color: #555;'>Atenciosamente,<br><strong>Gestão Acadêmica - Fatec</strong></p>
+                            </div>
+                        </div>
+                    ";
+                    
+                    $lista_img_dir = [['path' => 'img/link_acesso.jpeg', 'cid' => 'img_link_portal']];
+                    dispararEmailSistema($dir['email'], $dir['nome'], $assunto_dir, $corpo_dir, $lista_img_dir);
+                }
+            }
+        }
+        // ==============================================================================
+
+        // ==============================================================================
+        // 3. LÓGICA DE DISPARO DE E-MAIL PARA O PROFESSOR
+        // ==============================================================================
+        
+        $deve_enviar_email = false;
+        $cor_topo = "";
+        $status_texto = "";
+        $msg_corpo = "";
+        $assunto = "";
+
+        if ($novo_status_individual == 'Rejeitado') {
+            $deve_enviar_email = true;
+            $cor_topo = "#c0392b";
+            $assunto = "Atenção: Correções Necessárias - Projeto HAE";
+            $status_texto = "Devolvido para Ajustes";
+            $msg_corpo = "O seu projeto foi analisado e devolvido pela <strong>$funcao_logada</strong>. Veja o parecer oficial abaixo e realize as correções necessárias no portal.";
+        } else if ($global_status == 'Aprovado') {
+            $deve_enviar_email = true;
+            $cor_topo = "#27ae60";
+            $assunto = "Aprovação Final: Projeto HAE Liberado";
+            $status_texto = "Totalmente Aprovado";
+            $msg_corpo = "Parabéns! O seu projeto passou por todas as instâncias e foi <strong>oficialmente aprovado</strong>. Ele já está ativo e pronto para o envio de relatórios.";
+        }
+
+        if ($deve_enviar_email) {
+            $stmt_prof = $pdo->prepare("SELECT u.nome, u.email, s.titulo_projeto FROM solicitacoes_hae s JOIN usuarios u ON s.professor_id = u.id WHERE s.id = ?");
+            $stmt_prof->execute([$solicitacao_id]);
+            $prof = $stmt_prof->fetch(PDO::FETCH_ASSOC);
+
+            if ($prof) {
+                $nome_prof = $prof['nome'];
+                $email_prof = $prof['email'];
+                $titulo_proj = $prof['titulo_projeto'];
+
+                $corpo_email = "
+                    <div style='font-family: Arial, sans-serif; color: #333; line-height: 1.6; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;'>
+                        <div style='background-color: $cor_topo; padding: 20px; text-align: center; color: white;'>
+                            <h2 style='margin: 0; font-size: 20px;'>Atualização - Sistema HAE Fatec</h2>
+                        </div>
+                        <div style='padding: 20px;'>
+                            <h3 style='color: $cor_topo; margin-top: 0;'>Olá, Prof(a). $nome_prof.</h3>
+                            <p>Houve uma atualização no status de avaliação do seu projeto HAE.</p>
+                            
+                            <div style='background: #f9f9f9; padding: 15px; border-left: 4px solid $cor_topo; margin: 15px 0;'>
+                                <ul style='margin: 0; padding-left: 20px;'>
+                                    <li style='margin-bottom: 8px;'><strong>Projeto:</strong> $titulo_proj</li>
+                                    <li style='margin-bottom: 8px;'><strong>Novo Status:</strong> $status_texto</li>
+                                    <li style='margin-bottom: 8px;'><strong>Avaliador:</strong> $funcao_logada</li>
+                                </ul>
+                            </div>
+                            
+                            <p>$msg_corpo</p>
+                            
+                            <div style='background: #fffdf5; padding: 15px; border: 1px solid #faeccc; border-radius: 4px; margin: 15px 0; font-style: italic; color: #555;'>
+                                <strong>Parecer emitido:</strong><br>
+                                \"" . nl2br(htmlspecialchars($parecer)) . "\"
+                            </div>
+                            
+                            <p>Para visualizar todos os detalhes, acesse o portal colando o endereço da imagem abaixo em seu navegador:</p>
+                            <div style='text-align: center; margin: 20px 0;'>
+                                <img src='cid:img_link_portal' alt='Link de Acesso' style='max-width: 250px; border: 1px solid #ccc; border-radius: 4px;'>
+                            </div>
+                            
+                            <p style='margin-top: 25px; font-size: 14px; color: #555;'>Atenciosamente,<br><strong>Gestão Acadêmica - Fatec</strong></p>
+                        </div>
+                    </div>
+                ";
+                
+                $lista_imagens = [
+                    ['path' => 'img/link_acesso.jpeg', 'cid' => 'img_link_portal']
+                ];
+                
+                dispararEmailSistema($email_prof, $nome_prof, $assunto, $corpo_email, $lista_imagens);
+            }
+        }
+        // ==============================================================================
+
         header("Location: analisar_solicitacoes.php?status=sucesso");
         exit;
     } catch (PDOException $e) {
@@ -83,14 +200,12 @@ if ($visualizando_id) {
     // TELA 1: GRID INTELIGENTE (ACORDEÃO) COM FILTROS E PAGINAÇÃO
     // ==============================================================================
     $filtro_busca = isset($_GET['busca']) ? trim($_GET['busca']) : '';
-    // ATUALIZAÇÃO: Filtro padrão inteligente dependendo da função
     $filtro_status = isset($_GET['status_filtro']) ? trim($_GET['status_filtro']) : 'Aguardando'; 
     $filtro_semestre = isset($_GET['semestre']) ? trim($_GET['semestre']) : '';
 
     $where = ["1=1"];
     $params = [];
 
-    // Filtro de Texto
     if (!empty($filtro_busca)) {
         $where[] = "(u.nome LIKE ? OR s.titulo_projeto LIKE ? OR s.categoria LIKE ?)";
         $params[] = "%$filtro_busca%";
@@ -98,24 +213,20 @@ if ($visualizando_id) {
         $params[] = "%$filtro_busca%";
     }
 
-    // Filtro de Semestre
     if (!empty($filtro_semestre) && $filtro_semestre != 'Todos') {
         $where[] = "s.semestre = ?";
         $params[] = $filtro_semestre;
     }
 
-    // Filtro de Status Inteligente (COM LÓGICA EXCLUSIVA PARA O DIRETOR)
     if ($filtro_status == 'Aguardando') {
         if ($funcao_logada == 'Coordenador') {
             $where[] = "s.status_coordenador = 'Pendente' AND s.status_aprovacao != 'Rejeitado'";
             $where[] = "(s.coordenador_alvo_id IS NULL OR s.coordenador_alvo_id = ?)";
             $params[] = $usuario_id;
         } else {
-            // DIRETOR: Mostra APENAS os que a coordenação já aprovou (Workflow Prático)
             $where[] = "s.status_diretor = 'Pendente' AND s.status_coordenador = 'Aprovado' AND s.status_aprovacao != 'Rejeitado'";
         }
     } elseif ($filtro_status == 'Pendentes_Geral' && $funcao_logada == 'Diretor') {
-        // DIRETOR: Vê todas as pendências dele (inclusive as que o coordenador não olhou ainda)
         $where[] = "s.status_diretor = 'Pendente' AND s.status_aprovacao != 'Rejeitado'";
     } elseif ($filtro_status == 'Aprovados') {
         $where[] = "s.status_aprovacao = 'Aprovado'";
@@ -126,7 +237,6 @@ if ($visualizando_id) {
     $stmt_sem = $pdo->query("SELECT DISTINCT semestre FROM solicitacoes_hae ORDER BY semestre DESC");
     $semestres_disponiveis = $stmt_sem->fetchAll(PDO::FETCH_COLUMN);
 
-    // SQL Aprimorado com LEFT JOIN para buscar o coordenador_alvo
     $sql = "SELECT s.*, u.nome AS professor_nome, coord.nome AS nome_coordenador_alvo
             FROM solicitacoes_hae s 
             JOIN usuarios u ON s.professor_id = u.id 
@@ -186,7 +296,6 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
         th, td { padding: 15px 20px; text-align: left; font-size: 14px; border-bottom: 1px solid #eee; }
         th { background-color: #f8f9fa; color: #555; font-weight: 600; text-transform: uppercase; font-size: 12px; }
         
-        /* ESTILOS DO ACORDEÃO (Gaveta) */
         .linha-mestra { cursor: pointer; transition: 0.2s; }
         .linha-mestra:hover { background-color: #f4f6f9; }
         .linha-mestra td { border-bottom: 1px solid #e0e0e0; }
@@ -254,66 +363,31 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
         <nav class="menu">
             <div class="menu-title">Navegação</div>
             <ul>
-                <li>
-                    <a href="painel.php" class="<?php echo ($pagina_atual == 'painel.php') ? 'active' : ''; ?>">
-                        <i class="fa-solid fa-chart-pie"></i> <span class="menu-text">Dashboard</span>
-                    </a>
-                </li>
+                <li><a href="painel.php" class="<?php echo ($pagina_atual == 'painel.php') ? 'active' : ''; ?>"><i class="fa-solid fa-chart-pie"></i> <span class="menu-text">Dashboard</span></a></li>
                 
                 <?php if ($_SESSION['usuario_funcao'] == 'Professor'): ?>
-                    <li>
-                        <a href="nova_solicitacao.php" class="<?php echo ($pagina_atual == 'nova_solicitacao.php') ? 'active' : ''; ?>">
-                            <i class="fa-solid fa-file-circle-plus"></i> <span class="menu-text">Nova Solicitação</span>
-                        </a>
-                    </li>
-                    <li>
-                        <a href="meus_projetos.php" class="<?php echo ($pagina_atual == 'meus_projetos.php') ? 'active' : ''; ?>">
-                            <i class="fa-solid fa-folder-open"></i> <span class="menu-text">Meus Projetos</span>
-                        </a>
-                    </li>
-                    <li>
-                        <a href="enviar_relatorio.php" class="<?php echo ($pagina_atual == 'enviar_relatorio.php') ? 'active' : ''; ?>">
-                            <i class="fa-solid fa-calendar-check"></i> <span class="menu-text">Enviar Relatório</span>
-                        </a>
-                    </li>
-                    <li>
-                        <a href="meus_rascunhos.php" class="<?php echo ($pagina_atual == 'meus_rascunhos.php') ? 'active' : ''; ?>">
-                            <i class="fa-solid fa-file-pen"></i> <span class="menu-text">Meus Rascunhos</span>
-                        </a>
-                    </li>
+                    <li><a href="nova_solicitacao.php" class="<?php echo ($pagina_atual == 'nova_solicitacao.php') ? 'active' : ''; ?>"><i class="fa-solid fa-file-circle-plus"></i> <span class="menu-text">Nova Solicitação</span></a></li>
+                    <li><a href="meus_projetos.php" class="<?php echo ($pagina_atual == 'meus_projetos.php') ? 'active' : ''; ?>"><i class="fa-solid fa-folder-open"></i> <span class="menu-text">Meus Projetos</span></a></li>
+                    <li><a href="enviar_relatorio.php" class="<?php echo ($pagina_atual == 'enviar_relatorio.php') ? 'active' : ''; ?>"><i class="fa-solid fa-calendar-check"></i> <span class="menu-text">Enviar Relatório</span></a></li>
+                    <li><a href="meus_rascunhos.php" class="<?php echo ($pagina_atual == 'meus_rascunhos.php') ? 'active' : ''; ?>"><i class="fa-solid fa-file-pen"></i> <span class="menu-text">Meus Rascunhos</span></a></li>
                 <?php else: ?>
-                    <li>
-                        <a href="analisar_solicitacoes.php" class="<?php echo ($pagina_atual == 'analisar_solicitacoes.php') ? 'active' : ''; ?>">
-                            <i class="fa-solid fa-clipboard-check"></i> <span class="menu-text">Analisar Solicitações</span>
-                        </a>
-                    </li>
-                    <li>
-                        <a href="acompanhar_relatorios.php" class="<?php echo ($pagina_atual == 'acompanhar_relatorios.php') ? 'active' : ''; ?>">
-                            <i class="fa-solid fa-chart-line"></i> <span class="menu-text">Acompanhar Relatórios</span>
-                        </a>
-                    </li>
-                    <li>
-                        <a href="relatorios_atrasados.php" class="<?php echo ($pagina_atual == 'relatorios_atrasados.php') ? 'active' : ''; ?>">
-                            <i class="fa-solid fa-file-invoice"></i> <span class="menu-text">Relatórios Atrasados</span>
-                        </a>
-                    </li>
-                    <li>
-                        <a href="cadastrar_professor.php" class="<?php echo ($pagina_atual == 'cadastrar_professor.php') ? 'active' : ''; ?>">
-                            <i class="fa-solid fa-user-plus"></i> <span class="menu-text">Cadastrar Usuário</span>
-                        </a>
-                    </li>
+                    <li><a href="analisar_solicitacoes.php" class="<?php echo ($pagina_atual == 'analisar_solicitacoes.php') ? 'active' : ''; ?>"><i class="fa-solid fa-clipboard-check"></i> <span class="menu-text">Analisar Solicitações</span></a></li>
+                    <li><a href="acompanhar_relatorios.php" class="<?php echo ($pagina_atual == 'acompanhar_relatorios.php') ? 'active' : ''; ?>"><i class="fa-solid fa-chart-line"></i> <span class="menu-text">Acompanhar Relatórios</span></a></li>
+                    <li><a href="relatorios_atrasados.php" class="<?php echo ($pagina_atual == 'relatorios_atrasados.php') ? 'active' : ''; ?>"><i class="fa-solid fa-file-invoice"></i> <span class="menu-text">Relatórios Atrasados</span></a></li>
+                    <li><a href="cadastrar_professor.php" class="<?php echo ($pagina_atual == 'cadastrar_professor.php') ? 'active' : ''; ?>"><i class="fa-solid fa-user-plus"></i> <span class="menu-text">Cadastrar Usuário</span></a></li>
+                    
+                    <?php if ($_SESSION['usuario_funcao'] == 'Diretor'): ?>
+                        <li><a href="listar_usuarios.php" class="<?php echo ($pagina_atual == 'listar_usuarios.php') ? 'active' : ''; ?>"><i class="fa-solid fa-users"></i> <span class="menu-text">Lista de Usuários</span></a></li>
+                    <?php endif; ?>
                 <?php endif; ?>
                 
-                <li>
-                    <a href="perfil.php" class="<?php echo ($pagina_atual == 'perfil.php') ? 'active' : ''; ?>">
-                        <i class="fa-solid fa-user-gear"></i> <span class="menu-text">Meu Perfil</span>
-                    </a>
-                </li>
-                <li>
-                    <a href="logout.php" class="logout-link">
-                        <i class="fa-solid fa-right-from-bracket"></i> <span class="menu-text">Sair do Sistema</span>
-                    </a>
-                </li>
+                <li><a href="perfil.php" class="<?php echo ($pagina_atual == 'perfil.php') ? 'active' : ''; ?>"><i class="fa-solid fa-user-gear"></i> <span class="menu-text">Meu Perfil</span></a></li>
+                
+                <?php if ($_SESSION['usuario_funcao'] == 'Diretor'): ?>
+                    <li><a href="configuracoes.php" class="<?php echo ($pagina_atual == 'configuracoes.php') ? 'active' : ''; ?>"><i class="fa-solid fa-cogs"></i> <span class="menu-text">Configurações</span></a></li>
+                <?php endif; ?>
+                
+                <li><a href="logout.php" class="logout-link"><i class="fa-solid fa-right-from-bracket"></i> <span class="menu-text">Sair do Sistema</span></a></li>
             </ul>
         </nav>
     </aside>
@@ -343,7 +417,6 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
                     <a href="documento_hae.php?id=<?php echo $visualizando_id; ?>" target="_blank" class="btn-ver-pdf-mobile">📄 Abrir Documento em Tela Cheia</a>
                     
                     <?php 
-                        // AVISO DO ENCAMINHAMENTO ESPECÍFICO
                         if (!empty($detalhes['nome_coordenador_alvo'])): 
                     ?>
                         <div style="background: #f8f9fa; border: 1px solid #e9ecef; padding: 12px 15px; border-radius: 6px; margin-bottom: 20px; font-size: 13px; color: #495057; display: flex; align-items: center; gap: 12px; border-left: 4px solid #3498db;">
@@ -365,7 +438,6 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
                     ?>
 
                     <?php 
-                    // BLOQUEIOS INTELIGENTES DA TELA DE PARECER
                     if ($detalhes['status_aprovacao'] == 'Rejeitado'): 
                     ?>
                         <div class="historico-box" style="border-left-color: #e74c3c; background: #fff9f9;">
@@ -387,7 +459,6 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
                             Você já emitiu e salvou o seu parecer favorável para este projeto. Agora estamos aguardando apenas a avaliação da outra instância.
                         </div>
                     <?php else: ?>
-                        <!-- Se ainda precisa do parecer da pessoa logada, exibe o form -->
                         <form method="POST" action="analisar_solicitacoes.php?id=<?php echo $visualizando_id; ?>" id="formAnalise">
                             <input type="hidden" name="solicitacao_id" value="<?php echo $visualizando_id; ?>">
                             
@@ -395,7 +466,8 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
                             <input type="number" name="horas_aprovadas" value="<?php echo $detalhes['quantidade_horas']; ?>" required min="0">
                             
                             <label>Seu Parecer Oficial</label>
-                            <textarea name="parecer" id="campo_parecer" rows="5" placeholder="Digite sua avaliação sobre o projeto..."><?php echo ($funcao_logada == 'Coordenador') ? htmlspecialchars($detalhes['parecer_coordenador']) : htmlspecialchars($detalhes['parecer_diretor']); ?></textarea>
+                            <!-- ADICIONADO O required AQUI -->
+                            <textarea name="parecer" id="campo_parecer" rows="5" placeholder="Digite sua avaliação sobre o projeto..." required><?php echo ($funcao_logada == 'Coordenador') ? htmlspecialchars($detalhes['parecer_coordenador']) : htmlspecialchars($detalhes['parecer_diretor']); ?></textarea>
                             
                             <div class="botoes-acao">
                                 <button type="submit" name="acao" value="aprovar" class="btn-aprovar" onclick="return validarParecer('aprovar');">✓ Aprovar Projeto HAE</button>
@@ -425,7 +497,6 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
                     </select>
                 </div>
 
-                <!-- SELECT ATUALIZADO PARA EXIBIR A REGRA DO DIRETOR -->
                 <div class="filter-group">
                     <label>Filtro de Status</label>
                     <select name="status_filtro">
@@ -466,8 +537,8 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
                                     <?php 
                                         $qtd_projetos = count($lista_projetos);
                                         $qtd_minha_acao = 0;
+                                        $qtd_esperando_coord = 0;
                                         
-                                        // CONTADOR ATUALIZADO (Acompanha a mesma lógica inteligente da tela)
                                         foreach($lista_projetos as $p) {
                                             if ($p['status_aprovacao'] != 'Rejeitado') {
                                                 if ($funcao_logada == 'Coordenador' && $p['status_coordenador'] == 'Pendente') {
@@ -475,9 +546,13 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
                                                         $qtd_minha_acao++;
                                                     }
                                                 }
-                                                // Diretor: a pendência só "grita" pra ele no contador se a coordenação já aprovou
-                                                if ($funcao_logada == 'Diretor' && $p['status_diretor'] == 'Pendente' && $p['status_coordenador'] == 'Aprovado') {
-                                                    $qtd_minha_acao++;
+                                                if ($funcao_logada == 'Diretor' && $p['status_diretor'] == 'Pendente') {
+                                                    if ($p['status_coordenador'] == 'Aprovado') {
+                                                        $qtd_minha_acao++;
+                                                    } else {
+                                                        // Se o diretor abriu, está pendente, mas a coordenação ainda não aprovou
+                                                        $qtd_esperando_coord++;
+                                                    }
                                                 }
                                             }
                                         }
@@ -490,11 +565,19 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
                                         </td>
                                         <td><span style="color: #666; font-size: 13px;"><?php echo $qtd_projetos; ?> projeto(s)</span></td>
                                         <td>
-                                            <?php if($qtd_minha_acao > 0): ?>
-                                                <span class="badge badge-pendente" style="background:#f39c12; color:white; border:none;"><i class="fa-solid fa-bell"></i> <?php echo $qtd_minha_acao; ?> Aguardando Você</span>
-                                            <?php else: ?>
-                                                <span class="badge" style="background:#eee; color:#888;">Nenhuma pendência</span>
-                                            <?php endif; ?>
+                                            <div style="display: flex; gap: 5px; flex-wrap: wrap;">
+                                                <?php if($qtd_minha_acao > 0): ?>
+                                                    <span class="badge badge-pendente" style="background:#f39c12; color:white; border:none;"><i class="fa-solid fa-bell"></i> <?php echo $qtd_minha_acao; ?> Pronto p/ Você</span>
+                                                <?php endif; ?>
+                                                
+                                                <?php if($qtd_esperando_coord > 0): ?>
+                                                    <span class="badge" style="background:#e1f5fe; color:#0288d1; border: 1px solid #81d4fa;"><i class="fa-solid fa-hourglass-half"></i> <?php echo $qtd_esperando_coord; ?> Aguardando Coord.</span>
+                                                <?php endif; ?>
+                                                
+                                                <?php if($qtd_minha_acao == 0 && $qtd_esperando_coord == 0): ?>
+                                                    <span class="badge" style="background:#eee; color:#888;">Nenhuma pendência</span>
+                                                <?php endif; ?>
+                                            </div>
                                         </td>
                                         <td style="text-align: right; color: var(--fatec-red); font-size: 12px; font-weight: bold;">Ver detalhes</td>
                                     </tr>
@@ -535,7 +618,6 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
                                                                 <span style="font-size:11px; color:#888;"><?php echo date('d/m/Y', strtotime($proj['data_criacao'])); ?></span><br>
                                                                 <strong><?php echo htmlspecialchars($proj['titulo_projeto']); ?></strong>
                                                                 
-                                                                <!-- EXIBIÇÃO DA INDICAÇÃO DE COORDENADOR -->
                                                                 <?php if (!empty($proj['nome_coordenador_alvo'])): ?>
                                                                     <br>
                                                                     <?php if ($funcao_logada == 'Coordenador' && $proj['coordenador_alvo_id'] == $_SESSION['usuario_id']): ?>
@@ -570,7 +652,6 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
                 </div>
             </div>
 
-            <!-- CONTROLES DE PAGINAÇÃO PROFISSIONAL -->
             <?php if ($total_paginas > 1): ?>
                 <div class="paginacao">
                     <?php if ($pagina_atual_pag > 1): ?>
@@ -606,13 +687,17 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
             }
         }
 
+        // FUNÇÃO DE VALIDAÇÃO ATUALIZADA
         function validarParecer(acao) {
             var campoParecer = document.getElementById('campo_parecer').value.trim();
-            if (acao === 'rejeitar' && campoParecer === '') {
-                alert('Atenção: É obrigatório informar o motivo da rejeição no campo de Parecer!');
+            
+            // Agora a validação bloqueia independentemente se for aprovar ou rejeitar
+            if (campoParecer === '') {
+                alert('Atenção: É obrigatório preencher o campo "Seu Parecer Oficial" antes de prosseguir com a avaliação!');
                 document.getElementById('campo_parecer').focus();
                 return false; 
             }
+            
             if (acao === 'rejeitar') {
                 return confirm('Tem certeza que deseja REJEITAR este projeto HAE?');
             } else {

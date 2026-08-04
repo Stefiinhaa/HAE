@@ -2,6 +2,16 @@
 session_start();
 require 'config/conexao.php';
 
+// =========================================================================
+// BUSCA AS CONFIGURAÇÕES GLOBAIS NO BANCO DE DADOS
+// =========================================================================
+$stmt_conf = $pdo->query("SELECT chave, valor FROM configuracoes");
+$config_db = $stmt_conf->fetchAll(PDO::FETCH_KEY_PAIR);
+
+$ano_eleitoral = ($config_db['ano_eleitoral'] === '1'); 
+$logo_institucional = $config_db['logo_institucional'] ?? 'img/header-cps-documento.jpeg';
+// =========================================================================
+
 if (!isset($_SESSION['usuario_id'])) {
     die("Acesso negado.");
 }
@@ -64,7 +74,6 @@ $caminho_assinatura = $dados['assinatura_path'];
     <style>
         body { background: #525659; padding: 20px; font-family: 'Arial', sans-serif; margin: 0; }
         
-        /* OTIMIZAÇÃO DE ESPAÇO: Redução de padding, font-size e line-height */
         .page { background: white; max-width: 210mm; width: 100%; min-height: 297mm; padding: 12mm 15mm; box-sizing: border-box; box-shadow: 0 0 10px rgba(0,0,0,0.5); font-size: 13px; line-height: 1.35; color: #000; margin: 0 auto 30px auto; overflow-x: hidden; }
         
         h2, h3, h4 { text-align: center; margin-bottom: 8px; margin-top: 5px; }
@@ -83,7 +92,6 @@ $caminho_assinatura = $dados['assinatura_path'];
         .titulo-quadrado { background-color: #f2f2f2; border-bottom: 1px solid #000; padding: 5px; font-weight: bold; font-size: 11px; text-transform: uppercase; }
         .valor-quadrado { padding: 10px; font-size: 22px; font-weight: bold; flex: 1; display: flex; align-items: center; justify-content: center; }
 
-        /* PARECER COMPACTADO */
         .parecer-box { border: 1px solid #000; padding: 10px 15px; margin-top: 10px; }
         .grid-parecer { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 8px; text-align: center; }
         .assinatura-responsavel { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 60px; }
@@ -101,7 +109,6 @@ $caminho_assinatura = $dados['assinatura_path'];
         .btn-imprimir { position: fixed; bottom: 20px; right: 20px; background: #b20000; color: white; border: none; padding: 15px 25px; border-radius: 5px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.3); z-index: 1000; transition: 0.3s; }
         .btn-imprimir:hover { background: #8a0000; }
         
-        /* IMPRESSÃO: Mantém em 2 folhas e remove sobras */
         @media print { 
             body { background: white; padding: 0; } 
             .page { box-shadow: none; max-width: 100%; padding: 0; margin: 0; min-height: auto; page-break-after: always; } 
@@ -109,15 +116,12 @@ $caminho_assinatura = $dados['assinatura_path'];
             .btn-imprimir { display: none; } 
         }
 
-        /* CABEÇALHO COMPACTADO */
         .header-doc { text-align: center; margin-bottom: 5px; }
         .header-doc img { max-height: 60px; }
         .header-doc hr { margin: 5px 0; }
         .header-doc h2 { margin: 0; font-size: 16px; font-weight: bold; }
         
         .titulo-fatec{ margin-bottom: 12px; font-size: 14px; margin-top: 5px; }
-        
-        /* Garante que os tópicos não quebrem na metade da impressão */
         .topico { page-break-inside: avoid; }
     </style>
 </head>
@@ -125,9 +129,16 @@ $caminho_assinatura = $dados['assinatura_path'];
 
     <button class="btn-imprimir" onclick="window.print()">🖨️ Gerar / Salvar PDF</button>
 
+    <!-- PÁGINA 1: Dados Gerais e Aprovação -->
     <div class="page">
         <div class="header-doc">
-            <img src="img/header-cps-documento.jpeg" alt="Logo CPS Fatec"> <hr>
+            <?php if (!$ano_eleitoral): ?>
+                <img src="<?php echo htmlspecialchars($logo_institucional); ?>?v=<?php echo time(); ?>" alt="Logo CPS Fatec">
+            <?php else: ?>
+                <!-- Bloco vazio para manter a estrutura e o espaçamento na ausência da logo -->
+                <div style="height: 60px; width: 100%;"></div> 
+            <?php endif; ?>
+            <hr>
             <h4 class="titulo-fatec">Faculdade de Tecnologia de Garça “Deputado Júlio Julinho Marcondes de Moura”</h4>
         </div>
 
@@ -202,10 +213,17 @@ $caminho_assinatura = $dados['assinatura_path'];
         </div>
     </div> 
 
+    <!-- PÁGINA 2: Detalhamento -->
     <div class="page" style="page-break-before: always;">
-        <div class="header-doc">
-            <img src="img/header-cps-documento.jpeg" alt="Logo CPS Fatec"> <hr>
-            <h4 class="titulo-fatec">Faculdade de Tecnologia de Garça “Deputado Júlio Julinho Marcondes de Moura”</h4>
+    <div class="header-doc">
+            <?php if (!$ano_eleitoral): ?>
+                <img src="<?php echo htmlspecialchars($logo_institucional); ?>?v=<?php echo time(); ?>" alt="Logo CPS Fatec">
+            <?php else: ?>
+                <!-- Bloco vazio para manter a estrutura e o espaçamento -->
+                <div style="height: 70px; width: 100%;"></div> 
+            <?php endif; ?>
+            <hr>
+            <div class="titulo-fatec">Faculdade de Tecnologia de Garça “Deputado Júlio Julinho Marcondes de Moura”</div>
             <h2>APRESENTAÇÃO DO PROJETO</h2>
         </div>
       

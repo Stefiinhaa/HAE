@@ -8,9 +8,9 @@ if (!isset($_SESSION['usuario_id']) || !in_array($_SESSION['usuario_funcao'], ['
     exit;
 }
 
-$meses = [1=>'Janeiro', 2=>'Fevereiro', 3=>'Março', 4=>'Abril', 5=>'Maio', 6=>'Junho', 7=>'Julho', 8=>'Agosto', 9=>'Setembro', 10=>'Outubro', 11=>'Novembro', 12=>'Dezembro'];
+$meses = [1 => 'Janeiro', 2 => 'Fevereiro', 3 => 'Março', 4 => 'Abril', 5 => 'Maio', 6 => 'Junho', 7 => 'Julho', 8 => 'Agosto', 9 => 'Setembro', 10 => 'Outubro', 11 => 'Novembro', 12 => 'Dezembro'];
 
-$visualizando_projeto_id = isset($_GET['projeto_id']) ? (int)$_GET['projeto_id'] : 0;
+$visualizando_projeto_id = isset($_GET['projeto_id']) ? (int) $_GET['projeto_id'] : 0;
 
 if ($visualizando_projeto_id > 0) {
     // ==============================================================================
@@ -21,7 +21,8 @@ if ($visualizando_projeto_id > 0) {
     $stmt_proj->execute([$visualizando_projeto_id]);
     $projeto_detalhe = $stmt_proj->fetch(PDO::FETCH_ASSOC);
 
-    if (!$projeto_detalhe) die("Projeto não encontrado.");
+    if (!$projeto_detalhe)
+        die("Projeto não encontrado.");
 
     $sql_hist = "SELECT * FROM relatorios_hae WHERE solicitacao_id = ? ORDER BY ano_referencia DESC, mes_referencia DESC";
     $stmt_hist = $pdo->prepare($sql_hist);
@@ -32,21 +33,21 @@ if ($visualizando_projeto_id > 0) {
     // ==============================================================================
     // TELA 1: GRID GERAL COM ACORDEÃO E PAGINAÇÃO
     // ==============================================================================
-    
+
     // MUNDO REAL ATIVADO (Filtro inteligente: padrão é o mês de cobrança, ou seja, o mês passado)
     $hoje_obj = new DateTime();
     $primeiro_dia_mes = new DateTime($hoje_obj->format('Y-m-01'));
     $primeiro_dia_mes->modify('-1 month'); // Volta 1 mês automaticamente
-    
-    $mes_padrao = (int)$primeiro_dia_mes->format('n'); 
-    $ano_padrao = (int)$primeiro_dia_mes->format('Y'); 
 
-    $filtro_mes = isset($_GET['mes']) ? (int)$_GET['mes'] : $mes_padrao;
-    $filtro_ano = isset($_GET['ano']) ? (int)$_GET['ano'] : $ano_padrao;
+    $mes_padrao = (int) $primeiro_dia_mes->format('n');
+    $ano_padrao = (int) $primeiro_dia_mes->format('Y');
+
+    $filtro_mes = isset($_GET['mes']) ? (int) $_GET['mes'] : $mes_padrao;
+    $filtro_ano = isset($_GET['ano']) ? (int) $_GET['ano'] : $ano_padrao;
     $filtro_status = isset($_GET['status_filtro']) ? $_GET['status_filtro'] : 'Todos';
     $filtro_busca = isset($_GET['busca']) ? trim($_GET['busca']) : '';
 
-    $params = [$filtro_mes, $filtro_ano]; 
+    $params = [$filtro_mes, $filtro_ano];
     $where = ["s.status_aprovacao = 'Aprovado'"];
 
     $ultimo_dia_mes_filtro = date('Y-m-t 23:59:59', strtotime(sprintf('%04d-%02d-01', $filtro_ano, $filtro_mes)));
@@ -72,11 +73,11 @@ if ($visualizando_projeto_id > 0) {
             LEFT JOIN relatorios_hae r ON (r.solicitacao_id = s.id AND r.mes_referencia = ? AND r.ano_referencia = ? AND r.status = 'Publicado')
             WHERE " . implode(" AND ", $where) . " 
             ORDER BY u.nome ASC, s.titulo_projeto ASC";
-            
+
     $stmt = $pdo->prepare($sql);
     $stmt->execute($params);
     $projetos = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    
+
     $projetos_agrupados_total = [];
     foreach ($projetos as $proj) {
         $projetos_agrupados_total[$proj['professor_nome']][] = $proj;
@@ -85,10 +86,12 @@ if ($visualizando_projeto_id > 0) {
     $limite_por_pagina = 10;
     $total_professores = count($projetos_agrupados_total);
     $total_paginas = ceil($total_professores / $limite_por_pagina);
-    
-    $pagina_atual_pag = isset($_GET['pagina']) ? (int)$_GET['pagina'] : 1;
-    if ($pagina_atual_pag < 1) $pagina_atual_pag = 1;
-    if ($pagina_atual_pag > $total_paginas && $total_paginas > 0) $pagina_atual_pag = $total_paginas;
+
+    $pagina_atual_pag = isset($_GET['pagina']) ? (int) $_GET['pagina'] : 1;
+    if ($pagina_atual_pag < 1)
+        $pagina_atual_pag = 1;
+    if ($pagina_atual_pag > $total_paginas && $total_paginas > 0)
+        $pagina_atual_pag = $total_paginas;
 
     $offset = ($pagina_atual_pag - 1) * $limite_por_pagina;
     $projetos_agrupados = array_slice($projetos_agrupados_total, $offset, $limite_por_pagina, true);
@@ -175,11 +178,30 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
             <div class="menu-title">Navegação</div>
             <ul>
                 <li><a href="painel.php" class="<?php echo ($pagina_atual == 'painel.php') ? 'active' : ''; ?>"><i class="fa-solid fa-chart-pie"></i> <span class="menu-text">Dashboard</span></a></li>
-                <li><a href="analisar_solicitacoes.php" class="<?php echo ($pagina_atual == 'analisar_solicitacoes.php') ? 'active' : ''; ?>"><i class="fa-solid fa-clipboard-check"></i> <span class="menu-text">Analisar Solicitações</span></a></li>
-                <li><a href="acompanhar_relatorios.php" class="<?php echo ($pagina_atual == 'acompanhar_relatorios.php') ? 'active' : ''; ?>"><i class="fa-solid fa-chart-line"></i> <span class="menu-text">Acompanhar Relatórios</span></a></li>
-                <li><a href="relatorios_atrasados.php" class="<?php echo ($pagina_atual == 'relatorios_atrasados.php') ? 'active' : ''; ?>"><i class="fa-solid fa-file-invoice"></i> <span class="menu-text">Relatórios Atrasados</span></a></li>
-                <li><a href="cadastrar_professor.php" class="<?php echo ($pagina_atual == 'cadastrar_professor.php') ? 'active' : ''; ?>"><i class="fa-solid fa-user-plus"></i> <span class="menu-text">Cadastrar Usuário</span></a></li>
+                
+                <?php if ($_SESSION['usuario_funcao'] == 'Professor'): ?>
+                    <li><a href="nova_solicitacao.php" class="<?php echo ($pagina_atual == 'nova_solicitacao.php') ? 'active' : ''; ?>"><i class="fa-solid fa-file-circle-plus"></i> <span class="menu-text">Nova Solicitação</span></a></li>
+                    <li><a href="meus_projetos.php" class="<?php echo ($pagina_atual == 'meus_projetos.php') ? 'active' : ''; ?>"><i class="fa-solid fa-folder-open"></i> <span class="menu-text">Meus Projetos</span></a></li>
+                    <li><a href="enviar_relatorio.php" class="<?php echo ($pagina_atual == 'enviar_relatorio.php') ? 'active' : ''; ?>"><i class="fa-solid fa-calendar-check"></i> <span class="menu-text">Enviar Relatório</span></a></li>
+                    <li><a href="meus_rascunhos.php" class="<?php echo ($pagina_atual == 'meus_rascunhos.php') ? 'active' : ''; ?>"><i class="fa-solid fa-file-pen"></i> <span class="menu-text">Meus Rascunhos</span></a></li>
+                <?php else: ?>
+                    <li><a href="analisar_solicitacoes.php" class="<?php echo ($pagina_atual == 'analisar_solicitacoes.php') ? 'active' : ''; ?>"><i class="fa-solid fa-clipboard-check"></i> <span class="menu-text">Analisar Solicitações</span></a></li>
+                    <li><a href="acompanhar_relatorios.php" class="<?php echo ($pagina_atual == 'acompanhar_relatorios.php') ? 'active' : ''; ?>"><i class="fa-solid fa-chart-line"></i> <span class="menu-text">Acompanhar Relatórios</span></a></li>
+                    <li><a href="relatorios_atrasados.php" class="<?php echo ($pagina_atual == 'relatorios_atrasados.php') ? 'active' : ''; ?>"><i class="fa-solid fa-file-invoice"></i> <span class="menu-text">Relatórios Atrasados</span></a></li>
+                    <li><a href="cadastrar_professor.php" class="<?php echo ($pagina_atual == 'cadastrar_professor.php') ? 'active' : ''; ?>"><i class="fa-solid fa-user-plus"></i> <span class="menu-text">Cadastrar Usuário</span></a></li>
+                    
+                    <?php if ($_SESSION['usuario_funcao'] == 'Diretor'): ?>
+                        <li><a href="listar_usuarios.php" class="<?php echo ($pagina_atual == 'listar_usuarios.php') ? 'active' : ''; ?>"><i class="fa-solid fa-users"></i> <span class="menu-text">Lista de Usuários</span></a></li>
+                    <?php endif; ?>
+                <?php endif; ?>
+                
                 <li><a href="perfil.php" class="<?php echo ($pagina_atual == 'perfil.php') ? 'active' : ''; ?>"><i class="fa-solid fa-user-gear"></i> <span class="menu-text">Meu Perfil</span></a></li>
+                
+                <!-- MENU DE CONFIGURAÇÕES: Oculto para Coordenador/Professor, posicionado antes de Sair -->
+                <?php if ($_SESSION['usuario_funcao'] == 'Diretor'): ?>
+                    <li><a href="configuracoes.php" class="<?php echo ($pagina_atual == 'configuracoes.php') ? 'active' : ''; ?>"><i class="fa-solid fa-cogs"></i> <span class="menu-text">Configurações</span></a></li>
+                <?php endif; ?>
+                
                 <li><a href="logout.php" class="logout-link"><i class="fa-solid fa-right-from-bracket"></i> <span class="menu-text">Sair do Sistema</span></a></li>
             </ul>
         </nav>
@@ -195,230 +217,232 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
         </header>
 
         <?php if ($visualizando_projeto_id > 0): ?>
-            <a href="acompanhar_relatorios.php" class="btn-voltar"><i class="fa-solid fa-arrow-left"></i> Voltar para a visão geral</a>
+                        <a href="acompanhar_relatorios.php" class="btn-voltar"><i class="fa-solid fa-arrow-left"></i> Voltar para a visão geral</a>
             
-            <div class="page-header">
-                <h2 style="font-size: 18px; color: #333; margin-bottom: 5px;">Histórico de Relatórios</h2>
-                <p style="color: #666; font-size: 14px; margin-bottom: 5px;"><strong>Professor(a):</strong> <?php echo htmlspecialchars($projeto_detalhe['professor_nome']); ?></p>
-                <p style="color: #666; font-size: 14px;"><strong>Projeto:</strong> <?php echo htmlspecialchars($projeto_detalhe['titulo_projeto']); ?></p>
-            </div>
+                        <div class="page-header">
+                            <h2 style="font-size: 18px; color: #333; margin-bottom: 5px;">Histórico de Relatórios</h2>
+                            <p style="color: #666; font-size: 14px; margin-bottom: 5px;"><strong>Professor(a):</strong> <?php echo htmlspecialchars($projeto_detalhe['professor_nome']); ?></p>
+                            <p style="color: #666; font-size: 14px;"><strong>Projeto:</strong> <?php echo htmlspecialchars($projeto_detalhe['titulo_projeto']); ?></p>
+                        </div>
 
-            <div class="card-table">
-                <div style="overflow-x: auto;">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Período</th>
-                                <th>Data do Envio</th>
-                                <th>Status</th>
-                                <th>Documento</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php if (count($historico_relatorios) > 0): ?>
-                                <?php foreach ($historico_relatorios as $hist): ?>
-                                    <tr>
-                                        <td><strong><?php echo $meses[$hist['mes_referencia']] . ' / ' . $hist['ano_referencia']; ?></strong></td>
-                                        <td><?php echo date('d/m/Y H:i', strtotime($hist['data_envio'])); ?></td>
-                                        <td>
-                                            <?php if ($hist['status'] == 'Publicado'): ?>
-                                                <span class="badge badge-entregue"><i class="fa-solid fa-check"></i> Entregue</span>
-                                            <?php else: ?>
-                                                <span class="badge badge-rascunho"><i class="fa-solid fa-pen"></i> Rascunho</span>
-                                            <?php endif; ?>
-                                        </td>
-                                        <td>
-                                            <?php if ($hist['status'] == 'Publicado'): ?>
-                                                <a href="pdf_relatorio.php?id=<?php echo $hist['id']; ?>" target="_blank" class="btn-action btn-pdf">
-                                                    <i class="fa-solid fa-file-pdf"></i> Ver Relatório
-                                                </a>
-                                            <?php else: ?>
-                                                <span style="color: #888; font-size: 12px;">Aguardando submissão final</span>
-                                            <?php endif; ?>
-                                        </td>
-                                    </tr>
-                                <?php endforeach; ?>
-                            <?php else: ?>
-                                <tr><td colspan="4" style="text-align:center; padding: 30px; color: #888;">O professor ainda não iniciou nenhum relatório.</td></tr>
-                            <?php endif; ?>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+                        <div class="card-table">
+                            <div style="overflow-x: auto;">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>Período</th>
+                                            <th>Data do Envio</th>
+                                            <th>Status</th>
+                                            <th>Documento</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <?php if (count($historico_relatorios) > 0): ?>
+                                                        <?php foreach ($historico_relatorios as $hist): ?>
+                                                                        <tr>
+                                                                            <td><strong><?php echo $meses[$hist['mes_referencia']] . ' / ' . $hist['ano_referencia']; ?></strong></td>
+                                                                            <td><?php echo date('d/m/Y H:i', strtotime($hist['data_envio'])); ?></td>
+                                                                            <td>
+                                                                                <?php if ($hist['status'] == 'Publicado'): ?>
+                                                                                                <span class="badge badge-entregue"><i class="fa-solid fa-check"></i> Entregue</span>
+                                                                                <?php else: ?>
+                                                                                                <span class="badge badge-rascunho"><i class="fa-solid fa-pen"></i> Rascunho</span>
+                                                                                <?php endif; ?>
+                                                                            </td>
+                                                                            <td>
+                                                                                <?php if ($hist['status'] == 'Publicado'): ?>
+                                                                                                <a href="pdf_relatorio.php?id=<?php echo $hist['id']; ?>" target="_blank" class="btn-action btn-pdf">
+                                                                                                    <i class="fa-solid fa-file-pdf"></i> Ver Relatório
+                                                                                                </a>
+                                                                                <?php else: ?>
+                                                                                                <span style="color: #888; font-size: 12px;">Aguardando submissão final</span>
+                                                                                <?php endif; ?>
+                                                                            </td>
+                                                                        </tr>
+                                                        <?php endforeach; ?>
+                                        <?php else: ?>
+                                                        <tr><td colspan="4" style="text-align:center; padding: 30px; color: #888;">O professor ainda não iniciou nenhum relatório.</td></tr>
+                                        <?php endif; ?>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
 
         <?php else: ?>
-            <div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
-                <form method="GET" class="filter-bar" style="margin-bottom: 0; width: 100%;">
-                    <div class="filter-group" style="flex: 2;">
-                        <label>Buscar Professor ou Projeto</label>
-                        <input type="text" name="busca" placeholder="Digite um nome..." value="<?php echo htmlspecialchars($filtro_busca); ?>">
-                    </div>
-                    <div class="filter-group">
-                        <label>Mês de Referência</label>
-                        <select name="mes">
-                            <?php foreach($meses as $num => $nome): ?>
-                                <option value="<?php echo $num; ?>" <?php echo $filtro_mes == $num ? 'selected' : ''; ?>><?php echo $nome; ?></option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-                    <div class="filter-group">
-                        <label>Ano</label>
-                        <select name="ano">
-                            <?php 
-                                $ano_inicio = 2024;
-                                $ano_atual = max((int)date('Y'), $filtro_ano);
-                                for ($a = $ano_inicio; $a <= $ano_atual; $a++): 
-                            ?>
-                                <option value="<?php echo $a; ?>" <?php echo $filtro_ano == $a ? 'selected' : ''; ?>><?php echo $a; ?></option>
-                            <?php endfor; ?>
-                        </select>
-                    </div>
-                    <div class="filter-group">
-                        <label>Filtro Rápido</label>
-                        <select name="status_filtro">
-                            <option value="Todos" <?php echo $filtro_status == 'Todos' ? 'selected' : ''; ?>>Todos os Professores</option>
-                            <option value="Pendente" <?php echo $filtro_status == 'Pendente' ? 'selected' : ''; ?>>Somente Atrasados</option>
-                            <option value="Entregue" <?php echo $filtro_status == 'Entregue' ? 'selected' : ''; ?>>Somente Entregues</option>
-                        </select>
-                    </div>
-                    <div style="display: flex; gap: 10px;">
-                        <button type="submit" class="btn-filtrar"><i class="fa-solid fa-magnifying-glass"></i> Consultar</button>
-                        <a href="acompanhar_relatorios.php" class="btn-limpar">Limpar</a>
-                    </div>
-                </form>
-            </div>
+                        <div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
+                            <form method="GET" class="filter-bar" style="margin-bottom: 0; width: 100%;">
+                                <div class="filter-group" style="flex: 2;">
+                                    <label>Buscar Professor ou Projeto</label>
+                                    <input type="text" name="busca" placeholder="Digite um nome..." value="<?php echo htmlspecialchars($filtro_busca); ?>">
+                                </div>
+                                <div class="filter-group">
+                                    <label>Mês de Referência</label>
+                                    <select name="mes">
+                                        <?php foreach ($meses as $num => $nome): ?>
+                                                        <option value="<?php echo $num; ?>" <?php echo $filtro_mes == $num ? 'selected' : ''; ?>><?php echo $nome; ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+                                <div class="filter-group">
+                                    <label>Ano</label>
+                                    <select name="ano">
+                                        <?php
+                                        $ano_inicio = 2024;
+                                        $ano_atual = max((int) date('Y'), $filtro_ano);
+                                        for ($a = $ano_inicio; $a <= $ano_atual; $a++):
+                                            ?>
+                                                        <option value="<?php echo $a; ?>" <?php echo $filtro_ano == $a ? 'selected' : ''; ?>><?php echo $a; ?></option>
+                                        <?php endfor; ?>
+                                    </select>
+                                </div>
+                                <div class="filter-group">
+                                    <label>Filtro Rápido</label>
+                                    <select name="status_filtro">
+                                        <option value="Todos" <?php echo $filtro_status == 'Todos' ? 'selected' : ''; ?>>Todos os Professores</option>
+                                        <option value="Pendente" <?php echo $filtro_status == 'Pendente' ? 'selected' : ''; ?>>Somente Atrasados</option>
+                                        <option value="Entregue" <?php echo $filtro_status == 'Entregue' ? 'selected' : ''; ?>>Somente Entregues</option>
+                                    </select>
+                                </div>
+                                <div style="display: flex; gap: 10px;">
+                                    <button type="submit" class="btn-filtrar"><i class="fa-solid fa-magnifying-glass"></i> Consultar</button>
+                                    <a href="acompanhar_relatorios.php" class="btn-limpar">Limpar</a>
+                                </div>
+                            </form>
+                        </div>
 
-            <div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
-                <h3 style="color: #333;">
-                    Situação no período: <span style="color: var(--fatec-red);"><?php echo $meses[$filtro_mes] . '/' . $filtro_ano; ?></span>
-                </h3>
-            </div>
+                        <div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
+                            <h3 style="color: #333;">
+                                Situação no período: <span style="color: var(--fatec-red);"><?php echo $meses[$filtro_mes] . '/' . $filtro_ano; ?></span>
+                            </h3>
+                        </div>
 
-            <div class="card-table">
-                <div style="overflow-x: auto;">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th style="width: 40%;">Professor(a)</th>
-                                <th>Total de Projetos</th>
-                                <th>Resumo do Mês</th>
-                                <th style="text-align: right;">Expandir</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php if (count($projetos_agrupados) > 0): ?>
-                                <?php $id_accordion = 1; ?>
-                                <?php foreach ($projetos_agrupados as $nome_prof => $lista_projetos): ?>
+                        <div class="card-table">
+                            <div style="overflow-x: auto;">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th style="width: 40%;">Professor(a)</th>
+                                            <th>Total de Projetos</th>
+                                            <th>Resumo do Mês</th>
+                                            <th style="text-align: right;">Expandir</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <?php if (count($projetos_agrupados) > 0): ?>
+                                                        <?php $id_accordion = 1; ?>
+                                                        <?php foreach ($projetos_agrupados as $nome_prof => $lista_projetos): ?>
                                     
-                                    <?php 
-                                        $qtd_projetos = count($lista_projetos);
-                                        $qtd_entregues = 0;
-                                        $qtd_pendentes = 0;
-                                        foreach($lista_projetos as $p) {
-                                            if(!empty($p['relatorio_entregue_id'])) $qtd_entregues++;
-                                            else $qtd_pendentes++;
-                                        }
-                                    ?>
-                                    
-                                    <tr class="linha-mestra" id="mestra_<?php echo $id_accordion; ?>" onclick="toggleGaveta(<?php echo $id_accordion; ?>)">
-                                        <td>
-                                            <i class="fa-solid fa-chevron-down icone-expandir"></i>
-                                            <strong><?php echo htmlspecialchars($nome_prof); ?></strong>
-                                        </td>
-                                        <td><span style="color: #666; font-size: 13px;">Vinculado a <?php echo $qtd_projetos; ?> projeto(s)</span></td>
-                                        <td>
-                                            <?php if($qtd_pendentes > 0): ?>
-                                                <span class="badge badge-pendente"><?php echo $qtd_pendentes; ?> Pendente(s)</span>
-                                            <?php endif; ?>
-                                            <?php if($qtd_entregues > 0): ?>
-                                                <span class="badge badge-entregue"><?php echo $qtd_entregues; ?> Entregue(s)</span>
-                                            <?php endif; ?>
-                                        </td>
-                                        <td style="text-align: right; color: var(--fatec-red); font-size: 12px; font-weight: bold;">
-                                            Ver detalhes
-                                        </td>
-                                    </tr>
-                                    
-                                    <tr class="gaveta-detalhes" id="gaveta_<?php echo $id_accordion; ?>">
-                                        <td colspan="4" style="padding: 0;">
-                                            <table class="tabela-interna">
-                                                <thead>
-                                                    <tr>
-                                                        <th>Título do Projeto</th>
-                                                        <th>Status do Relatório</th>
-                                                        <th>Ações</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    <?php foreach ($lista_projetos as $proj): ?>
-                                                        <?php $is_entregue = !empty($proj['relatorio_entregue_id']); ?>
-                                                        <tr>
-                                                            <td style="width: 50%; color: #444;">
-                                                                <strong><?php echo htmlspecialchars($proj['titulo_projeto']); ?></strong><br>
-                                                                <span style="font-size: 11px; color: #888; font-weight: bold;">Semestre: <?php echo htmlspecialchars($proj['semestre']); ?></span>
-                                                            </td>
-                                                            <td>
-                                                                <?php if ($is_entregue): ?>
-                                                                    <span class="badge badge-entregue"><i class="fa-solid fa-check"></i> Entregue</span>
-                                                                <?php else: ?>
-                                                                    <span class="badge badge-pendente"><i class="fa-solid fa-triangle-exclamation"></i> Pendente</span>
-                                                                <?php endif; ?>
-                                                            </td>
-                                                            <td>
-                                                                <div class="acoes-flex">
-                                                                    <a href="acompanhar_relatorios.php?projeto_id=<?php echo $proj['id']; ?>" class="btn-action btn-historico">
-                                                                        <i class="fa-solid fa-clock-rotate-left"></i> Histórico
-                                                                    </a>
-
-                                                                    <?php if ($is_entregue): ?>
-                                                                        <a href="pdf_relatorio.php?id=<?php echo $proj['relatorio_entregue_id']; ?>" target="_blank" class="btn-action btn-pdf">
-                                                                            <i class="fa-solid fa-file-pdf"></i> Abrir Relatório
-                                                                        </a>
-                                                                    <?php else: ?>
-                                                                        <?php 
-                                                                            $num_whats = preg_replace('/[^0-9]/', '', $proj['telefone_whatsapp']);
-                                                                            $msg = urlencode("Olá professor(a)! Consta em nosso sistema que o relatório HAE referente ao mês de " . $meses[$filtro_mes] . "/$filtro_ano para o projeto '" . $proj['titulo_projeto'] . "' ainda não foi enviado. Por favor, acesse o portal para regularizar.");
+                                                                        <?php
+                                                                        $qtd_projetos = count($lista_projetos);
+                                                                        $qtd_entregues = 0;
+                                                                        $qtd_pendentes = 0;
+                                                                        foreach ($lista_projetos as $p) {
+                                                                            if (!empty($p['relatorio_entregue_id']))
+                                                                                $qtd_entregues++;
+                                                                            else
+                                                                                $qtd_pendentes++;
+                                                                        }
                                                                         ?>
-                                                                        <?php if(strlen($num_whats) >= 10): ?>
-                                                                            <a href="https://wa.me/55<?php echo $num_whats; ?>?text=<?php echo $msg; ?>" target="_blank" class="btn-action btn-whatsapp">
-                                                                                <i class="fa-brands fa-whatsapp"></i> Cobrar Professor
-                                                                            </a>
-                                                                        <?php endif; ?>
-                                                                    <?php endif; ?>
-                                                                </div>
-                                                            </td>
-                                                        </tr>
-                                                    <?php endforeach; ?>
-                                                </tbody>
-                                            </table>
-                                        </td>
-                                    </tr>
+                                    
+                                                                        <tr class="linha-mestra" id="mestra_<?php echo $id_accordion; ?>" onclick="toggleGaveta(<?php echo $id_accordion; ?>)">
+                                                                            <td>
+                                                                                <i class="fa-solid fa-chevron-down icone-expandir"></i>
+                                                                                <strong><?php echo htmlspecialchars($nome_prof); ?></strong>
+                                                                            </td>
+                                                                            <td><span style="color: #666; font-size: 13px;">Vinculado a <?php echo $qtd_projetos; ?> projeto(s)</span></td>
+                                                                            <td>
+                                                                                <?php if ($qtd_pendentes > 0): ?>
+                                                                                                <span class="badge badge-pendente"><?php echo $qtd_pendentes; ?> Pendente(s)</span>
+                                                                                <?php endif; ?>
+                                                                                <?php if ($qtd_entregues > 0): ?>
+                                                                                                <span class="badge badge-entregue"><?php echo $qtd_entregues; ?> Entregue(s)</span>
+                                                                                <?php endif; ?>
+                                                                            </td>
+                                                                            <td style="text-align: right; color: var(--fatec-red); font-size: 12px; font-weight: bold;">
+                                                                                Ver detalhes
+                                                                            </td>
+                                                                        </tr>
+                                    
+                                                                        <tr class="gaveta-detalhes" id="gaveta_<?php echo $id_accordion; ?>">
+                                                                            <td colspan="4" style="padding: 0;">
+                                                                                <table class="tabela-interna">
+                                                                                    <thead>
+                                                                                        <tr>
+                                                                                            <th>Título do Projeto</th>
+                                                                                            <th>Status do Relatório</th>
+                                                                                            <th>Ações</th>
+                                                                                        </tr>
+                                                                                    </thead>
+                                                                                    <tbody>
+                                                                                        <?php foreach ($lista_projetos as $proj): ?>
+                                                                                                        <?php $is_entregue = !empty($proj['relatorio_entregue_id']); ?>
+                                                                                                        <tr>
+                                                                                                            <td style="width: 50%; color: #444;">
+                                                                                                                <strong><?php echo htmlspecialchars($proj['titulo_projeto']); ?></strong><br>
+                                                                                                                <span style="font-size: 11px; color: #888; font-weight: bold;">Semestre: <?php echo htmlspecialchars($proj['semestre']); ?></span>
+                                                                                                            </td>
+                                                                                                            <td>
+                                                                                                                <?php if ($is_entregue): ?>
+                                                                                                                                <span class="badge badge-entregue"><i class="fa-solid fa-check"></i> Entregue</span>
+                                                                                                                <?php else: ?>
+                                                                                                                                <span class="badge badge-pendente"><i class="fa-solid fa-triangle-exclamation"></i> Pendente</span>
+                                                                                                                <?php endif; ?>
+                                                                                                            </td>
+                                                                                                            <td>
+                                                                                                                <div class="acoes-flex">
+                                                                                                                    <a href="acompanhar_relatorios.php?projeto_id=<?php echo $proj['id']; ?>" class="btn-action btn-historico">
+                                                                                                                        <i class="fa-solid fa-clock-rotate-left"></i> Histórico
+                                                                                                                    </a>
 
-                                    <?php $id_accordion++; ?>
-                                <?php endforeach; ?>
-                            <?php else: ?>
-                                <tr><td colspan="4" style="text-align:center; padding: 40px; color: #888;">Nenhum registro encontrado para este filtro.</td></tr>
-                            <?php endif; ?>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+                                                                                                                    <?php if ($is_entregue): ?>
+                                                                                                                                    <a href="pdf_relatorio.php?id=<?php echo $proj['relatorio_entregue_id']; ?>" target="_blank" class="btn-action btn-pdf">
+                                                                                                                                        <i class="fa-solid fa-file-pdf"></i> Abrir Relatório
+                                                                                                                                    </a>
+                                                                                                                    <?php else: ?>
+                                                                                                                                    <?php
+                                                                                                                                    $num_whats = preg_replace('/[^0-9]/', '', $proj['telefone_whatsapp']);
+                                                                                                                                    $msg = urlencode("Olá professor(a)! Consta em nosso sistema que o relatório HAE referente ao mês de " . $meses[$filtro_mes] . "/$filtro_ano para o projeto '" . $proj['titulo_projeto'] . "' ainda não foi enviado. Por favor, acesse o portal para regularizar.");
+                                                                                                                                    ?>
+                                                                                                                                    <?php if (strlen($num_whats) >= 10): ?>
+                                                                                                                                                    <a href="https://wa.me/55<?php echo $num_whats; ?>?text=<?php echo $msg; ?>" target="_blank" class="btn-action btn-whatsapp">
+                                                                                                                                                        <i class="fa-brands fa-whatsapp"></i> Cobrar Professor
+                                                                                                                                                    </a>
+                                                                                                                                    <?php endif; ?>
+                                                                                                                    <?php endif; ?>
+                                                                                                                </div>
+                                                                                                            </td>
+                                                                                                        </tr>
+                                                                                        <?php endforeach; ?>
+                                                                                    </tbody>
+                                                                                </table>
+                                                                            </td>
+                                                                        </tr>
 
-            <?php if ($total_paginas > 1): ?>
-                <div class="paginacao">
-                    <?php if ($pagina_atual_pag > 1): ?>
-                        <a href="<?php echo $url_base . 'pagina=' . ($pagina_atual_pag - 1); ?>"><i class="fa-solid fa-angle-left"></i> Anterior</a>
-                    <?php endif; ?>
+                                                                        <?php $id_accordion++; ?>
+                                                        <?php endforeach; ?>
+                                        <?php else: ?>
+                                                        <tr><td colspan="4" style="text-align:center; padding: 40px; color: #888;">Nenhum registro encontrado para este filtro.</td></tr>
+                                        <?php endif; ?>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <?php if ($total_paginas > 1): ?>
+                                        <div class="paginacao">
+                                            <?php if ($pagina_atual_pag > 1): ?>
+                                                            <a href="<?php echo $url_base . 'pagina=' . ($pagina_atual_pag - 1); ?>"><i class="fa-solid fa-angle-left"></i> Anterior</a>
+                                            <?php endif; ?>
                     
-                    <?php for ($i = 1; $i <= $total_paginas; $i++): ?>
-                        <a href="<?php echo $url_base . 'pagina=' . $i; ?>" class="<?php echo $i == $pagina_atual_pag ? 'active' : ''; ?>"><?php echo $i; ?></a>
-                    <?php endfor; ?>
+                                            <?php for ($i = 1; $i <= $total_paginas; $i++): ?>
+                                                            <a href="<?php echo $url_base . 'pagina=' . $i; ?>" class="<?php echo $i == $pagina_atual_pag ? 'active' : ''; ?>"><?php echo $i; ?></a>
+                                            <?php endfor; ?>
                     
-                    <?php if ($pagina_atual_pag < $total_paginas): ?>
-                        <a href="<?php echo $url_base . 'pagina=' . ($pagina_atual_pag + 1); ?>">Próxima <i class="fa-solid fa-angle-right"></i></a>
-                    <?php endif; ?>
-                </div>
-            <?php endif; ?>
+                                            <?php if ($pagina_atual_pag < $total_paginas): ?>
+                                                            <a href="<?php echo $url_base . 'pagina=' . ($pagina_atual_pag + 1); ?>">Próxima <i class="fa-solid fa-angle-right"></i></a>
+                                            <?php endif; ?>
+                                        </div>
+                        <?php endif; ?>
 
         <?php endif; ?>
 

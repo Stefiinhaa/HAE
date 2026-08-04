@@ -26,7 +26,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $data_admissao = $_POST['data_admissao'];
     $tipo_contrato = $_POST['tipo_contrato'];
     $formacao_academica = $_POST['formacao_academica'];
-    
+
     // Verificação de E-mail Duplicado
     $stmt_check = $pdo->prepare("SELECT id FROM usuarios WHERE email = ? AND id != ?");
     $stmt_check->execute([$email, $usuario_id]);
@@ -54,7 +54,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $extensao = pathinfo($_FILES['assinatura']['name'], PATHINFO_EXTENSION);
         $novo_nome = md5(uniqid()) . "." . $extensao;
         $diretorio = "uploads/assinaturas/";
-        if (!is_dir($diretorio)) mkdir($diretorio, 0777, true);
+        if (!is_dir($diretorio))
+            mkdir($diretorio, 0777, true);
         move_uploaded_file($_FILES['assinatura']['tmp_name'], $diretorio . $novo_nome);
         $assinatura_path = $diretorio . $novo_nome;
     }
@@ -66,23 +67,23 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     data_admissao = ?, tipo_contrato = ?, formacao_academica = ?, 
                     assinatura_path = ? $sql_senha 
                     WHERE id = ?";
-            
+
             $stmt = $pdo->prepare($sql);
             // Agora o email faz parte dos parâmetros de atualização
             $base_params = [$nome, $email, $whatsapp, $data_nascimento, $data_admissao, $tipo_contrato, $formacao_academica, $assinatura_path];
             $final_params = array_merge($base_params, $params_senha, [$usuario_id]);
-            
+
             $stmt->execute($final_params);
-            
+
             // Atualiza o nome na sessão caso tenha mudado
             $_SESSION['usuario_nome'] = $nome;
             $sucesso = "Dados atualizados com sucesso!";
-            
+
             // Recarrega os dados do usuário para o form refletir as mudanças
             $stmt = $pdo->prepare("SELECT * FROM usuarios WHERE id = ?");
             $stmt->execute([$usuario_id]);
             $user = $stmt->fetch(PDO::FETCH_ASSOC);
-            
+
         } catch (PDOException $e) {
             $erro = "Erro ao atualizar: " . $e->getMessage();
         }
@@ -93,6 +94,7 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -101,54 +103,184 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
-            --strength-weak: #ff4d4d; 
-            --strength-medium: #ffd43b; 
+            --strength-weak: #ff4d4d;
+            --strength-medium: #ffd43b;
             --strength-strong: #2ecc71;
         }
 
-        .perfil-container { display: grid; grid-template-columns: 1fr 350px; gap: 30px; align-items: start; }
-        .form-card { background: #fff; padding: 30px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.03); border-top: 4px solid var(--fatec-red); }
-        
-        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
-        .full { grid-column: span 2; }
-        
-        label { display: block; font-weight: 600; margin-bottom: 8px; font-size: 13px; color: #444; }
-        input, select { width: 100%; padding: 12px; border: 1.5px solid #ddd; border-radius: 6px; font-size: 14px; outline: none; transition: 0.3s; }
-        input:focus { border-color: var(--fatec-red); }
-        input[type="password"] { padding-right: 40px; }
+        .perfil-container {
+            display: grid;
+            grid-template-columns: 1fr 350px;
+            gap: 30px;
+            align-items: start;
+        }
 
-        .btn-save { background: var(--fatec-red); color: white; padding: 15px 30px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.3s; width: 100%; font-size: 15px; }
-        .btn-save:hover { background: var(--fatec-red-hover); transform: translateY(-1px); }
-        .btn-save:disabled { background: #ccc; cursor: not-allowed; box-shadow: none; transform: none; }
+        .form-card {
+            background: #fff;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.03);
+            border-top: 4px solid var(--fatec-red);
+        }
 
-        .signature-preview { text-align: center; background: #fff; padding: 20px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.03); border: 1px solid #eee; }
-        .signature-preview img { max-width: 100%; height: auto; margin-top: 15px; border: 1px dashed #ccc; padding: 10px; }
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
 
-        .input-with-icon { position: relative; }
-        .toggle-password { position: absolute; right: 12px; top: 38px; cursor: pointer; color: #888; transition: 0.3s; }
-        .toggle-password:hover { color: #333; }
-        
-        .idade-info { font-size: 12px; color: #666; margin-top: 5px; font-weight: bold; display: block; }
+        .full {
+            grid-column: span 2;
+        }
 
-        .strength-meter { height: 4px; width: 100%; background-color: #eee; margin-top: 8px; border-radius: 2px; overflow: hidden; display: flex; }
-        .strength-bar { height: 100%; width: 0%; transition: all 0.4s ease; }
-        .strength-text { font-size: 11px; margin-top: 4px; font-weight: bold; text-transform: uppercase; }
+        label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            font-size: 13px;
+            color: #444;
+        }
+
+        input,
+        select {
+            width: 100%;
+            padding: 12px;
+            border: 1.5px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            outline: none;
+            transition: 0.3s;
+        }
+
+        input:focus {
+            border-color: var(--fatec-red);
+        }
+
+        input[type="password"] {
+            padding-right: 40px;
+        }
+
+        .btn-save {
+            background: var(--fatec-red);
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.3s;
+            width: 100%;
+            font-size: 15px;
+        }
+
+        .btn-save:hover {
+            background: var(--fatec-red-hover);
+            transform: translateY(-1px);
+        }
+
+        .btn-save:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            box-shadow: none;
+            transform: none;
+        }
+
+        .signature-preview {
+            text-align: center;
+            background: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.03);
+            border: 1px solid #eee;
+        }
+
+        .signature-preview img {
+            max-width: 100%;
+            height: auto;
+            margin-top: 15px;
+            border: 1px dashed #ccc;
+            padding: 10px;
+        }
+
+        .input-with-icon {
+            position: relative;
+        }
+
+        .toggle-password {
+            position: absolute;
+            right: 12px;
+            top: 38px;
+            cursor: pointer;
+            color: #888;
+            transition: 0.3s;
+        }
+
+        .toggle-password:hover {
+            color: #333;
+        }
+
+        .idade-info {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+            font-weight: bold;
+            display: block;
+        }
+
+        .strength-meter {
+            height: 4px;
+            width: 100%;
+            background-color: #eee;
+            margin-top: 8px;
+            border-radius: 2px;
+            overflow: hidden;
+            display: flex;
+        }
+
+        .strength-bar {
+            height: 100%;
+            width: 0%;
+            transition: all 0.4s ease;
+        }
+
+        .strength-text {
+            font-size: 11px;
+            margin-top: 4px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
 
         /* REGRAS DE RESPONSIVIDADE ADICIONADAS */
-        @media (max-width: 1024px) { 
-            .perfil-container { grid-template-columns: 1fr; } 
+        @media (max-width: 1024px) {
+            .perfil-container {
+                grid-template-columns: 1fr;
+            }
         }
-        
+
         @media (max-width: 768px) {
-            .grid { grid-template-columns: 1fr; gap: 15px; }
-            .full { grid-column: 1 / -1; }
-            .form-card { padding: 20px; }
-            .signature-preview { padding: 15px; }
+            .grid {
+                grid-template-columns: 1fr;
+                gap: 15px;
+            }
+
+            .full {
+                grid-column: 1 / -1;
+            }
+
+            .form-card {
+                padding: 20px;
+            }
+
+            .signature-preview {
+                padding: 15px;
+            }
         }
     </style>
 </head>
+
 <body>
-<aside class="sidebar" id="sidebar">
+    <aside class="sidebar" id="sidebar">
         <div class="sidebar-header">
             <a href="painel.php" class="brand">
                 <img src="img/cps_fatecgarca_logo.jfif" alt="Logo Fatec">
@@ -158,68 +290,36 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
                 <i class="fa-solid fa-bars-staggered"></i>
             </button>
         </div>
-        
+
         <nav class="menu">
             <div class="menu-title">Navegação</div>
             <ul>
-                <li>
-                    <a href="painel.php" class="<?php echo ($pagina_atual == 'painel.php') ? 'active' : ''; ?>">
-                        <i class="fa-solid fa-chart-pie"></i> <span class="menu-text">Dashboard</span>
-                    </a>
-                </li>
+                <li><a href="painel.php" class="<?php echo ($pagina_atual == 'painel.php') ? 'active' : ''; ?>"><i class="fa-solid fa-chart-pie"></i> <span class="menu-text">Dashboard</span></a></li>
                 
                 <?php if ($_SESSION['usuario_funcao'] == 'Professor'): ?>
-                    <li>
-                        <a href="nova_solicitacao.php" class="<?php echo ($pagina_atual == 'nova_solicitacao.php') ? 'active' : ''; ?>">
-                            <i class="fa-solid fa-file-circle-plus"></i> <span class="menu-text">Nova Solicitação</span>
-                        </a>
-                    </li>
-                    <li>
-                        <a href="meus_projetos.php" class="<?php echo ($pagina_atual == 'meus_projetos.php') ? 'active' : ''; ?>">
-                            <i class="fa-solid fa-folder-open"></i> <span class="menu-text">Meus Projetos</span>
-                        </a>
-                    </li>
-                    <li>
-                        <a href="enviar_relatorio.php" class="<?php echo ($pagina_atual == 'enviar_relatorio.php') ? 'active' : ''; ?>">
-                            <i class="fa-solid fa-calendar-check"></i> <span class="menu-text">Enviar Relatório</span>
-                        </a>
-                    </li>
-                    <li>
-                        <a href="meus_rascunhos.php" class="<?php echo ($pagina_atual == 'meus_rascunhos.php') ? 'active' : ''; ?>">
-                            <i class="fa-solid fa-file-pen"></i> <span class="menu-text">Meus Rascunhos</span>
-                        </a>
-                    </li>
+                    <li><a href="nova_solicitacao.php" class="<?php echo ($pagina_atual == 'nova_solicitacao.php') ? 'active' : ''; ?>"><i class="fa-solid fa-file-circle-plus"></i> <span class="menu-text">Nova Solicitação</span></a></li>
+                    <li><a href="meus_projetos.php" class="<?php echo ($pagina_atual == 'meus_projetos.php') ? 'active' : ''; ?>"><i class="fa-solid fa-folder-open"></i> <span class="menu-text">Meus Projetos</span></a></li>
+                    <li><a href="enviar_relatorio.php" class="<?php echo ($pagina_atual == 'enviar_relatorio.php') ? 'active' : ''; ?>"><i class="fa-solid fa-calendar-check"></i> <span class="menu-text">Enviar Relatório</span></a></li>
+                    <li><a href="meus_rascunhos.php" class="<?php echo ($pagina_atual == 'meus_rascunhos.php') ? 'active' : ''; ?>"><i class="fa-solid fa-file-pen"></i> <span class="menu-text">Meus Rascunhos</span></a></li>
                 <?php else: ?>
-                    <li>
-                        <a href="analisar_solicitacoes.php" class="<?php echo ($pagina_atual == 'analisar_solicitacoes.php') ? 'active' : ''; ?>">
-                            <i class="fa-solid fa-clipboard-check"></i> <span class="menu-text">Analisar Solicitações</span>
-                        </a>
-                    </li>
-                    <li>
-                        <a href="acompanhar_relatorios.php" class="<?php echo ($pagina_atual == 'acompanhar_relatorios.php') ? 'active' : ''; ?>">
-                            <i class="fa-solid fa-chart-line"></i> <span class="menu-text">Acompanhar Relatórios</span>
-                        </a>
-                    </li>
-                    <li>
-                        <a href="relatorios_atrasados" class="<?php echo ($pagina_atual == 'relatorios_atrasados') ? 'active' : ''; ?>">
-                        <i class="fa-solid fa-file-invoice"></i> <span class="menu-text">Relatórios Atrasados</span></a></li>
-                    <li>
-                        <a href="cadastrar_professor.php" class="<?php echo ($pagina_atual == 'cadastrar_professor.php') ? 'active' : ''; ?>">
-                            <i class="fa-solid fa-user-plus"></i> <span class="menu-text">Cadastrar Usuário</span>
-                        </a>
-                    </li>
+                    <li><a href="analisar_solicitacoes.php" class="<?php echo ($pagina_atual == 'analisar_solicitacoes.php') ? 'active' : ''; ?>"><i class="fa-solid fa-clipboard-check"></i> <span class="menu-text">Analisar Solicitações</span></a></li>
+                    <li><a href="acompanhar_relatorios.php" class="<?php echo ($pagina_atual == 'acompanhar_relatorios.php') ? 'active' : ''; ?>"><i class="fa-solid fa-chart-line"></i> <span class="menu-text">Acompanhar Relatórios</span></a></li>
+                    <li><a href="relatorios_atrasados.php" class="<?php echo ($pagina_atual == 'relatorios_atrasados.php') ? 'active' : ''; ?>"><i class="fa-solid fa-file-invoice"></i> <span class="menu-text">Relatórios Atrasados</span></a></li>
+                    <li><a href="cadastrar_professor.php" class="<?php echo ($pagina_atual == 'cadastrar_professor.php') ? 'active' : ''; ?>"><i class="fa-solid fa-user-plus"></i> <span class="menu-text">Cadastrar Usuário</span></a></li>
+                    
+                    <?php if ($_SESSION['usuario_funcao'] == 'Diretor'): ?>
+                        <li><a href="listar_usuarios.php" class="<?php echo ($pagina_atual == 'listar_usuarios.php') ? 'active' : ''; ?>"><i class="fa-solid fa-users"></i> <span class="menu-text">Lista de Usuários</span></a></li>
+                    <?php endif; ?>
                 <?php endif; ?>
                 
-                <li>
-                    <a href="perfil.php" class="<?php echo ($pagina_atual == 'perfil.php') ? 'active' : ''; ?>">
-                        <i class="fa-solid fa-user-gear"></i> <span class="menu-text">Meu Perfil</span>
-                    </a>
-                </li>
-                <li>
-                    <a href="logout.php" class="logout-link">
-                        <i class="fa-solid fa-right-from-bracket"></i> <span class="menu-text">Sair do Sistema</span>
-                    </a>
-                </li>
+                <li><a href="perfil.php" class="<?php echo ($pagina_atual == 'perfil.php') ? 'active' : ''; ?>"><i class="fa-solid fa-user-gear"></i> <span class="menu-text">Meu Perfil</span></a></li>
+                
+                <!-- MENU DE CONFIGURAÇÕES: Oculto para Coordenador/Professor, posicionado antes de Sair -->
+                <?php if ($_SESSION['usuario_funcao'] == 'Diretor'): ?>
+                    <li><a href="configuracoes.php" class="<?php echo ($pagina_atual == 'configuracoes.php') ? 'active' : ''; ?>"><i class="fa-solid fa-cogs"></i> <span class="menu-text">Configurações</span></a></li>
+                <?php endif; ?>
+                
+                <li><a href="logout.php" class="logout-link"><i class="fa-solid fa-right-from-bracket"></i> <span class="menu-text">Sair do Sistema</span></a></li>
             </ul>
         </nav>
     </aside>
@@ -232,8 +332,10 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
             </div>
         </header>
 
-        <?php if($sucesso) echo "<div class='alert-success'>✅ $sucesso</div>"; ?>
-        <?php if($erro) echo "<div class='alert-success' style='background:#fee2e2; color:#b91c1c; border-color:#b91c1c;'>❌ $erro</div>"; ?>
+        <?php if ($sucesso)
+            echo "<div class='alert-success'>✅ $sucesso</div>"; ?>
+        <?php if ($erro)
+            echo "<div class='alert-success' style='background:#fee2e2; color:#b91c1c; border-color:#b91c1c;'>❌ $erro</div>"; ?>
 
         <!-- FORMULÁRIO AGORA ENVOLVE O CONTAINER INTEIRO PARA GARANTIR O ENVIO DO ARQUIVO -->
         <form method="POST" enctype="multipart/form-data" id="perfil-form" autocomplete="off">
@@ -242,24 +344,30 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
                     <div class="grid">
                         <div class="full">
                             <label>Nome Completo</label>
-                            <input type="text" name="nome" value="<?php echo htmlspecialchars($user['nome']); ?>" required>
+                            <input type="text" name="nome" value="<?php echo htmlspecialchars($user['nome']); ?>"
+                                required>
                         </div>
                         <div>
                             <label>E-mail Institucional</label>
-                            <input type="email" name="email" value="<?php echo htmlspecialchars($user['email']); ?>" required>
+                            <input type="email" name="email" value="<?php echo htmlspecialchars($user['email']); ?>"
+                                required>
                         </div>
                         <div>
                             <label>WhatsApp</label>
-                            <input type="text" name="whatsapp" id="whatsapp" value="<?php echo htmlspecialchars($user['telefone_whatsapp']); ?>" required>
+                            <input type="text" name="whatsapp" id="whatsapp"
+                                value="<?php echo htmlspecialchars($user['telefone_whatsapp']); ?>" required>
                         </div>
                         <div>
                             <label>Data de Nascimento</label>
-                            <input type="date" name="data_nascimento" id="data_nascimento" value="<?php echo $user['data_nascimento']; ?>" required oninput="calculateAge(this.value)">
+                            <input type="date" name="data_nascimento" id="data_nascimento"
+                                value="<?php echo $user['data_nascimento']; ?>" required
+                                oninput="calculateAge(this.value)">
                             <span id="idade-display" class="idade-info"></span>
                         </div>
                         <div>
                             <label>Data de Admissão</label>
-                            <input type="date" name="data_admissao" value="<?php echo $user['data_admissao']; ?>" required>
+                            <input type="date" name="data_admissao" value="<?php echo $user['data_admissao']; ?>"
+                                required>
                         </div>
                         <div class="full">
                             <label>Tipo de Contrato</label>
@@ -270,41 +378,51 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
                         </div>
                         <div class="full">
                             <label>Formação Acadêmica</label>
-                            <input type="text" name="formacao_academica" value="<?php echo htmlspecialchars($user['formacao_academica']); ?>" required>
+                            <input type="text" name="formacao_academica"
+                                value="<?php echo htmlspecialchars($user['formacao_academica']); ?>" required>
                         </div>
                     </div>
 
-                    <h3 style="font-size:16px; margin: 30px 0 15px 0; color: var(--fatec-red); border-top: 1px solid #eee; padding-top: 20px;">Alterar Senha (Deixe em branco para manter a atual)</h3>
+                    <h3
+                        style="font-size:16px; margin: 30px 0 15px 0; color: var(--fatec-red); border-top: 1px solid #eee; padding-top: 20px;">
+                        Alterar Senha (Deixe em branco para manter a atual)</h3>
                     <div class="grid">
                         <div class="input-with-icon">
                             <label>Nova Senha</label>
-                            <input type="password" name="nova_senha" id="nova_senha" autocomplete="new-password" oninput="checkStrength(this.value)">
-                            <i class="fa-regular fa-eye toggle-password" onclick="toggleVisibility('nova_senha', this)"></i>
-                            <div class="strength-meter"><div id="strength-bar" class="strength-bar"></div></div>
+                            <input type="password" name="nova_senha" id="nova_senha" autocomplete="new-password"
+                                oninput="checkStrength(this.value)">
+                            <i class="fa-regular fa-eye toggle-password"
+                                onclick="toggleVisibility('nova_senha', this)"></i>
+                            <div class="strength-meter">
+                                <div id="strength-bar" class="strength-bar"></div>
+                            </div>
                             <div id="strength-text" class="strength-text"></div>
                         </div>
                         <div class="input-with-icon">
                             <label>Confirmar Nova Senha</label>
-                            <input type="password" name="confirma_senha" id="confirma_senha" autocomplete="new-password" oninput="validateMatch()">
-                            <i class="fa-regular fa-eye toggle-password" onclick="toggleVisibility('confirma_senha', this)"></i>
+                            <input type="password" name="confirma_senha" id="confirma_senha" autocomplete="new-password"
+                                oninput="validateMatch()">
+                            <i class="fa-regular fa-eye toggle-password"
+                                onclick="toggleVisibility('confirma_senha', this)"></i>
                             <div id="match-text" class="strength-text"></div>
                         </div>
                     </div>
 
                     <div style="margin-top: 30px;">
-                        <button type="submit" class="btn-save" id="submitBtn"><i class="fa-solid fa-floppy-disk"></i> Salvar Alterações</button>
+                        <button type="submit" class="btn-save" id="submitBtn"><i class="fa-solid fa-floppy-disk"></i>
+                            Salvar Alterações</button>
                     </div>
                 </div>
 
                 <div class="signature-column">
                     <div class="signature-preview">
                         <label style="text-align: left;">Assinatura Atual</label>
-                        <?php if($user['assinatura_path']): ?>
+                        <?php if ($user['assinatura_path']): ?>
                             <img src="<?php echo $user['assinatura_path']; ?>" alt="Assinatura">
                         <?php else: ?>
                             <p style="font-size: 12px; color: #999; margin: 20px 0;">Nenhuma assinatura cadastrada.</p>
                         <?php endif; ?>
-                        
+
                         <div style="margin-top: 25px; text-align: left;">
                             <label>Atualizar Assinatura</label>
                             <input type="file" name="assinatura" style="padding: 5px; font-size: 12px; width: 100%;">
@@ -344,7 +462,7 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
         function checkStrength(password) {
             const bar = document.getElementById('strength-bar');
             const text = document.getElementById('strength-text');
-            
+
             if (!password) {
                 bar.style.width = '0%';
                 text.innerText = '';
@@ -374,33 +492,34 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
             const matchText = document.getElementById('match-text');
             const btn = document.getElementById('submitBtn');
 
-            if (p1 === "" && p2 === "") { 
-                matchText.innerText = ""; 
-                btn.disabled = false; 
+            if (p1 === "" && p2 === "") {
+                matchText.innerText = "";
+                btn.disabled = false;
                 return;
-            } 
-            
-            if (p2 === "") { 
-                matchText.innerText = ""; 
-                btn.disabled = true; 
-            } else if (p1 === p2 && p1.length >= 8) { 
-                matchText.innerText = "As senhas coincidem"; 
-                matchText.style.color = 'var(--strength-strong)'; 
-                btn.disabled = false; 
-            } else { 
-                matchText.innerText = "As senhas não coincidem ou são curtas"; 
-                matchText.style.color = 'var(--strength-weak)'; 
-                btn.disabled = true; 
+            }
+
+            if (p2 === "") {
+                matchText.innerText = "";
+                btn.disabled = true;
+            } else if (p1 === p2 && p1.length >= 8) {
+                matchText.innerText = "As senhas coincidem";
+                matchText.style.color = 'var(--strength-strong)';
+                btn.disabled = false;
+            } else {
+                matchText.innerText = "As senhas não coincidem ou são curtas";
+                matchText.style.color = 'var(--strength-weak)';
+                btn.disabled = true;
             }
         }
 
-        document.getElementById('whatsapp').addEventListener('input', function(e) {
+        document.getElementById('whatsapp').addEventListener('input', function (e) {
             let value = e.target.value.replace(/\D/g, '');
             if (value.length > 11) value = value.slice(0, 11);
-            if (value.length > 2) value = `(${value.slice(0,2)}) ${value.slice(2)}`;
-            if (value.length > 10) value = `${value.slice(0,10)}-${value.slice(10)}`;
+            if (value.length > 2) value = `(${value.slice(0, 2)}) ${value.slice(2)}`;
+            if (value.length > 10) value = `${value.slice(0, 10)}-${value.slice(10)}`;
             e.target.value = value;
         });
     </script>
 </body>
+
 </html>

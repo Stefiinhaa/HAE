@@ -1,51 +1,59 @@
 <?php
-// Se usou Composer, descomente a linha abaixo e apague os requires manuais:
-// require 'vendor/autoload.php';
+// Carrega os arquivos do PHPMailer
+require 'vendor/PHPMailer/Exception.php';
+require 'vendor/PHPMailer/PHPMailer.php';
+require 'vendor/PHPMailer/SMTP.php';
 
-// Se baixou manualmente, aponte para a pasta correta:
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
-require 'libs/PHPMailer/src/Exception.php';
-require 'libs/PHPMailer/src/PHPMailer.php';
-require 'libs/PHPMailer/src/SMTP.php';
-
-function dispararEmailSenha($emailDestino, $nome, $senhaProvisoria) {
+/**
+ * Função global para disparo de e-mails do sistema HAE usando Gmail
+ * 
+ * @param string $destinatario Email de quem vai receber
+ * @param string $nome_destinatario Nome de quem vai receber
+ * @param string $assunto Assunto do e-mail
+ * @param string $corpo_html Corpo do e-mail formatado em HTML
+ * @param array $imagens_embutidas Array de arrays contendo 'path' e 'cid' das imagens
+ * @return bool True se enviou com sucesso, False se falhou
+ */
+function dispararEmailSistema($destinatario, $nome_destinatario, $assunto, $corpo_html, $imagens_embutidas = []) {
     $mail = new PHPMailer(true);
 
     try {
-        // Configurações do Servidor SMTP
+        // Configurações do Servidor SMTP do Gmail
         $mail->isSMTP();
         $mail->Host       = 'smtp.gmail.com'; 
         $mail->SMTPAuth   = true;
-        $mail->Username   = 'seu.email.fatec@gmail.com'; // O seu e-mail do Gmail
-        $mail->Password   = 'sua-senha-de-app-de-16-digitos'; // A Senha de App gerada
-        $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS; // Tente ENCRYPTION_STARTTLS e porta 587 se falhar
-        $mail->Port       = 465;
+        $mail->Username   = 'sistemahae@gmail.com'; 
+        $mail->Password   = 'rupwbxsotdmwwnky'; 
+        $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS; 
+        $mail->Port       = 465;                         
         $mail->CharSet    = 'UTF-8';
 
         // Remetente e Destinatário
-        $mail->setFrom('seu.email.fatec@gmail.com', 'Sistema HAE - Direção');
-        $mail->addAddress($emailDestino, $nome);
+        $mail->setFrom('sistemahae@gmail.com', 'HAE Fatec Garça'); 
+        $mail->addAddress($destinatario, $nome_destinatario);
 
-        // Conteúdo do E-mail
+        // Laço de repetição para embutir todas as imagens passadas na lista
+        if (!empty($imagens_embutidas)) {
+            foreach ($imagens_embutidas as $img) {
+                if (file_exists($img['path'])) {
+                    $mail->addEmbeddedImage($img['path'], $img['cid']);
+                }
+            }
+        }
+
+        // Conteúdo
         $mail->isHTML(true);
-        $mail->Subject = 'Acesso ao Sistema HAE - Sua Senha Provisória';
+        $mail->Subject = $assunto;
+        $mail->Body    = $corpo_html;
         
-        // Corpo do E-mail em HTML
-        $mail->Body = "
-            <h2>Olá, Prof(a). $nome,</h2>
-            <p>Seu cadastro no portal de Horas Atividades Específicas foi concluído.</p>
-            <p>Sua senha provisória de acesso é: <strong>$senhaProvisoria</strong></p>
-            <p><em>Por motivos de segurança, o sistema exigirá a troca desta senha no seu primeiro login.</em></p>
-            <br>
-            <p>Atenciosamente,<br>Direção Fatec</p>
-        ";
+        $mail->AltBody = strip_tags($corpo_html);
 
         $mail->send();
         return true;
     } catch (Exception $e) {
-        // Para debugar, você pode dar echo em $mail->ErrorInfo
         return false;
     }
 }
