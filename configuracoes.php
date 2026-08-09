@@ -16,11 +16,24 @@ $erro = "";
 // ==============================================================================
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $ano_eleitoral = isset($_POST['ano_eleitoral']) ? '1' : '0';
+    $total_hae = isset($_POST['total_hae_disponivel']) ? (int)$_POST['total_hae_disponivel'] : 0;
     
     try {
         // Atualiza o Ano Eleitoral
         $stmt = $pdo->prepare("UPDATE configuracoes SET valor = ? WHERE chave = 'ano_eleitoral'");
         $stmt->execute([$ano_eleitoral]);
+        
+        // NOVO: Atualiza o Total de HAE Disponível para a Fatec
+        $stmt_hae = $pdo->prepare("UPDATE configuracoes SET valor = ? WHERE chave = 'total_hae_disponivel'");
+        // Se a chave não existir (primeira vez), ele vai falhar. Então fazemos um UPSERT manual.
+        $stmt_hae->execute([$total_hae]);
+        if($stmt_hae->rowCount() == 0) {
+            // Verifica se a chave realmente existe, se não, cria.
+            $check = $pdo->query("SELECT COUNT(*) FROM configuracoes WHERE chave = 'total_hae_disponivel'")->fetchColumn();
+            if($check == 0){
+                $pdo->prepare("INSERT INTO configuracoes (chave, valor) VALUES ('total_hae_disponivel', ?)")->execute([$total_hae]);
+            }
+        }
         
         // Lógica de Upload da Nova Logo
         if (isset($_FILES['nova_logo']) && $_FILES['nova_logo']['error'] == 0) {
@@ -57,8 +70,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 $stmt_conf = $pdo->query("SELECT chave, valor FROM configuracoes");
 $config_db = $stmt_conf->fetchAll(PDO::FETCH_KEY_PAIR);
 
-$status_eleitoral = $config_db['ano_eleitoral'] === '1' ? 'checked' : '';
+$status_eleitoral = (isset($config_db['ano_eleitoral']) && $config_db['ano_eleitoral'] === '1') ? 'checked' : '';
 $logo_atual = $config_db['logo_institucional'] ?? 'img/header-cps-documento.jpeg';
+$total_hae_atual = $config_db['total_hae_disponivel'] ?? 0;
 
 $pagina_atual = basename($_SERVER['PHP_SELF']);
 ?>
@@ -81,7 +95,6 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
         .logo-preview { background: #f8f9fa; border: 1px dashed #ccc; padding: 20px; text-align: center; border-radius: 8px; margin-bottom: 15px; }
         .logo-preview img { max-width: 100%; max-height: 120px; }
         
-        /* Estilo do Toggle Switch (Botão de Ligar/Desligar) */
         .switch { position: relative; display: inline-block; width: 50px; height: 26px; }
         .switch input { opacity: 0; width: 0; height: 0; }
         .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 34px; }
@@ -130,7 +143,6 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
                 
                 <li><a href="perfil.php" class="<?php echo ($pagina_atual == 'perfil.php') ? 'active' : ''; ?>"><i class="fa-solid fa-user-gear"></i> <span class="menu-text">Meu Perfil</span></a></li>
                 
-                <!-- MENU DE CONFIGURAÇÕES: Oculto para Coordenador/Professor, posicionado antes de Sair -->
                 <?php if ($_SESSION['usuario_funcao'] == 'Diretor'): ?>
                     <li><a href="configuracoes.php" class="<?php echo ($pagina_atual == 'configuracoes.php') ? 'active' : ''; ?>"><i class="fa-solid fa-cogs"></i> <span class="menu-text">Configurações</span></a></li>
                 <?php endif; ?>
@@ -159,6 +171,20 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
         <div class="form-card">
             <form method="POST" enctype="multipart/form-data">
                 
+                <!-- NOVO BLOCO: GESTÃO DE VERBAS DE HAE -->
+                <div class="form-section">
+                    <h3><i class="fa-solid fa-wallet"></i> Orçamento de Horas (HAE)</h3>
+                    <p class="texto-apoio">Defina a quantidade máxima de horas HAE que a Fatec tem disponível para distribuir entre os professores neste semestre. O sistema calculará o saldo restante automaticamente no painel.</p>
+                    
+                    <div style="max-width: 300px;">
+                        <label>Total de HAE Disponível</label>
+                        <div style="position: relative;">
+                            <input type="number" name="total_hae_disponivel" value="<?php echo $total_hae_atual; ?>" min="0" style="width: 100%; padding: 12px 12px 12px 40px; border: 1px solid #ccc; border-radius: 5px; font-size: 16px; font-weight: bold; color: #8e44ad;">
+                            <i class="fa-solid fa-clock" style="position: absolute; left: 15px; top: 15px; color: #8e44ad;"></i>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="form-section">
                     <h3><i class="fa-solid fa-image"></i> Identidade Visual dos Documentos</h3>
                     <p class="texto-apoio">Faça o upload de uma nova imagem para alterar a logomarca do Governo/CPS exibida no cabeçalho de todos os PDFs gerados pelo sistema (Solicitações e Relatórios).</p>

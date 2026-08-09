@@ -218,6 +218,7 @@ if ($visualizando_id) {
         $params[] = $filtro_semestre;
     }
 
+    // ================== NOVA LÓGICA DE FILTROS ==================
     if ($filtro_status == 'Aguardando') {
         if ($funcao_logada == 'Coordenador') {
             $where[] = "s.status_coordenador = 'Pendente' AND s.status_aprovacao != 'Rejeitado'";
@@ -228,6 +229,22 @@ if ($visualizando_id) {
         }
     } elseif ($filtro_status == 'Pendentes_Geral' && $funcao_logada == 'Diretor') {
         $where[] = "s.status_diretor = 'Pendente' AND s.status_aprovacao != 'Rejeitado'";
+    } elseif ($filtro_status == 'MeusAprovados') {
+        if ($funcao_logada == 'Diretor') {
+            $where[] = "s.status_diretor = 'Aprovado' AND s.diretor_id = ?";
+            $params[] = $usuario_id;
+        } else {
+            $where[] = "s.status_coordenador = 'Aprovado' AND s.coordenador_id = ?";
+            $params[] = $usuario_id;
+        }
+    } elseif ($filtro_status == 'MeusRejeitados') {
+        if ($funcao_logada == 'Diretor') {
+            $where[] = "s.status_diretor = 'Rejeitado' AND s.diretor_id = ?";
+            $params[] = $usuario_id;
+        } else {
+            $where[] = "s.status_coordenador = 'Rejeitado' AND s.coordenador_id = ?";
+            $params[] = $usuario_id;
+        }
     } elseif ($filtro_status == 'Aprovados') {
         $where[] = "s.status_aprovacao = 'Aprovado'";
     } elseif ($filtro_status == 'Rejeitados') {
@@ -374,9 +391,9 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
                     <li><a href="analisar_solicitacoes.php" class="<?php echo ($pagina_atual == 'analisar_solicitacoes.php') ? 'active' : ''; ?>"><i class="fa-solid fa-clipboard-check"></i> <span class="menu-text">Analisar Solicitações</span></a></li>
                     <li><a href="acompanhar_relatorios.php" class="<?php echo ($pagina_atual == 'acompanhar_relatorios.php') ? 'active' : ''; ?>"><i class="fa-solid fa-chart-line"></i> <span class="menu-text">Acompanhar Relatórios</span></a></li>
                     <li><a href="relatorios_atrasados.php" class="<?php echo ($pagina_atual == 'relatorios_atrasados.php') ? 'active' : ''; ?>"><i class="fa-solid fa-file-invoice"></i> <span class="menu-text">Relatórios Atrasados</span></a></li>
-                    <li><a href="cadastrar_professor.php" class="<?php echo ($pagina_atual == 'cadastrar_professor.php') ? 'active' : ''; ?>"><i class="fa-solid fa-user-plus"></i> <span class="menu-text">Cadastrar Usuário</span></a></li>
                     
                     <?php if ($_SESSION['usuario_funcao'] == 'Diretor'): ?>
+                        <li><a href="cadastrar_professor.php" class="<?php echo ($pagina_atual == 'cadastrar_professor.php') ? 'active' : ''; ?>"><i class="fa-solid fa-user-plus"></i> <span class="menu-text">Cadastrar Usuário</span></a></li>
                         <li><a href="listar_usuarios.php" class="<?php echo ($pagina_atual == 'listar_usuarios.php') ? 'active' : ''; ?>"><i class="fa-solid fa-users"></i> <span class="menu-text">Lista de Usuários</span></a></li>
                     <?php endif; ?>
                 <?php endif; ?>
@@ -466,7 +483,6 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
                             <input type="number" name="horas_aprovadas" value="<?php echo $detalhes['quantidade_horas']; ?>" required min="0">
                             
                             <label>Seu Parecer Oficial</label>
-                            <!-- ADICIONADO O required AQUI -->
                             <textarea name="parecer" id="campo_parecer" rows="5" placeholder="Digite sua avaliação sobre o projeto..." required><?php echo ($funcao_logada == 'Coordenador') ? htmlspecialchars($detalhes['parecer_coordenador']) : htmlspecialchars($detalhes['parecer_diretor']); ?></textarea>
                             
                             <div class="botoes-acao">
@@ -500,15 +516,21 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
                 <div class="filter-group">
                     <label>Filtro de Status</label>
                     <select name="status_filtro">
-                        <?php if ($funcao_logada == 'Diretor'): ?>
-                            <option value="Aguardando" <?php echo $filtro_status == 'Aguardando' ? 'selected' : ''; ?>>Prontos p/ Mim (Coord. Aprovou)</option>
-                            <option value="Pendentes_Geral" <?php echo $filtro_status == 'Pendentes_Geral' ? 'selected' : ''; ?>>Todas Minhas Pendências</option>
-                        <?php else: ?>
-                            <option value="Aguardando" <?php echo $filtro_status == 'Aguardando' ? 'selected' : ''; ?>>Aguardando Minha Ação</option>
-                        <?php endif; ?>
-                        <option value="Todos" <?php echo $filtro_status == 'Todos' ? 'selected' : ''; ?>>Todos os Projetos</option>
-                        <option value="Aprovados" <?php echo $filtro_status == 'Aprovados' ? 'selected' : ''; ?>>Aprovados Totalmente</option>
-                        <option value="Rejeitados" <?php echo $filtro_status == 'Rejeitados' ? 'selected' : ''; ?>>Rejeitados</option>
+                        <optgroup label="Minhas Ações">
+                            <?php if ($funcao_logada == 'Diretor'): ?>
+                                <option value="Aguardando" <?php echo $filtro_status == 'Aguardando' ? 'selected' : ''; ?>>Aguardando Minha Análise</option>
+                                <option value="Pendentes_Geral" <?php echo $filtro_status == 'Pendentes_Geral' ? 'selected' : ''; ?>>Todas Minhas Pendências</option>
+                            <?php else: ?>
+                                <option value="Aguardando" <?php echo $filtro_status == 'Aguardando' ? 'selected' : ''; ?>>Aguardando Minha Ação</option>
+                            <?php endif; ?>
+                            <option value="MeusAprovados" <?php echo $filtro_status == 'MeusAprovados' ? 'selected' : ''; ?>>Projetos que Aprovei</option>
+                            <option value="MeusRejeitados" <?php echo $filtro_status == 'MeusRejeitados' ? 'selected' : ''; ?>>Projetos que Rejeitei</option>
+                        </optgroup>
+                        <optgroup label="Visão Global">
+                            <option value="Todos" <?php echo $filtro_status == 'Todos' ? 'selected' : ''; ?>>Todos os Projetos</option>
+                            <option value="Aprovados" <?php echo $filtro_status == 'Aprovados' ? 'selected' : ''; ?>>Aprovados Totalmente</option>
+                            <option value="Rejeitados" <?php echo $filtro_status == 'Rejeitados' ? 'selected' : ''; ?>>Rejeitados (Geral)</option>
+                        </optgroup>
                     </select>
                 </div>
 
@@ -525,7 +547,7 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
                             <tr>
                                 <th style="width: 40%;">Professor(a)</th>
                                 <th>Total de Lançamentos</th>
-                                <th>Pendências p/ Mim</th>
+                                <th>Status dos Projetos</th>
                                 <th style="text-align: right;">Expandir</th>
                             </tr>
                         </thead>
@@ -538,9 +560,15 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
                                         $qtd_projetos = count($lista_projetos);
                                         $qtd_minha_acao = 0;
                                         $qtd_esperando_coord = 0;
+                                        $qtd_rejeitados = 0;
+                                        $qtd_aprovados = 0;
                                         
                                         foreach($lista_projetos as $p) {
-                                            if ($p['status_aprovacao'] != 'Rejeitado') {
+                                            if ($p['status_aprovacao'] == 'Rejeitado') {
+                                                $qtd_rejeitados++;
+                                            } elseif ($p['status_aprovacao'] == 'Aprovado') {
+                                                $qtd_aprovados++;
+                                            } else {
                                                 if ($funcao_logada == 'Coordenador' && $p['status_coordenador'] == 'Pendente') {
                                                     if (empty($p['coordenador_alvo_id']) || $p['coordenador_alvo_id'] == $usuario_id) {
                                                         $qtd_minha_acao++;
@@ -550,7 +578,6 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
                                                     if ($p['status_coordenador'] == 'Aprovado') {
                                                         $qtd_minha_acao++;
                                                     } else {
-                                                        // Se o diretor abriu, está pendente, mas a coordenação ainda não aprovou
                                                         $qtd_esperando_coord++;
                                                     }
                                                 }
@@ -574,8 +601,16 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
                                                     <span class="badge" style="background:#e1f5fe; color:#0288d1; border: 1px solid #81d4fa;"><i class="fa-solid fa-hourglass-half"></i> <?php echo $qtd_esperando_coord; ?> Aguardando Coord.</span>
                                                 <?php endif; ?>
                                                 
-                                                <?php if($qtd_minha_acao == 0 && $qtd_esperando_coord == 0): ?>
-                                                    <span class="badge" style="background:#eee; color:#888;">Nenhuma pendência</span>
+                                                <?php if($qtd_rejeitados > 0): ?>
+                                                    <span class="badge badge-rejeitado"><i class="fa-solid fa-ban"></i> <?php echo $qtd_rejeitados; ?> Rejeitado(s)</span>
+                                                <?php endif; ?>
+                                                
+                                                <?php if($qtd_aprovados > 0): ?>
+                                                    <span class="badge badge-aprovado"><i class="fa-solid fa-check-double"></i> <?php echo $qtd_aprovados; ?> Aprovado(s)</span>
+                                                <?php endif; ?>
+                                                
+                                                <?php if($qtd_minha_acao == 0 && $qtd_esperando_coord == 0 && $qtd_rejeitados == 0 && $qtd_aprovados == 0): ?>
+                                                    <span class="badge" style="background:#eee; color:#888;">Sem Projetos</span>
                                                 <?php endif; ?>
                                             </div>
                                         </td>
@@ -687,17 +722,13 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
             }
         }
 
-        // FUNÇÃO DE VALIDAÇÃO ATUALIZADA
         function validarParecer(acao) {
             var campoParecer = document.getElementById('campo_parecer').value.trim();
-            
-            // Agora a validação bloqueia independentemente se for aprovar ou rejeitar
             if (campoParecer === '') {
                 alert('Atenção: É obrigatório preencher o campo "Seu Parecer Oficial" antes de prosseguir com a avaliação!');
                 document.getElementById('campo_parecer').focus();
                 return false; 
             }
-            
             if (acao === 'rejeitar') {
                 return confirm('Tem certeza que deseja REJEITAR este projeto HAE?');
             } else {

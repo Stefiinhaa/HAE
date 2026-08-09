@@ -75,12 +75,33 @@ if ($funcao == 'Professor') {
         $stmt_kpi1->execute([$usuario_id]);
         $kpi_analises = $stmt_kpi1->fetchColumn();
     } else {
-        // DIRETOR: Mostra no card apenas os projetos que a coordenação JÁ aprovou
+        // DIRETOR
         $stmt_kpi1 = $pdo->query("SELECT COUNT(*) FROM solicitacoes_hae WHERE status_diretor = 'Pendente' AND status_coordenador = 'Aprovado' AND status_aprovacao != 'Rejeitado'");
         $kpi_analises = $stmt_kpi1->fetchColumn();
         
-        // NOVO KPI: Conta o total de usuários cadastrados (Exclusivo para o Diretor)
         $kpi_total_usuarios = $pdo->query("SELECT COUNT(*) FROM usuarios")->fetchColumn();
+        
+        $stmt_rej = $pdo->prepare("SELECT COUNT(*) FROM solicitacoes_hae WHERE status_diretor = 'Rejeitado' AND diretor_id = ?");
+        $stmt_rej->execute([$usuario_id]);
+        $kpi_meus_rejeitados = $stmt_rej->fetchColumn();
+
+        $stmt_apr = $pdo->prepare("SELECT COUNT(*) FROM solicitacoes_hae WHERE status_diretor = 'Aprovado' AND diretor_id = ?");
+        $stmt_apr->execute([$usuario_id]);
+        $kpi_meus_aprovados = $stmt_apr->fetchColumn();
+
+        // ------------------ CÁLCULOS DO ORÇAMENTO DE HAE ------------------
+        $kpi_total_horas_aprovadas = $pdo->query("SELECT SUM(quantidade_horas) FROM solicitacoes_hae WHERE status_aprovacao = 'Aprovado'")->fetchColumn() ?: 0;
+        
+        // Pega o valor do banco de dados (configurações)
+        $stmt_orcamento = $pdo->query("SELECT valor FROM configuracoes WHERE chave = 'total_hae_disponivel'");
+        $orcamento_db = $stmt_orcamento->fetchColumn();
+        $kpi_hae_disponivel = $orcamento_db ? (int)$orcamento_db : 0;
+        
+        // Cálculo do Saldo
+        $kpi_saldo_hae = $kpi_hae_disponivel - $kpi_total_horas_aprovadas;
+        // ------------------------------------------------------------------
+        
+        $kpi_rejeitados_global = $pdo->query("SELECT COUNT(*) FROM solicitacoes_hae WHERE status_aprovacao = 'Rejeitado'")->fetchColumn();
     }
 
     $kpi_projetos_ativos = $pdo->query("SELECT COUNT(*) FROM solicitacoes_hae WHERE status_aprovacao = 'Aprovado'")->fetchColumn();
@@ -140,6 +161,15 @@ if ($funcao == 'Professor') {
         .alerta-info p { font-size: 14px; margin-bottom: 5px; }
         .btn-whatsapp { background: #25D366; color: #fff; padding: 8px 15px; border-radius: 6px; text-decoration: none; font-size: 12px; font-weight: bold; display: inline-flex; align-items: center; gap: 6px; transition: 0.3s; }
         .btn-whatsapp:hover { background: #128C7E; }
+        
+        /* ESTILOS DO NOVO CARD DE ORÇAMENTO (HAE) */
+        .card-orcamento { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr 1fr; background: #fff; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid #eee; border-left: 5px solid #8e44ad; overflow: hidden; margin-bottom: 20px;}
+        .orcamento-box { padding: 25px; text-align: center; border-right: 1px solid #eee; }
+        .orcamento-box:last-child { border-right: none; }
+        .orcamento-box h3 { font-size: 12px; color: #888; text-transform: uppercase; margin-bottom: 10px; font-weight: 700; }
+        .orcamento-box p { font-size: 32px; font-weight: 700; color: #333; margin: 0; }
+        .orcamento-box p span { font-size: 16px; color: #999; }
+        @media (max-width: 768px) { .card-orcamento { grid-template-columns: 1fr; } .orcamento-box { border-right: none; border-bottom: 1px solid #eee; } .orcamento-box:last-child { border-bottom: none; } }
     </style>
 </head>
 <body>
@@ -166,16 +196,15 @@ if ($funcao == 'Professor') {
                     <li><a href="analisar_solicitacoes.php" class="<?php echo ($pagina_atual == 'analisar_solicitacoes.php') ? 'active' : ''; ?>"><i class="fa-solid fa-clipboard-check"></i> <span class="menu-text">Analisar Solicitações</span></a></li>
                     <li><a href="acompanhar_relatorios.php" class="<?php echo ($pagina_atual == 'acompanhar_relatorios.php') ? 'active' : ''; ?>"><i class="fa-solid fa-chart-line"></i> <span class="menu-text">Acompanhar Relatórios</span></a></li>
                     <li><a href="relatorios_atrasados.php" class="<?php echo ($pagina_atual == 'relatorios_atrasados.php') ? 'active' : ''; ?>"><i class="fa-solid fa-file-invoice"></i> <span class="menu-text">Relatórios Atrasados</span></a></li>
-                    <li><a href="cadastrar_professor.php" class="<?php echo ($pagina_atual == 'cadastrar_professor.php') ? 'active' : ''; ?>"><i class="fa-solid fa-user-plus"></i> <span class="menu-text">Cadastrar Usuário</span></a></li>
                     
                     <?php if ($_SESSION['usuario_funcao'] == 'Diretor'): ?>
+                        <li><a href="cadastrar_professor.php" class="<?php echo ($pagina_atual == 'cadastrar_professor.php') ? 'active' : ''; ?>"><i class="fa-solid fa-user-plus"></i> <span class="menu-text">Cadastrar Usuário</span></a></li>
                         <li><a href="listar_usuarios.php" class="<?php echo ($pagina_atual == 'listar_usuarios.php') ? 'active' : ''; ?>"><i class="fa-solid fa-users"></i> <span class="menu-text">Lista de Usuários</span></a></li>
                     <?php endif; ?>
                 <?php endif; ?>
                 
                 <li><a href="perfil.php" class="<?php echo ($pagina_atual == 'perfil.php') ? 'active' : ''; ?>"><i class="fa-solid fa-user-gear"></i> <span class="menu-text">Meu Perfil</span></a></li>
                 
-                <!-- MENU DE CONFIGURAÇÕES: Oculto para Coordenador/Professor, posicionado antes de Sair -->
                 <?php if ($_SESSION['usuario_funcao'] == 'Diretor'): ?>
                     <li><a href="configuracoes.php" class="<?php echo ($pagina_atual == 'configuracoes.php') ? 'active' : ''; ?>"><i class="fa-solid fa-cogs"></i> <span class="menu-text">Configurações</span></a></li>
                 <?php endif; ?>
@@ -235,28 +264,83 @@ if ($funcao == 'Professor') {
 
         <!-- VISÃO DA DIREÇÃO / COORDENAÇÃO -->
         <?php else: ?>
-            <div class="dashboard-cards">
-                <a href="analisar_solicitacoes.php" class="card" style="<?php echo $kpi_analises > 0 ? 'border-bottom-color: #f39c12;' : 'border-bottom-color: #2ecc71;'; ?>">
-                    <div class="card-icon" style="background: <?php echo $kpi_analises > 0 ? '#fffdf5' : '#f4fbf7'; ?>; color: <?php echo $kpi_analises > 0 ? '#f39c12' : '#2ecc71'; ?>;"><i class="fa-solid fa-clipboard-list"></i></div>
-                    <div class="card-info"><h3>Aguardando sua Análise</h3><p style="color: <?php echo $kpi_analises > 0 ? '#d68910' : '#27ae60'; ?>;"><?php echo $kpi_analises; ?></p></div>
-                </a>
-                <a href="acompanhar_relatorios.php" class="card">
-                    <div class="card-icon" style="background: #e8f5e9; color: #2e7d32;"><i class="fa-solid fa-calendar-check"></i></div>
-                    <div class="card-info"><h3>Relatórios de <?php echo $meses_nome[$mes_passado_num]; ?></h3><p><?php echo $kpi_relatorios_mes; ?></p></div>
-                </a>
-                <a href="analisar_solicitacoes.php?status_filtro=Aprovados" class="card">
-                    <div class="card-icon" style="background: #e1f5fe; color: #0288d1;"><i class="fa-solid fa-diagram-project"></i></div>
-                    <div class="card-info"><h3>Projetos Ativos (Fatec)</h3><p><?php echo $kpi_projetos_ativos; ?></p></div>
-                </a>
+            
+            <?php if ($funcao == 'Diretor'): ?>
+                <!-- BLOCO 1: GESTÃO PESSOAL DO DIRETOR -->
+                <h2 style="font-size: 15px; color: #7f8c8d; margin-bottom: 15px; text-transform: uppercase; letter-spacing: 0.5px;"><i class="fa-solid fa-user-shield"></i> Minhas Ações de Avaliação</h2>
+                <div class="dashboard-cards">
+                    <a href="analisar_solicitacoes.php" class="card" style="<?php echo $kpi_analises > 0 ? 'border-bottom-color: #f39c12;' : 'border-bottom-color: #2ecc71;'; ?>">
+                        <div class="card-icon" style="background: <?php echo $kpi_analises > 0 ? '#fffdf5' : '#f4fbf7'; ?>; color: <?php echo $kpi_analises > 0 ? '#f39c12' : '#2ecc71'; ?>;"><i class="fa-solid fa-clipboard-list"></i></div>
+                        <div class="card-info"><h3>Aguardando Minha Análise</h3><p style="color: <?php echo $kpi_analises > 0 ? '#d68910' : '#27ae60'; ?>;"><?php echo $kpi_analises; ?></p></div>
+                    </a>
+                    <a href="analisar_solicitacoes.php?status_filtro=MeusAprovados" class="card" style="border-bottom-color: #27ae60;">
+                        <div class="card-icon" style="background: #e8f5e9; color: #2e7d32;"><i class="fa-solid fa-thumbs-up"></i></div>
+                        <div class="card-info"><h3>Projetos que Aprovei</h3><p><?php echo $kpi_meus_aprovados; ?></p></div>
+                    </a>
+                    <a href="analisar_solicitacoes.php?status_filtro=MeusRejeitados" class="card" style="border-bottom-color: #c0392b;">
+                        <div class="card-icon" style="background: #fdf2f2; color: #c0392b;"><i class="fa-solid fa-thumbs-down"></i></div>
+                        <div class="card-info"><h3>Projetos que Rejeitei</h3><p><?php echo $kpi_meus_rejeitados; ?></p></div>
+                    </a>
+                </div>
+
+                <!-- BLOCO 2: INSTITUCIONAL FATEC -->
+                <h2 style="font-size: 15px; color: #7f8c8d; margin-bottom: 15px; text-transform: uppercase; letter-spacing: 0.5px;"><i class="fa-solid fa-building-columns"></i> Panorama Global da Fatec</h2>
                 
-                <!-- NOVO CARD: TOTAL DE USUÁRIOS (EXCLUSIVO PARA O DIRETOR) -->
-                <?php if ($funcao == 'Diretor'): ?>
-                <a href="listar_usuarios.php" class="card">
-                    <div class="card-icon" style="background: #fdf2e9; color: #e67e22;"><i class="fa-solid fa-users"></i></div>
-                    <div class="card-info"><h3>Total de Usuários</h3><p><?php echo $kpi_total_usuarios; ?></p></div>
-                </a>
-                <?php endif; ?>
-            </div>
+                <!-- NOVO PAINEL FINANCEIRO DE HAE -->
+                <div class="card-orcamento">
+                    <div class="orcamento-box" style="background: #fdfafc;">
+                        <h3><i class="fa-solid fa-wallet" style="color: #8e44ad;"></i> Total HAE Disponível</h3>
+                        <p style="color: #8e44ad;"><?php echo $kpi_hae_disponivel; ?> <span>h</span></p>
+                    </div>
+                    <div class="orcamento-box">
+                        <h3><i class="fa-solid fa-chart-pie" style="color: #3498db;"></i> HAEs Já Aprovadas</h3>
+                        <p style="color: #3498db;"><?php echo $kpi_total_horas_aprovadas; ?> <span>h</span></p>
+                    </div>
+                    <div class="orcamento-box" style="background: <?php echo $kpi_saldo_hae < 0 ? '#fdf2f2' : '#f4fbf7'; ?>;">
+                        <h3><i class="fa-solid fa-scale-unbalanced" style="color: <?php echo $kpi_saldo_hae < 0 ? '#c0392b' : '#27ae60'; ?>;"></i> Saldo Restante</h3>
+                        <p style="color: <?php echo $kpi_saldo_hae < 0 ? '#c0392b' : '#27ae60'; ?>;">
+                            <?php echo $kpi_saldo_hae; ?> <span>h</span>
+                        </p>
+                    </div>
+                </div>
+                
+                <div class="dashboard-cards">
+                    <a href="analisar_solicitacoes.php?status_filtro=Aprovados" class="card" style="border-bottom-color: #3498db;">
+                        <div class="card-icon" style="background: #e1f5fe; color: #0288d1;"><i class="fa-solid fa-diagram-project"></i></div>
+                        <div class="card-info"><h3>Projetos Ativos (Geral)</h3><p><?php echo $kpi_projetos_ativos; ?></p></div>
+                    </a>
+                    
+                    <a href="analisar_solicitacoes.php?status_filtro=Rejeitados" class="card" style="border-bottom-color: #e74c3c;">
+                        <div class="card-icon" style="background: #fdf2f2; color: #e74c3c;"><i class="fa-solid fa-ban"></i></div>
+                        <div class="card-info"><h3>Rejeitados (Geral)</h3><p><?php echo $kpi_rejeitados_global; ?></p></div>
+                    </a>
+                    
+                    <a href="acompanhar_relatorios.php" class="card" style="border-bottom-color: #16a085;">
+                        <div class="card-icon" style="background: #e8f6f3; color: #16a085;"><i class="fa-solid fa-calendar-check"></i></div>
+                        <div class="card-info"><h3>Relatórios de <?php echo $meses_nome[$mes_passado_num]; ?></h3><p><?php echo $kpi_relatorios_mes; ?></p></div>
+                    </a>
+                    <a href="listar_usuarios.php" class="card" style="border-bottom-color: #e67e22;">
+                        <div class="card-icon" style="background: #fdf2e9; color: #e67e22;"><i class="fa-solid fa-users"></i></div>
+                        <div class="card-info"><h3>Total de Usuários</h3><p><?php echo $kpi_total_usuarios; ?></p></div>
+                    </a>
+                </div>
+
+            <?php else: // VISÃO DO COORDENADOR (MANTIDA ORIGINAL) ?>
+                <div class="dashboard-cards">
+                    <a href="analisar_solicitacoes.php" class="card" style="<?php echo $kpi_analises > 0 ? 'border-bottom-color: #f39c12;' : 'border-bottom-color: #2ecc71;'; ?>">
+                        <div class="card-icon" style="background: <?php echo $kpi_analises > 0 ? '#fffdf5' : '#f4fbf7'; ?>; color: <?php echo $kpi_analises > 0 ? '#f39c12' : '#2ecc71'; ?>;"><i class="fa-solid fa-clipboard-list"></i></div>
+                        <div class="card-info"><h3>Aguardando sua Análise</h3><p style="color: <?php echo $kpi_analises > 0 ? '#d68910' : '#27ae60'; ?>;"><?php echo $kpi_analises; ?></p></div>
+                    </a>
+                    <a href="acompanhar_relatorios.php" class="card">
+                        <div class="card-icon" style="background: #e8f5e9; color: #2e7d32;"><i class="fa-solid fa-calendar-check"></i></div>
+                        <div class="card-info"><h3>Relatórios de <?php echo $meses_nome[$mes_passado_num]; ?></h3><p><?php echo $kpi_relatorios_mes; ?></p></div>
+                    </a>
+                    <a href="analisar_solicitacoes.php?status_filtro=Aprovados" class="card">
+                        <div class="card-icon" style="background: #e1f5fe; color: #0288d1;"><i class="fa-solid fa-diagram-project"></i></div>
+                        <div class="card-info"><h3>Projetos Ativos (Fatec)</h3><p><?php echo $kpi_projetos_ativos; ?></p></div>
+                    </a>
+                </div>
+            <?php endif; ?>
 
             <?php if ($dia_atual >= 11): ?>
                 <?php if (count($inadimplentes_geral) > 0): ?>
