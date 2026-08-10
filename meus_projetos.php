@@ -152,6 +152,7 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
         .badge { padding: 6px 12px; border-radius: 20px; font-size: 11px; font-weight: bold; text-transform: uppercase; display: inline-block; white-space: nowrap; }
         .badge-pendente { background: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
         .badge-aprovado { background: #d1e7dd; color: #0f5132; border: 1px solid #badbcc; }
+        .badge-devolvido { background: #ffecb3; color: #856404; border: 1px solid #ffeeba; }
         .badge-rejeitado { background: #f8d7da; color: #842029; border: 1px solid #f5c2c7; }
 
         .btn-action { padding: 8px 12px; border-radius: 4px; text-decoration: none; font-size: 12px; font-weight: bold; transition: 0.3s; display: inline-flex; align-items: center; gap: 5px; border: none; cursor: pointer; }
@@ -224,7 +225,7 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
         <?php endif; ?>
 
         <?php if (isset($_GET['status']) && $_GET['status'] == 'reenviado'): ?>
-            <div class="alert-success" style="margin-bottom: 25px;">✅ Projeto editado e reenviado para análise com sucesso!</div>
+            <div class="alert-success" style="margin-bottom: 25px;">✅ Projeto corrigido e reenviado para análise com sucesso!</div>
         <?php endif; ?>
         
         <?php if (isset($_GET['status']) && $_GET['status'] == 'excluido'): ?>
@@ -253,7 +254,8 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
                     <option value="Todos" <?php echo $filtro_status == 'Todos' ? 'selected' : ''; ?>>Todos os Status</option>
                     <option value="Pendente" <?php echo $filtro_status == 'Pendente' ? 'selected' : ''; ?>>Aguardando Análise</option>
                     <option value="Aprovado" <?php echo $filtro_status == 'Aprovado' ? 'selected' : ''; ?>>Aprovados</option>
-                    <option value="Rejeitado" <?php echo $filtro_status == 'Rejeitado' ? 'selected' : ''; ?>>Devolvidos/Rejeitados</option>
+                    <option value="Devolvido" <?php echo $filtro_status == 'Devolvido' ? 'selected' : ''; ?>>Devolvidos p/ Ajuste</option>
+                    <option value="Rejeitado" <?php echo $filtro_status == 'Rejeitado' ? 'selected' : ''; ?>>Rejeitados (Bloqueados)</option>
                 </select>
             </div>
             <div style="display: flex; gap: 10px;">
@@ -279,22 +281,25 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
                                     <?php foreach ($projetos as $proj): ?>
                                                 <?php
                                                 $badge_class = 'badge-pendente';
-                                                if ($proj['status_aprovacao'] == 'Aprovado')
-                                                    $badge_class = 'badge-aprovado';
-                                                if ($proj['status_aprovacao'] == 'Rejeitado')
-                                                    $badge_class = 'badge-rejeitado';
+                                                if ($proj['status_aprovacao'] == 'Aprovado') $badge_class = 'badge-aprovado';
+                                                if ($proj['status_aprovacao'] == 'Rejeitado') $badge_class = 'badge-rejeitado';
+                                                if ($proj['status_aprovacao'] == 'Devolvido') $badge_class = 'badge-devolvido';
 
                                                 $motivo_recusa = "";
-                                                if ($proj['status_aprovacao'] == 'Rejeitado') {
-                                                    if ($proj['status_coordenador'] == 'Rejeitado')
+                                                if (in_array($proj['status_aprovacao'], ['Rejeitado', 'Devolvido'])) {
+                                                    if ($proj['status_coordenador'] == 'Rejeitado' || $proj['status_coordenador'] == 'Devolvido')
                                                         $motivo_recusa = $proj['parecer_coordenador'];
-                                                    else if ($proj['status_diretor'] == 'Rejeitado')
+                                                    else if ($proj['status_diretor'] == 'Rejeitado' || $proj['status_diretor'] == 'Devolvido')
                                                         $motivo_recusa = $proj['parecer_diretor'];
                                                 }
+                                                
+                                                // OCULTA A VERSÃO DA TELA DO PROFESSOR (Mas mantém na base de dados)
+                                                // Regex melhorada: lida com espaços extras e ignora diferenças de maiúsculas/minúsculas
+                                                $titulo_exibicao = preg_replace('/\s*-\s*v\d+\.\d+\s*$/i', '', $proj['titulo_projeto']);
                                                 ?>
                                                 <tr class="linha-mestra" id="mestra_<?php echo $proj['id']; ?>" onclick="toggleGaveta(<?php echo $proj['id']; ?>)">
                                                     <td><i class="fa-solid fa-chevron-down icone-expandir"></i> <?php echo date('d/m/Y', strtotime($proj['data_criacao'])); ?></td>
-                                                    <td><strong><?php echo htmlspecialchars($proj['titulo_projeto']); ?></strong></td>
+                                                    <td><strong><?php echo htmlspecialchars($titulo_exibicao); ?></strong></td>
                                                     <td><?php echo htmlspecialchars($proj['semestre']); ?></td>
                                                     <td><span class="badge <?php echo $badge_class; ?>"><?php echo $proj['status_aprovacao']; ?></span></td>
                                     
@@ -303,21 +308,21 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
                                                             <a href="documento_hae.php?id=<?php echo $proj['id']; ?>" target="_blank" class="btn-action btn-pdf"><i class="fa-solid fa-file-pdf"></i> Visualizar</a>
                                             
                                                             <?php if ($proj['status_aprovacao'] == 'Pendente'): ?>
-                                                                <a href="nova_solicitacao.php?edit_id=<?php echo $proj['id']; ?>" class="btn-action btn-historico" title="Editar Projeto">
-                                                                    <i class="fa-solid fa-pen"></i> Editar
-                                                                </a>
+                                                                <a href="nova_solicitacao.php?edit_id=<?php echo $proj['id']; ?>" class="btn-action btn-historico" title="Editar Projeto"><i class="fa-solid fa-pen"></i> Editar</a>
                                                             <?php endif; ?>
                                                             
                                                             <?php if ($proj['status_aprovacao'] == 'Aprovado'): ?>
                                                                 <a href="nova_solicitacao.php?clone_id=<?php echo $proj['id']; ?>" class="btn-action btn-clone" title="Copiar este projeto para um novo semestre"><i class="fa-solid fa-copy"></i> Clonar</a>
                                                             <?php endif; ?>
                                             
-                                                            <?php if ($proj['status_aprovacao'] == 'Rejeitado'): ?>
+                                                            <?php if (in_array($proj['status_aprovacao'], ['Rejeitado', 'Devolvido'])): ?>
                                                                 <button type="button" class="btn-action btn-motivo" data-motivo="<?php echo htmlspecialchars($motivo_recusa, ENT_QUOTES, 'UTF-8'); ?>" onclick="abrirModalMotivo(this, event)">
                                                                     <i class="fa-solid fa-circle-exclamation"></i> Ver Motivo
                                                                 </button>
-                                                                
-                                                                <a href="editar_solicitacao.php?id=<?php echo $proj['id']; ?>" class="btn-action btn-editar"><i class="fa-solid fa-pen-to-square"></i> Corrigir</a>
+                                                            <?php endif; ?>
+                                                            
+                                                            <?php if ($proj['status_aprovacao'] == 'Devolvido'): ?>
+                                                                <a href="nova_solicitacao.php?edit_id=<?php echo $proj['id']; ?>" class="btn-action btn-editar"><i class="fa-solid fa-pen-to-square"></i> Corrigir</a>
                                                             <?php endif; ?>
                                                             
                                                             <!-- BOTÃO EXCLUIR PARA PROJETOS NÃO APROVADOS -->
@@ -394,7 +399,7 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
     <div class="modal-overlay" id="modalMotivo" onclick="fecharModalMotivo(event)">
         <div class="modal-box" onclick="event.stopPropagation();">
             <div class="modal-header">
-                <h3><i class="fa-solid fa-triangle-exclamation"></i> Motivo da Devolução</h3>
+                <h3><i class="fa-solid fa-triangle-exclamation"></i> Parecer do Avaliador</h3>
                 <button class="btn-close-modal" onclick="fecharModalMotivo()"><i class="fa-solid fa-xmark"></i></button>
             </div>
             <div class="modal-content-text">
@@ -405,7 +410,6 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
 
     <script src="assets/js/painel.js"></script>
     <script>
-        // Funcionalidade de Abrir e Fechar a Gaveta
         function toggleGaveta(id) {
             var gaveta = document.getElementById('gaveta_' + id);
             var linhaMestra = document.getElementById('mestra_' + id);
@@ -419,7 +423,6 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
             }
         }
 
-        // Lógica do Modal de Motivo
         function abrirModalMotivo(btn, event) {
             event.stopPropagation(); 
             let texto = btn.getAttribute('data-motivo');

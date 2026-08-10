@@ -1,7 +1,7 @@
 <?php
 session_start();
 require 'config/conexao.php';
-require_once 'enviar_email.php';
+require_once 'enviar_email.php'; // Central de e-mails
 
 if (!isset($_SESSION['usuario_id']) || $_SESSION['usuario_funcao'] !== 'Professor') {
     header("Location: painel.php");
@@ -43,27 +43,32 @@ if ($clone_id > 0) {
     $stmt_base->execute([$clone_id, $_SESSION['usuario_id']]);
     $registro_base = $stmt_base->fetch(PDO::FETCH_ASSOC);
 } elseif ($edit_id > 0) {
-    $stmt_base = $pdo->prepare("SELECT * FROM solicitacoes_hae WHERE id = ? AND professor_id = ? AND status_aprovacao = 'Pendente'");
+    $stmt_base = $pdo->prepare("SELECT * FROM solicitacoes_hae WHERE id = ? AND professor_id = ? AND status_aprovacao IN ('Pendente', 'Devolvido')");
     $stmt_base->execute([$edit_id, $_SESSION['usuario_id']]);
     $registro_base = $stmt_base->fetch(PDO::FETCH_ASSOC);
     
     if ($registro_base) {
         $modo_edicao = true;
     } else {
-        $erro = "Projeto não encontrado ou já foi avaliado pela coordenação (não pode mais ser editado).";
+        $erro = "Projeto não encontrado, aprovado ou rejeitado definitivamente (não pode mais ser editado).";
     }
 }
 
-// Preenche os campos com os dados carregados (se houver)
+// Preenche os campos e ESCONDE o versionamento automático da tela do professor
 $c_semestre = $registro_base['semestre'] ?? '';
 $c_qtd_horas = $registro_base['quantidade_horas'] ?? '';
-$c_titulo = $registro_base['titulo_projeto'] ?? '';
+
+$c_titulo_bruto = $registro_base['titulo_projeto'] ?? '';
+$c_titulo = preg_replace('/\s*-\s*v\d+\.\d+\s*$/i', '', $c_titulo_bruto);
+
 $c_proj_anterior = $registro_base ? 'Sim' : 'Não';
-$c_nome_anterior = $registro_base ? $registro_base['titulo_projeto'] : '';
+$c_nome_anterior_bruto = $registro_base ? $registro_base['titulo_projeto'] : ''; 
 if ($modo_edicao) {
     $c_proj_anterior = (!empty($registro_base['projeto_anterior'])) ? 'Sim' : 'Não';
-    $c_nome_anterior = $registro_base['nome_projeto_anterior'] ?? '';
+    $c_nome_anterior_bruto = $registro_base['nome_projeto_anterior'] ?? '';
 }
+$c_nome_anterior = preg_replace('/\s*-\s*v\d+\.\d+\s*$/i', '', $c_nome_anterior_bruto);
+
 $c_obj_escola = $registro_base['objetivos_escola'] ?? '';
 $c_horas_aula = $registro_base['horas_aula'] ?? '0';
 $c_horas_esp = $registro_base['horas_especificas'] ?? '0';
@@ -87,7 +92,6 @@ if ($registro_base && !empty($registro_base['recursos_necessarios'])) {
 // ==============================================================================
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     
-    // Trava Back-end: Impede o salvamento se não houver assinatura
     if (!$tem_assinatura) {
         $erro = "Ação bloqueada: É obrigatório cadastrar a assinatura no seu perfil antes de submeter um projeto.";
     } else {
@@ -96,7 +100,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         
         $semestre = $_POST['semestre'];
         $quantidade_horas = $_POST['quantidade_horas'];
-        $titulo_projeto = $_POST['titulo_projeto'];
+        
+        // Remove qualquer versão antiga e prepara o campo
+        $titulo_post = trim($_POST['titulo_projeto']);
+        $titulo_limpo = preg_replace('/\s*-\s*v\d+\.\d+\s*$/i', '', $titulo_post);
+        
         $projeto_anterior = $_POST['projeto_anterior'] == 'Sim' ? 1 : 0;
         $nome_projeto_anterior = $projeto_anterior ? $_POST['nome_projeto_anterior'] : null;
         $objetivos_escola = $_POST['objetivos_escola'];
@@ -125,24 +133,42 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         } else {
             try {
                 if ($edit_id_post > 0) {
+                    
+                    $stmt_ver = $pdo->prepare("SELECT titulo_projeto FROM solicitacoes_hae WHERE id = ?");
+                    $stmt_ver->execute([$edit_id_post]);
+                    $titulo_banco = $stmt_ver->fetchColumn();
+
+                    if (preg_match('/ - v1\.(\d+)\s*$/i', $titulo_banco, $matches)) {
+                        $nova_versao = (int)$matches[1] + 1;
+                        $titulo_final = $titulo_limpo . " - v1." . $nova_versao;
+                    } else {
+                        $titulo_final = $titulo_limpo . " - v1.1";
+                    }
+
                     $sql = "UPDATE solicitacoes_hae SET 
                             coordenador_alvo_id = ?, semestre = ?, quantidade_horas = ?, titulo_projeto = ?, 
                             projeto_anterior = ?, nome_projeto_anterior = ?, objetivos_escola = ?, horas_aula = ?, 
                             horas_atividade = ?, horas_especificas = ?, total_semanal = ?, total_mensal = ?, 
                             categoria = ?, justificativa = ?, objetivo = ?, metodologia = ?, envolvidos = ?, 
-                            recursos_necessarios = ?, detalhamento_recursos = ?, cronograma = ?, resultados_esperados = ? 
-                            WHERE id = ? AND professor_id = ? AND status_aprovacao = 'Pendente'";
+                            recursos_necessarios = ?, detalhamento_recursos = ?, cronograma = ?, resultados_esperados = ?,
+                            status_aprovacao = 'Pendente', status_coordenador = 'Pendente', status_diretor = 'Pendente',
+                            parecer_coordenador = NULL, parecer_diretor = NULL
+                            WHERE id = ? AND professor_id = ? AND status_aprovacao IN ('Pendente', 'Devolvido')";
                             
                     $stmt = $pdo->prepare($sql);
                     $stmt->execute([
-                        $coordenador_alvo_id, $semestre, $quantidade_horas, $titulo_projeto, $projeto_anterior, $nome_projeto_anterior,
+                        $coordenador_alvo_id, $semestre, $quantidade_horas, $titulo_final, $projeto_anterior, $nome_projeto_anterior,
                         $objetivos_escola, $horas_aula, $horas_atividade, $horas_especificas, $total_semanal, $total_mensal,
                         $categoria, $justificativa, $objetivo, $metodologia, $envolvidos, $recursos_necessarios, $detalhamento_recursos,
                         $cronograma, $resultados_esperados, $edit_id_post, $professor_id
                     ]);
-                    $sucesso = "Solicitação de HAE atualizada com sucesso!";
-                    $modo_edicao = false; 
+                    
+                    header("Location: meus_projetos.php?status=reenviado");
+                    exit;
+                    
                 } else {
+                    $titulo_final = $titulo_limpo . " - v1.0";
+
                     $sql = "INSERT INTO solicitacoes_hae 
                             (professor_id, coordenador_alvo_id, semestre, quantidade_horas, titulo_projeto, projeto_anterior, nome_projeto_anterior, 
                             objetivos_escola, horas_aula, horas_atividade, horas_especificas, total_semanal, total_mensal, 
@@ -152,7 +178,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
                     $stmt = $pdo->prepare($sql);
                     $stmt->execute([
-                        $professor_id, $coordenador_alvo_id, $semestre, $quantidade_horas, $titulo_projeto, $projeto_anterior, $nome_projeto_anterior,
+                        $professor_id, $coordenador_alvo_id, $semestre, $quantidade_horas, $titulo_final, $projeto_anterior, $nome_projeto_anterior,
                         $objetivos_escola, $horas_aula, $horas_atividade, $horas_especificas, $total_semanal, $total_mensal,
                         $categoria, $justificativa, $objetivo, $metodologia, $envolvidos, $recursos_necessarios, $detalhamento_recursos,
                         $cronograma, $resultados_esperados
@@ -169,7 +195,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         $nome_coord = $coord['nome'];
                         $email_coord = $coord['email'];
                         $nome_prof = $_SESSION['usuario_nome']; 
-                        $texto_acao = ($edit_id_post > 0) ? "atualizou e submeteu" : "acabou de submeter";
+                        $texto_acao = ($edit_id_post > 0) ? "corrigiu e submeteu" : "acabou de submeter";
 
                         $assunto_coord = "Novo Projeto Direcionado: Avaliação HAE";
                         $corpo_email_coord = "
@@ -183,7 +209,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                     
                                     <div style='background: #f9f9f9; padding: 15px; border-left: 4px solid #3498db; margin: 15px 0;'>
                                         <ul style='margin: 0; padding-left: 20px;'>
-                                            <li style='margin-bottom: 8px;'><strong>Projeto:</strong> $titulo_projeto</li>
+                                            <li style='margin-bottom: 8px;'><strong>Projeto:</strong> $titulo_final</li>
                                             <li style='margin-bottom: 8px;'><strong>Categoria:</strong> $categoria</li>
                                         </ul>
                                     </div>
@@ -251,6 +277,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         .aviso-box { padding: 15px; border-radius: 6px; margin-bottom: 20px; font-size: 14px; }
         .aviso-clone { background: #fff3cd; color: #856404; border-left: 4px solid #f39c12; }
         .aviso-edicao { background: #e1f5fe; color: #0288d1; border-left: 4px solid #0288d1; }
+        .aviso-devolvido { background: #fffdf5; color: #d68910; border-left: 4px solid #f39c12; }
         
         .dropdown-container { position: relative; width: 100%; }
         .custom-dropdown { 
@@ -331,9 +358,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         <?php else: ?>
             <!-- SE TIVER ASSINATURA, MOSTRA O FORMULÁRIO NORMALMENTE -->
             <?php if ($modo_edicao && !$sucesso): ?>
-                <div class="aviso-box aviso-edicao">
-                    <i class="fa-solid fa-pen"></i> <strong>Modo Edição Ativo:</strong> Você está editando um projeto que ainda está pendente. Salve para atualizar o documento que será avaliado pela coordenação.
-                </div>
+                <?php if (isset($registro_base['status_aprovacao']) && $registro_base['status_aprovacao'] == 'Devolvido'): ?>
+                    <div class="aviso-box aviso-devolvido">
+                        <i class="fa-solid fa-rotate-left"></i> <strong>Projeto Devolvido:</strong> Este projeto foi devolvido para ajustes. Faça as correções solicitadas pela coordenação e salve para reenviá-lo à fila de análise.
+                    </div>
+                <?php else: ?>
+                    <div class="aviso-box aviso-edicao">
+                        <i class="fa-solid fa-pen"></i> <strong>Modo Edição Ativo:</strong> Você está editando um projeto que ainda está pendente. Salve para atualizar o documento que será avaliado pela coordenação.
+                    </div>
+                <?php endif; ?>
             <?php elseif ($clone_id > 0 && !$sucesso): ?>
                 <div class="aviso-box aviso-clone">
                     <i class="fa-solid fa-clone"></i> <strong>Modo Clonagem:</strong> O formulário foi preenchido com as informações do seu projeto antigo. Atualize o Semestre e faça as alterações necessárias.
@@ -349,7 +382,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         <div class="grid-2">
                             <div><label>Semestre / Ano (Ex: 1/2026)</label><input type="text" name="semestre" value="<?php echo htmlspecialchars($c_semestre); ?>" required placeholder="Ex: 1/2026"></div>
                             <div><label>Quantidade de HAE Solicitada</label><input type="number" name="quantidade_horas" value="<?php echo htmlspecialchars($c_qtd_horas); ?>" required min="1"></div>
-                            <div class="full-width"><label>Título do Projeto</label><input type="text" name="titulo_projeto" value="<?php echo htmlspecialchars($c_titulo); ?>" required></div>
+                            
+                            <div class="full-width">
+                                <label>Título do Projeto</label>
+                                <input type="text" name="titulo_projeto" value="<?php echo htmlspecialchars($c_titulo); ?>" required>
+                            </div>
+                            
                             <div>
                                 <label>Relacionado a projeto anterior?</label>
                                 <select name="projeto_anterior" id="projeto_anterior" onchange="toggleProjetoAnterior()" required>
@@ -452,7 +490,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     <div style="overflow: hidden; margin-top: 20px;">
                         <button type="submit" class="btn-submit" id="btn_submit">
                             <i class="fa-solid <?php echo $modo_edicao ? 'fa-floppy-disk' : 'fa-paper-plane'; ?>"></i> 
-                            <?php echo $modo_edicao ? 'Salvar Alterações do Projeto' : 'Enviar Solicitação de HAE'; ?>
+                            <?php echo $modo_edicao ? 'Salvar e Reenviar Projeto' : 'Enviar Solicitação de HAE'; ?>
                         </button>
                     </div>
                 </form>
@@ -478,7 +516,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
         function calcularHoras() {
             let horasAulaElement = document.getElementById('horas_aula');
-            if (!horasAulaElement) return; // Se o formulário não estiver renderizado
+            if (!horasAulaElement) return;
 
             let horasAula = parseFloat(horasAulaElement.value) || 0;
             let horasEspecificas = parseFloat(document.getElementById('horas_especificas').value) || 0;
