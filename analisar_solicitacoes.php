@@ -18,6 +18,7 @@ $mensagem = "";
 // ==============================================================================
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao'])) {
     $solicitacao_id = $_POST['solicitacao_id'];
+    $return_url = isset($_POST['return_url']) ? trim($_POST['return_url']) : ''; // Captura a memória de navegação
     
     // Identifica qual dos 3 botões foi clicado
     $acao_post = $_POST['acao'];
@@ -56,11 +57,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao'])) {
         // LÓGICA DE STATUS GLOBAL ATUALIZADA
         $global_status = 'Pendente';
         if ($status_coord == 'Rejeitado' || $status_dir == 'Rejeitado') {
-            $global_status = 'Rejeitado'; // Rejeição tem prioridade máxima
+            $global_status = 'Rejeitado'; 
         } else if ($status_coord == 'Devolvido' || $status_dir == 'Devolvido') {
-            $global_status = 'Devolvido'; // Devolução vem em seguida
+            $global_status = 'Devolvido'; 
         } else if ($status_coord == 'Aprovado' && $status_dir == 'Aprovado') {
-            $global_status = 'Aprovado';  // Só aprova se ambos aprovarem
+            $global_status = 'Aprovado';  
         }
 
         $pdo->prepare("UPDATE solicitacoes_hae SET status_aprovacao = ? WHERE id = ?")->execute([$global_status, $solicitacao_id]);
@@ -170,7 +171,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao'])) {
             }
         }
 
-        header("Location: analisar_solicitacoes.php?status=sucesso");
+        // Redireciona aplicando a "memória" da URL se houver filtros ativos
+        header("Location: analisar_solicitacoes.php?status=sucesso" . (!empty($return_url) ? "&" . $return_url : ""));
         exit;
     } catch (PDOException $e) {
         $mensagem = "Erro ao processar: " . $e->getMessage();
@@ -183,8 +185,23 @@ if (isset($_GET['status']) && $_GET['status'] == 'sucesso') {
 
 $visualizando_id = isset($_GET['id']) ? (int)$_GET['id'] : null;
 $detalhes = null;
+$link_voltar = "analisar_solicitacoes.php";
+$back_query = "";
 
+// ==============================================================================
+// CONSTRUTOR DA MEMÓRIA DE NAVEGAÇÃO
+// ==============================================================================
 if ($visualizando_id) {
+    // Pega todos os parâmetros atuais da URL, exceto o ID do projeto e msg de status
+    $back_params = $_GET;
+    unset($back_params['id'], $back_params['status']);
+    
+    // Se existir algum filtro ou página guardada, constrói a string
+    if (!empty($back_params)) {
+        $back_query = http_build_query($back_params);
+        $link_voltar .= "?" . $back_query;
+    }
+
     // ==============================================================================
     // TELA 2: VISÃO DETALHADA E PARECER (SPLIT VIEW)
     // ==============================================================================
@@ -201,9 +218,15 @@ if ($visualizando_id) {
     // ==============================================================================
     // TELA 1: GRID INTELIGENTE (ACORDEÃO) COM FILTROS E PAGINAÇÃO
     // ==============================================================================
+    
+    // DEFINIÇÃO DO SEMESTRE ATUAL COMO PADRÃO
+    $mes_atual_calc = (int)date('m');
+    $ano_atual_calc = (int)date('Y');
+    $semestre_padrao = ($mes_atual_calc <= 6) ? "1/$ano_atual_calc" : "2/$ano_atual_calc";
+
     $filtro_busca = isset($_GET['busca']) ? trim($_GET['busca']) : '';
     $filtro_status = isset($_GET['status_filtro']) ? trim($_GET['status_filtro']) : 'Aguardando'; 
-    $filtro_semestre = isset($_GET['semestre']) ? trim($_GET['semestre']) : '';
+    $filtro_semestre = isset($_GET['semestre']) ? trim($_GET['semestre']) : $semestre_padrao;
 
     $where = ["1=1"];
     $params = [];
@@ -220,7 +243,7 @@ if ($visualizando_id) {
         $params[] = $filtro_semestre;
     }
 
-    // ================== LÓGICA DE FILTROS ATUALIZADA ==================
+    // ================== LÓGICA DE FILTROS ==================
     if ($filtro_status == 'Aguardando') {
         if ($funcao_logada == 'Coordenador') {
             $where[] = "s.status_coordenador = 'Pendente' AND s.status_aprovacao NOT IN ('Rejeitado', 'Devolvido')";
@@ -265,6 +288,9 @@ if ($visualizando_id) {
 
     $stmt_sem = $pdo->query("SELECT DISTINCT semestre FROM solicitacoes_hae ORDER BY semestre DESC");
     $semestres_disponiveis = $stmt_sem->fetchAll(PDO::FETCH_COLUMN);
+    if (!in_array($semestre_padrao, $semestres_disponiveis)) {
+        array_unshift($semestres_disponiveis, $semestre_padrao);
+    }
 
     $sql = "SELECT s.*, u.nome AS professor_nome, coord.nome AS nome_coordenador_alvo
             FROM solicitacoes_hae s 
@@ -293,7 +319,7 @@ if ($visualizando_id) {
     $projetos_agrupados = array_slice($projetos_agrupados_total, $offset, $limite_por_pagina, true);
 
     $query_params = $_GET;
-    unset($query_params['pagina']); 
+    unset($query_params['pagina'], $query_params['status']); 
     $query_string = http_build_query($query_params);
     $url_base = "analisar_solicitacoes.php?" . ($query_string ? $query_string . "&" : "");
 }
@@ -348,6 +374,12 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
         .btn-action { background: #1e1e2d; color: #fff; padding: 8px 12px; border-radius: 4px; text-decoration: none; font-size: 12px; transition: 0.3s; display: inline-flex; align-items: center; gap: 5px; font-weight: bold;}
         .btn-action:hover { background: var(--fatec-red); }
         .btn-voltar { display: inline-flex; align-items: center; gap: 8px; margin-bottom: 20px; color: #666; text-decoration: none; font-weight: bold; font-size: 14px; }
+        
+        /* BOTÕES DE FEEDBACK (DIREÇÃO E COORDENAÇÃO) */
+        .btn-motivo { background: #e74c3c; color: #fff; border: none; cursor: pointer; }
+        .btn-motivo:hover { background: #c0392b; }
+        .btn-motivo-devolvido { background: #f39c12; color: #fff; border: none; cursor: pointer;}
+        .btn-motivo-devolvido:hover { background: #d68910;}
 
         .paginacao { display: flex; justify-content: center; gap: 8px; margin-bottom: 40px; }
         .paginacao a { display: inline-block; padding: 10px 15px; background: #fff; border: 1px solid #ddd; color: #444; text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 13px; transition: 0.3s; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
@@ -373,6 +405,17 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
         .historico-box { background: #f8f9fa; border-left: 3px solid #3498db; padding: 15px; border-radius: 4px; margin-bottom: 20px; font-size: 13px; color: #444; }
         .btn-ver-pdf-mobile { display: none; background: #3498db; color: white; padding: 15px; text-align: center; border-radius: 6px; text-decoration: none; font-weight: bold; margin-bottom: 20px; }
         
+        /* ESTILOS DO MODAL (POPUP) - Reaproveitado do painel de projetos */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 2000; align-items: center; justify-content: center; backdrop-filter: blur(3px); }
+        .modal-box { background: #fff; padding: 25px; border-radius: 10px; width: 90%; max-width: 500px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); border-top: 4px solid #3498db; position: relative; animation: slideDown 0.3s ease-out; }
+        @keyframes slideDown { from { transform: translateY(-30px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 10px; }
+        .modal-header h3 { color: #3498db; margin: 0; font-size: 18px; display: flex; align-items: center; gap: 8px; }
+        .btn-close-modal { background: none; border: none; font-size: 20px; cursor: pointer; color: #888; transition: 0.3s; }
+        .btn-close-modal:hover { color: #333; }
+        .modal-content-text { font-size: 14px; color: #444; line-height: 1.6; max-height: 60vh; overflow-y: auto; padding-right: 5px; }
+        .modal-content-text p { background: #f9f9f9; padding: 15px; border-radius: 6px; border: 1px solid #eee; font-style: italic; }
+
         @media (max-width: 1024px) {
             .split-view { flex-direction: column; }
             .doc-preview { display: none; }
@@ -440,7 +483,7 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
         <?php endif; ?>
 
         <?php if ($visualizando_id && $detalhes): ?>
-            <a href="analisar_solicitacoes.php" class="btn-voltar"><i class="fa-solid fa-arrow-left"></i> Voltar para a lista</a>
+            <a href="<?php echo htmlspecialchars($link_voltar); ?>" class="btn-voltar"><i class="fa-solid fa-arrow-left"></i> Voltar para a lista</a>
             
             <div class="split-view">
                 <div class="doc-preview">
@@ -502,6 +545,7 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
                     <?php else: ?>
                         <form method="POST" action="analisar_solicitacoes.php?id=<?php echo $visualizando_id; ?>" id="formAnalise">
                             <input type="hidden" name="solicitacao_id" value="<?php echo $visualizando_id; ?>">
+                            <input type="hidden" name="return_url" value="<?php echo htmlspecialchars($back_query); ?>">
                             
                             <label>Horas HAE Recomendadas/Aprovadas</label>
                             <input type="number" name="horas_aprovadas" value="<?php echo $detalhes['quantidade_horas']; ?>" required min="0">
@@ -512,7 +556,7 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
                             <div class="botoes-acao">
                                 <button type="submit" name="acao" value="aprovar" class="btn-aprovar" onclick="return validarParecer('aprovar');">✓ Aprovar Projeto HAE</button>
                                 <button type="submit" name="acao" value="devolver" class="btn-devolver" onclick="return validarParecer('devolver');">⟲ Devolver p/ Correções</button>
-                                <button type="submit" name="acao" value="rejeitar" class="btn-rejeitar" onclick="return validarParecer('rejeitar');">✕ Rejeitar</button>
+                                <button type="submit" name="acao" value="rejeitar" class="btn-rejeitar" onclick="return validarParecer('rejeitar');">✕ Rejeitar (Bloquear)</button>
                             </div>
                         </form>
                     <?php endif; ?>
@@ -683,6 +727,22 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
                                                             } else {
                                                                 $texto_status = 'Pendente (Ambos)';
                                                             }
+
+                                                            // CAPTURA DO MOTIVO PARA O MODAL
+                                                            $motivo_recusa = "";
+                                                            if (in_array($proj['status_aprovacao'], ['Rejeitado', 'Devolvido'])) {
+                                                                if (in_array($proj['status_diretor'], ['Rejeitado', 'Devolvido'])) {
+                                                                    $motivo_recusa = "Parecer do(a) Diretor(a):\n" . $proj['parecer_diretor'];
+                                                                } elseif (in_array($proj['status_coordenador'], ['Rejeitado', 'Devolvido'])) {
+                                                                    $motivo_recusa = "Parecer do(a) Coordenador(a):\n" . $proj['parecer_coordenador'];
+                                                                }
+                                                            }
+                                                            
+                                                            // MEMÓRIA DE NAVEGAÇÃO PRO BOTÃO AVALIAR
+                                                            $current_params = $_GET;
+                                                            unset($current_params['status']);
+                                                            $url_filters = http_build_query($current_params);
+                                                            $link_avaliar = "analisar_solicitacoes.php?id=" . $proj['id'] . (!empty($url_filters) ? "&" . $url_filters : "");
                                                         ?>
                                                         <tr>
                                                             <td style="width: 50%; color: #444;">
@@ -701,10 +761,22 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
                                                             </td>
                                                             <td><?php echo htmlspecialchars($proj['semestre']); ?></td>
                                                             <td><span class="badge <?php echo $badge_class; ?>"><?php echo $texto_status; ?></span></td>
-                                                            <td>
-                                                                <a href="analisar_solicitacoes.php?id=<?php echo $proj['id']; ?>" class="btn-action">
+                                                            <td style="display: flex; gap: 5px;">
+                                                                <a href="<?php echo htmlspecialchars($link_avaliar); ?>" class="btn-action">
                                                                     <i class="fa-solid fa-folder-open"></i> Avaliar
                                                                 </a>
+                                                                
+                                                                <!-- BOTÃO DE FEEDBACK -->
+                                                                <?php if (in_array($proj['status_aprovacao'], ['Rejeitado', 'Devolvido'])): ?>
+                                                                    <?php 
+                                                                        $btn_color = $proj['status_aprovacao'] == 'Devolvido' ? 'btn-motivo-devolvido' : 'btn-motivo';
+                                                                        $btn_icon = $proj['status_aprovacao'] == 'Devolvido' ? 'fa-rotate-left' : 'fa-ban';
+                                                                        $titulo_modal = $proj['status_aprovacao'] == 'Devolvido' ? 'Motivo da Devolução' : 'Motivo da Rejeição';
+                                                                    ?>
+                                                                    <button type="button" class="btn-action <?php echo $btn_color; ?>" data-motivo="<?php echo htmlspecialchars($motivo_recusa, ENT_QUOTES, 'UTF-8'); ?>" data-titulo="<?php echo $titulo_modal; ?>" onclick="abrirModalMotivo(this, event)">
+                                                                        <i class="fa-solid <?php echo $btn_icon; ?>"></i> Feedback
+                                                                    </button>
+                                                                <?php endif; ?>
                                                             </td>
                                                         </tr>
                                                     <?php endforeach; ?>
@@ -743,6 +815,19 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
 
     </main>
 
+    <!-- MODAL PARA EXIBIR O FEEDBACK -->
+    <div class="modal-overlay" id="modalMotivo" onclick="fecharModalMotivo(event)">
+        <div class="modal-box" onclick="event.stopPropagation();">
+            <div class="modal-header">
+                <h3 id="modalTitulo"><i class="fa-solid fa-comment-dots"></i> Feedback da Avaliação</h3>
+                <button class="btn-close-modal" onclick="fecharModalMotivo()"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-content-text">
+                <p id="textoMotivo"></p>
+            </div>
+        </div>
+    </div>
+
     <script src="assets/js/painel.js"></script>
     <script>
         function toggleGaveta(id) {
@@ -756,6 +841,21 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
                 gaveta.classList.add('gaveta-aberta');
                 linhaMestra.classList.add('aberta');
             }
+        }
+
+        // FUNÇÕES DO MODAL DE FEEDBACK
+        function abrirModalMotivo(btn, event) {
+            event.stopPropagation(); 
+            let texto = btn.getAttribute('data-motivo');
+            let titulo = btn.getAttribute('data-titulo');
+            
+            document.getElementById('modalTitulo').innerHTML = '<i class="fa-solid fa-comment-dots"></i> ' + titulo;
+            document.getElementById('textoMotivo').innerHTML = texto.replace(/\n/g, '<br>');
+            document.getElementById('modalMotivo').style.display = 'flex';
+        }
+
+        function fecharModalMotivo() {
+            document.getElementById('modalMotivo').style.display = 'none';
         }
 
         function validarParecer(acao) {

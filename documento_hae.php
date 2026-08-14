@@ -55,6 +55,10 @@ $data_envio = date('d/m/Y', strtotime($dados['data_criacao']));
 $ano_projeto = explode('/', $dados['semestre'])[1] ?? date('Y');
 $data_admissao = date('d/m/Y', strtotime($dados['data_admissao']));
 
+// OCULTA A VERSÃO DO TÍTULO NA IMPRESSÃO DO PDF
+$titulo_exibicao = preg_replace('/\s*-\s*v\d+\.\d+\s*$/i', '', $dados['titulo_projeto']);
+$nome_anterior_exibicao = preg_replace('/\s*-\s*v\d+\.\d+\s*$/i', '', $dados['nome_projeto_anterior']);
+
 // Formatação das Datas Individuais
 $data_coord = ($dados['status_coordenador'] == 'Aprovado' && !empty($dados['data_aprovacao_coordenador'])) ? date('d/m/Y', strtotime($dados['data_aprovacao_coordenador'])) : '____/____/_______';
 $data_dir = ($dados['status_diretor'] == 'Aprovado' && !empty($dados['data_aprovacao_diretor'])) ? date('d/m/Y', strtotime($dados['data_aprovacao_diretor'])) : '____/____/_______';
@@ -161,10 +165,10 @@ $caminho_assinatura = $dados['assinatura_path'];
             </div>
         </div>
 
-        <p><strong>Título do Projeto:</strong> <?php echo htmlspecialchars($dados['titulo_projeto']); ?></p>
+        <p><strong>Título do Projeto:</strong> <?php echo htmlspecialchars($titulo_exibicao); ?></p>
         <p><strong>Está relacionado com outro projeto desenvolvido em <?php echo $ano_projeto; ?>?</strong> &nbsp;&nbsp; <?php echo $check_ant_nao; ?> Não &nbsp;&nbsp; <?php echo $check_ant_sim; ?> Sim</p>
         <?php if($dados['projeto_anterior']): ?>
-            <p><strong>Se afirmativo, qual?</strong> <?php echo htmlspecialchars($dados['nome_projeto_anterior']); ?></p>
+            <p><strong>Se afirmativo, qual?</strong> <?php echo htmlspecialchars($nome_anterior_exibicao); ?></p>
         <?php endif; ?>
 
         <p><strong>Objetivos/Meta(s) da Escola à(s) qual(is) o projeto está vinculado:</strong><br>
@@ -227,7 +231,7 @@ $caminho_assinatura = $dados['assinatura_path'];
             <h2>APRESENTAÇÃO DO PROJETO</h2>
         </div>
       
-        <p class="topico"><strong>1.- Título do Projeto:</strong> <?php echo htmlspecialchars($dados['titulo_projeto']); ?></p>
+        <p class="topico"><strong>1.- Título do Projeto:</strong> <?php echo htmlspecialchars($titulo_exibicao); ?></p>
         <p class="topico"><strong>2.- Professor Responsável:</strong> <?php echo htmlspecialchars($dados['nome']); ?></p>
         <p class="topico"><strong>3.- Categoria:</strong> <?php echo htmlspecialchars($dados['categoria']); ?></p>
         <p class="topico"><strong>4.- Justificativa:</strong><br><?php echo nl2br(htmlspecialchars($dados['justificativa'])); ?></p>

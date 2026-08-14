@@ -134,9 +134,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             try {
                 if ($edit_id_post > 0) {
                     
-                    $stmt_ver = $pdo->prepare("SELECT titulo_projeto FROM solicitacoes_hae WHERE id = ?");
+                    // DESCOBRE A VERSÃO ANTERIOR E O STATUS DO COORDENADOR
+                    $stmt_ver = $pdo->prepare("SELECT titulo_projeto, status_coordenador FROM solicitacoes_hae WHERE id = ?");
                     $stmt_ver->execute([$edit_id_post]);
-                    $titulo_banco = $stmt_ver->fetchColumn();
+                    $dados_banco = $stmt_ver->fetch(PDO::FETCH_ASSOC);
+                    
+                    $titulo_banco = $dados_banco['titulo_projeto'];
+                    $status_coord_atual = $dados_banco['status_coordenador'];
 
                     if (preg_match('/ - v1\.(\d+)\s*$/i', $titulo_banco, $matches)) {
                         $nova_versao = (int)$matches[1] + 1;
@@ -145,14 +149,26 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         $titulo_final = $titulo_limpo . " - v1.1";
                     }
 
+                    // AQUI ESTÁ A MÁGICA: Se o Coordenador já aprovou antes, não limpa a avaliação dele!
+                    if ($status_coord_atual == 'Aprovado') {
+                        $novo_status_coord = 'Aprovado';
+                        $query_parecer_coord = "parecer_coordenador = parecer_coordenador"; // Mantém o parecer antigo intacto
+                    } else {
+                        $novo_status_coord = 'Pendente';
+                        $query_parecer_coord = "parecer_coordenador = NULL"; // Limpa para ele ler de novo
+                    }
+
                     $sql = "UPDATE solicitacoes_hae SET 
                             coordenador_alvo_id = ?, semestre = ?, quantidade_horas = ?, titulo_projeto = ?, 
                             projeto_anterior = ?, nome_projeto_anterior = ?, objetivos_escola = ?, horas_aula = ?, 
                             horas_atividade = ?, horas_especificas = ?, total_semanal = ?, total_mensal = ?, 
                             categoria = ?, justificativa = ?, objetivo = ?, metodologia = ?, envolvidos = ?, 
                             recursos_necessarios = ?, detalhamento_recursos = ?, cronograma = ?, resultados_esperados = ?,
-                            status_aprovacao = 'Pendente', status_coordenador = 'Pendente', status_diretor = 'Pendente',
-                            parecer_coordenador = NULL, parecer_diretor = NULL
+                            status_aprovacao = 'Pendente', 
+                            status_coordenador = ?, 
+                            status_diretor = 'Pendente',
+                            {$query_parecer_coord}, 
+                            parecer_diretor = NULL
                             WHERE id = ? AND professor_id = ? AND status_aprovacao IN ('Pendente', 'Devolvido')";
                             
                     $stmt = $pdo->prepare($sql);
@@ -160,9 +176,93 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         $coordenador_alvo_id, $semestre, $quantidade_horas, $titulo_final, $projeto_anterior, $nome_projeto_anterior,
                         $objetivos_escola, $horas_aula, $horas_atividade, $horas_especificas, $total_semanal, $total_mensal,
                         $categoria, $justificativa, $objetivo, $metodologia, $envolvidos, $recursos_necessarios, $detalhamento_recursos,
-                        $cronograma, $resultados_esperados, $edit_id_post, $professor_id
+                        $cronograma, $resultados_esperados, $novo_status_coord, $edit_id_post, $professor_id
                     ]);
                     
+                    // =========================================================
+                    // DISPARO DE E-MAIL APÓS CORREÇÃO
+                    // =========================================================
+                    if ($novo_status_coord == 'Aprovado') {
+                        // O projeto pulou o coordenador e foi direto pro Diretor!
+                        $stmt_dir = $pdo->query("SELECT nome, email FROM usuarios WHERE funcao = 'Diretor'");
+                        $diretores = $stmt_dir->fetchAll(PDO::FETCH_ASSOC);
+
+                        if (!empty($diretores)) {
+                            $assunto_dir = "Projeto HAE Corrigido: Aguardando sua Análise";
+                            foreach ($diretores as $dir) {
+                                $nome_prof = $_SESSION['usuario_nome']; 
+                                $corpo_email_dir = "
+                                    <div style='font-family: Arial, sans-serif; color: #333; line-height: 1.6; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;'>
+                                        <div style='background-color: #f39c12; padding: 20px; text-align: center; color: white;'>
+                                            <h2 style='margin: 0; font-size: 20px;'>Projeto HAE Corrigido</h2>
+                                        </div>
+                                        <div style='padding: 20px;'>
+                                            <h3 style='color: #f39c12; margin-top: 0;'>Olá, Diretor(a) {$dir['nome']}.</h3>
+                                            <p>O(A) professor(a) <strong>$nome_prof</strong> corrigiu e reenviou um projeto que havia sido devolvido por você.</p>
+                                            
+                                            <div style='background: #f9f9f9; padding: 15px; border-left: 4px solid #f39c12; margin: 15px 0;'>
+                                                <ul style='margin: 0; padding-left: 20px;'>
+                                                    <li style='margin-bottom: 8px;'><strong>Projeto:</strong> $titulo_final</li>
+                                                </ul>
+                                            </div>
+                                            
+                                            <p>Como a aprovação da Coordenação já havia sido emitida anteriormente, ela foi <strong>mantida</strong> pelo sistema.</p>
+                                            <p>O projeto está agora <strong>aguardando diretamente a sua análise final</strong>.</p>
+                                            
+                                            <p>Acesse o portal para visualizar as atualizações:</p>
+                                            <div style='text-align: center; margin: 20px 0;'>
+                                                <img src='cid:img_link_portal' alt='Link de Acesso' style='max-width: 250px; border: 1px solid #ccc; border-radius: 4px;'>
+                                            </div>
+                                            <p style='margin-top: 25px; font-size: 14px; color: #555;'>Atenciosamente,<br><strong>Gestão Acadêmica - Fatec</strong></p>
+                                        </div>
+                                    </div>
+                                ";
+                                $lista_img = [['path' => 'img/link_acesso.jpeg', 'cid' => 'img_link_portal']];
+                                dispararEmailSistema($dir['email'], $dir['nome'], $assunto_dir, $corpo_email_dir, $lista_img);
+                            }
+                        }
+                    } else {
+                        // Se não pulou o Coordenador, manda o e-mail tradicional para ele
+                        if (!empty($coordenador_alvo_id)) {
+                            $stmt_coord = $pdo->prepare("SELECT nome, email FROM usuarios WHERE id = ?");
+                            $stmt_coord->execute([$coordenador_alvo_id]);
+                            $coord = $stmt_coord->fetch(PDO::FETCH_ASSOC);
+
+                            if ($coord) {
+                                $nome_coord = $coord['nome'];
+                                $email_coord = $coord['email'];
+                                $nome_prof = $_SESSION['usuario_nome']; 
+
+                                $assunto_coord = "Novo Projeto Direcionado: Avaliação HAE";
+                                $corpo_email_coord = "
+                                    <div style='font-family: Arial, sans-serif; color: #333; line-height: 1.6; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;'>
+                                        <div style='background-color: #3498db; padding: 20px; text-align: center; color: white;'>
+                                            <h2 style='margin: 0; font-size: 20px;'>Nova Solicitação Direcionada</h2>
+                                        </div>
+                                        <div style='padding: 20px;'>
+                                            <h3 style='color: #3498db; margin-top: 0;'>Olá, Coordenador(a) $nome_coord.</h3>
+                                            <p>O(A) professor(a) <strong>$nome_prof</strong> corrigiu e submeteu um projeto HAE e <strong>direcionou a análise prioritariamente para você</strong>.</p>
+                                            
+                                            <div style='background: #f9f9f9; padding: 15px; border-left: 4px solid #3498db; margin: 15px 0;'>
+                                                <ul style='margin: 0; padding-left: 20px;'>
+                                                    <li style='margin-bottom: 8px;'><strong>Projeto:</strong> $titulo_final</li>
+                                                    <li style='margin-bottom: 8px;'><strong>Categoria:</strong> $categoria</li>
+                                                </ul>
+                                            </div>
+                                            
+                                            <p>Acesse o portal para visualizar os detalhes e emitir o seu parecer oficial:</p>
+                                            <div style='text-align: center; margin: 20px 0;'>
+                                                <img src='cid:img_link_portal' alt='Link de Acesso' style='max-width: 250px; border: 1px solid #ccc; border-radius: 4px;'>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ";
+                                $lista_imagens_coord = [['path' => 'img/link_acesso.jpeg', 'cid' => 'img_link_portal']];
+                                dispararEmailSistema($email_coord, $nome_coord, $assunto_coord, $corpo_email_coord, $lista_imagens_coord);
+                            }
+                        }
+                    }
+
                     header("Location: meus_projetos.php?status=reenviado");
                     exit;
                     
@@ -184,50 +284,47 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         $cronograma, $resultados_esperados
                     ]);
                     $sucesso = "Solicitação de HAE enviada com sucesso para análise da coordenação!";
-                }
-                
-                if (!empty($coordenador_alvo_id)) {
-                    $stmt_coord = $pdo->prepare("SELECT nome, email FROM usuarios WHERE id = ?");
-                    $stmt_coord->execute([$coordenador_alvo_id]);
-                    $coord = $stmt_coord->fetch(PDO::FETCH_ASSOC);
+                    
+                    if (!empty($coordenador_alvo_id)) {
+                        $stmt_coord = $pdo->prepare("SELECT nome, email FROM usuarios WHERE id = ?");
+                        $stmt_coord->execute([$coordenador_alvo_id]);
+                        $coord = $stmt_coord->fetch(PDO::FETCH_ASSOC);
 
-                    if ($coord) {
-                        $nome_coord = $coord['nome'];
-                        $email_coord = $coord['email'];
-                        $nome_prof = $_SESSION['usuario_nome']; 
-                        $texto_acao = ($edit_id_post > 0) ? "corrigiu e submeteu" : "acabou de submeter";
+                        if ($coord) {
+                            $nome_coord = $coord['nome'];
+                            $email_coord = $coord['email'];
+                            $nome_prof = $_SESSION['usuario_nome']; 
 
-                        $assunto_coord = "Novo Projeto Direcionado: Avaliação HAE";
-                        $corpo_email_coord = "
-                            <div style='font-family: Arial, sans-serif; color: #333; line-height: 1.6; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;'>
-                                <div style='background-color: #3498db; padding: 20px; text-align: center; color: white;'>
-                                    <h2 style='margin: 0; font-size: 20px;'>Nova Solicitação Direcionada</h2>
-                                </div>
-                                <div style='padding: 20px;'>
-                                    <h3 style='color: #3498db; margin-top: 0;'>Olá, Coordenador(a) $nome_coord.</h3>
-                                    <p>O(A) professor(a) <strong>$nome_prof</strong> $texto_acao um projeto HAE e <strong>direcionou a análise prioritariamente para você</strong>.</p>
-                                    
-                                    <div style='background: #f9f9f9; padding: 15px; border-left: 4px solid #3498db; margin: 15px 0;'>
-                                        <ul style='margin: 0; padding-left: 20px;'>
-                                            <li style='margin-bottom: 8px;'><strong>Projeto:</strong> $titulo_final</li>
-                                            <li style='margin-bottom: 8px;'><strong>Categoria:</strong> $categoria</li>
-                                        </ul>
+                            $assunto_coord = "Novo Projeto Direcionado: Avaliação HAE";
+                            $corpo_email_coord = "
+                                <div style='font-family: Arial, sans-serif; color: #333; line-height: 1.6; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;'>
+                                    <div style='background-color: #3498db; padding: 20px; text-align: center; color: white;'>
+                                        <h2 style='margin: 0; font-size: 20px;'>Nova Solicitação Direcionada</h2>
                                     </div>
-                                    
-                                    <p>Acesse o portal para visualizar os detalhes e emitir o seu parecer oficial:</p>
-                                    <div style='text-align: center; margin: 20px 0;'>
-                                        <img src='cid:img_link_portal' alt='Link de Acesso' style='max-width: 250px; border: 1px solid #ccc; border-radius: 4px;'>
+                                    <div style='padding: 20px;'>
+                                        <h3 style='color: #3498db; margin-top: 0;'>Olá, Coordenador(a) $nome_coord.</h3>
+                                        <p>O(A) professor(a) <strong>$nome_prof</strong> acabou de submeter um projeto HAE e <strong>direcionou a análise prioritariamente para você</strong>.</p>
+                                        
+                                        <div style='background: #f9f9f9; padding: 15px; border-left: 4px solid #3498db; margin: 15px 0;'>
+                                            <ul style='margin: 0; padding-left: 20px;'>
+                                                <li style='margin-bottom: 8px;'><strong>Projeto:</strong> $titulo_final</li>
+                                                <li style='margin-bottom: 8px;'><strong>Categoria:</strong> $categoria</li>
+                                            </ul>
+                                        </div>
+                                        
+                                        <p>Acesse o portal para visualizar os detalhes e emitir o seu parecer oficial:</p>
+                                        <div style='text-align: center; margin: 20px 0;'>
+                                            <img src='cid:img_link_portal' alt='Link de Acesso' style='max-width: 250px; border: 1px solid #ccc; border-radius: 4px;'>
+                                        </div>
                                     </div>
-                                    <p style='margin-top: 25px; font-size: 14px; color: #555;'>Atenciosamente,<br><strong>Gestão Acadêmica - Fatec</strong></p>
                                 </div>
-                            </div>
-                        ";
-                        
-                        $lista_imagens_coord = [['path' => 'img/link_acesso.jpeg', 'cid' => 'img_link_portal']];
-                        dispararEmailSistema($email_coord, $nome_coord, $assunto_coord, $corpo_email_coord, $lista_imagens_coord);
+                            ";
+                            $lista_imagens_coord = [['path' => 'img/link_acesso.jpeg', 'cid' => 'img_link_portal']];
+                            dispararEmailSistema($email_coord, $nome_coord, $assunto_coord, $corpo_email_coord, $lista_imagens_coord);
+                        }
                     }
                 }
-
+                
                 $registro_base = null; $c_titulo = ''; $c_obj_escola = ''; $c_justificativa = ''; 
                 $c_objetivo = ''; $c_metodologia = ''; $c_envolvidos = ''; $c_detalhamento = ''; 
                 $c_cronograma = ''; $c_resultados = ''; $recursos_array = [];
@@ -360,11 +457,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             <?php if ($modo_edicao && !$sucesso): ?>
                 <?php if (isset($registro_base['status_aprovacao']) && $registro_base['status_aprovacao'] == 'Devolvido'): ?>
                     <div class="aviso-box aviso-devolvido">
-                        <i class="fa-solid fa-rotate-left"></i> <strong>Projeto Devolvido:</strong> Este projeto foi devolvido para ajustes. Faça as correções solicitadas pela coordenação e salve para reenviá-lo à fila de análise.
+                        <i class="fa-solid fa-rotate-left"></i> <strong>Projeto Devolvido:</strong> Este projeto foi devolvido para ajustes. Faça as correções solicitadas e salve para reenviá-lo à fila de análise.
                     </div>
                 <?php else: ?>
                     <div class="aviso-box aviso-edicao">
-                        <i class="fa-solid fa-pen"></i> <strong>Modo Edição Ativo:</strong> Você está editando um projeto que ainda está pendente. Salve para atualizar o documento que será avaliado pela coordenação.
+                        <i class="fa-solid fa-pen"></i> <strong>Modo Edição Ativo:</strong> Você está editando um projeto que ainda está pendente. Salve para atualizar o documento que será avaliado.
                     </div>
                 <?php endif; ?>
             <?php elseif ($clone_id > 0 && !$sucesso): ?>

@@ -11,17 +11,39 @@ if (!isset($_SESSION['usuario_id'])) {
 }
 
 $funcao = $_SESSION['usuario_funcao'];
-$usuario_id = $_SESSION['usuario_id'];
+$usuario_id = (int)$_SESSION['usuario_id'];
 $pagina_atual = basename($_SERVER['PHP_SELF']);
 
 $meses_nome = [1=>'Janeiro', 2=>'Fevereiro', 3=>'Março', 4=>'Abril', 5=>'Maio', 6=>'Junho', 7=>'Julho', 8=>'Agosto', 9=>'Setembro', 10=>'Outubro', 11=>'Novembro', 12=>'Dezembro'];
 
 // MUNDO REAL ATIVADO
 $hoje = new DateTime(); 
-
 $dia_atual = (int)$hoje->format('d');
 $mes_atual = (int)$hoje->format('m');
 $ano_atual = (int)$hoje->format('Y');
+
+// ==============================================================================
+// INTELIGÊNCIA TEMPORAL (VIRADA DE SEMESTRE AUTOMÁTICA)
+// ==============================================================================
+$semestre_real = ($mes_atual <= 6) ? "1/$ano_atual" : "2/$ano_atual";
+
+// Captura o filtro selecionado (por padrão, é o semestre em que estamos)
+$filtro_semestre = isset($_GET['semestre']) ? trim($_GET['semestre']) : $semestre_real;
+
+// Segurança: Se tentarem injetar código, volta pro semestre atual
+if ($filtro_semestre !== 'Todos' && !preg_match('/^[12]\/\d{4}$/', $filtro_semestre)) {
+    $filtro_semestre = $semestre_real;
+}
+
+$sql_sem_filter = ($filtro_semestre === 'Todos') ? "" : " AND semestre = '$filtro_semestre'";
+$sql_sem_filter_prefix = ($filtro_semestre === 'Todos') ? "" : " AND s.semestre = '$filtro_semestre'";
+
+// Busca os semestres que já existem no banco para montar o select
+$stmt_sem = $pdo->query("SELECT DISTINCT semestre FROM solicitacoes_hae ORDER BY semestre DESC");
+$semestres_disponiveis = $stmt_sem->fetchAll(PDO::FETCH_COLUMN);
+if (!in_array($semestre_real, $semestres_disponiveis)) {
+    array_unshift($semestres_disponiveis, $semestre_real); // Garante que o atual apareça mesmo sem projetos
+}
 
 $data_limite = new DateTime("$ano_atual-$mes_atual-01");
 $mes_passado_obj = clone $data_limite;
@@ -34,29 +56,19 @@ $inadimplentes_geral = [];
 $cobrancas_ativas_geral = [];
 
 // ==============================================================================
-// LÓGICA E KPIs DO PROFESSOR
+// LÓGICA E KPIs DO PROFESSOR (APLICANDO FILTRO DE SEMESTRE)
 // ==============================================================================
 if ($funcao == 'Professor') {
-    $stmt_kpi1 = $pdo->prepare("SELECT COUNT(*) FROM solicitacoes_hae WHERE professor_id = ? AND status_aprovacao = 'Aprovado'");
-    $stmt_kpi1->execute([$usuario_id]);
-    $kpi_projetos = $stmt_kpi1->fetchColumn();
+    $kpi_projetos = $pdo->query("SELECT COUNT(*) FROM solicitacoes_hae WHERE professor_id = $usuario_id AND status_aprovacao = 'Aprovado' $sql_sem_filter")->fetchColumn();
+    $kpi_projetos_devolvidos = $pdo->query("SELECT COUNT(*) FROM solicitacoes_hae WHERE professor_id = $usuario_id AND status_aprovacao = 'Devolvido' $sql_sem_filter")->fetchColumn();
+    $kpi_entregues = $pdo->query("SELECT COUNT(*) FROM relatorios_hae r JOIN solicitacoes_hae s ON r.solicitacao_id = s.id WHERE s.professor_id = $usuario_id AND r.status = 'Publicado' $sql_sem_filter_prefix")->fetchColumn();
 
-    $stmt_kpi_dev = $pdo->prepare("SELECT COUNT(*) FROM solicitacoes_hae WHERE professor_id = ? AND status_aprovacao = 'Devolvido'");
-    $stmt_kpi_dev->execute([$usuario_id]);
-    $kpi_projetos_devolvidos = $stmt_kpi_dev->fetchColumn();
-
-    $stmt_kpi2 = $pdo->prepare("SELECT COUNT(*) FROM relatorios_hae r JOIN solicitacoes_hae s ON r.solicitacao_id = s.id WHERE s.professor_id = ? AND r.status = 'Publicado'");
-    $stmt_kpi2->execute([$usuario_id]);
-    $kpi_entregues = $stmt_kpi2->fetchColumn();
-
-    $stmt = $pdo->prepare("SELECT id, titulo_projeto, COALESCE(data_aprovacao_diretor, data_aprovacao_coordenador, data_criacao) AS data_base FROM solicitacoes_hae WHERE professor_id = ? AND status_aprovacao = 'Aprovado'");
+    $stmt = $pdo->prepare("SELECT id, titulo_projeto, COALESCE(data_aprovacao_diretor, data_aprovacao_coordenador, data_criacao) AS data_base FROM solicitacoes_hae WHERE professor_id = ? AND status_aprovacao = 'Aprovado' $sql_sem_filter");
     $stmt->execute([$usuario_id]);
     $projetos_aprovados = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     foreach ($projetos_aprovados as $proj) {
-        // OCULTA A VERSÃO DA TELA DO PROFESSOR (Painel de Avisos)
         $titulo_limpo = preg_replace('/\s*-\s*v\d+\.\d+\s*$/i', '', $proj['titulo_projeto']);
-        
         $data_base_str = $proj['data_base'];
         $data_iteracao = new DateTime(date('Y-m-01', strtotime($data_base_str)));
         if ($data_iteracao >= $data_limite) continue;
@@ -80,67 +92,42 @@ if ($funcao == 'Professor') {
     }
 } 
 // ==============================================================================
-// LÓGICA E KPIs DA COORDENAÇÃO E DIREÇÃO
+// LÓGICA E KPIs DA COORDENAÇÃO E DIREÇÃO (APLICANDO FILTRO DE SEMESTRE)
 // ==============================================================================
 else {
     if ($funcao == 'Coordenador') {
-        $stmt_kpi1 = $pdo->prepare("SELECT COUNT(*) FROM solicitacoes_hae WHERE status_coordenador = 'Pendente' AND status_aprovacao NOT IN ('Rejeitado', 'Devolvido') AND (coordenador_alvo_id IS NULL OR coordenador_alvo_id = ?)");
-        $stmt_kpi1->execute([$usuario_id]);
-        $kpi_analises = $stmt_kpi1->fetchColumn();
-
-        $stmt_rej = $pdo->prepare("SELECT COUNT(*) FROM solicitacoes_hae WHERE status_coordenador = 'Rejeitado' AND coordenador_id = ?");
-        $stmt_rej->execute([$usuario_id]);
-        $kpi_meus_rejeitados = $stmt_rej->fetchColumn();
-
-        $stmt_dev = $pdo->prepare("SELECT COUNT(*) FROM solicitacoes_hae WHERE status_coordenador = 'Devolvido' AND coordenador_id = ?");
-        $stmt_dev->execute([$usuario_id]);
-        $kpi_meus_devolvidos = $stmt_dev->fetchColumn();
-
-        $stmt_apr = $pdo->prepare("SELECT COUNT(*) FROM solicitacoes_hae WHERE status_coordenador = 'Aprovado' AND coordenador_id = ?");
-        $stmt_apr->execute([$usuario_id]);
-        $kpi_meus_aprovados = $stmt_apr->fetchColumn();
-
+        $kpi_analises = $pdo->query("SELECT COUNT(*) FROM solicitacoes_hae WHERE status_coordenador = 'Pendente' AND status_aprovacao NOT IN ('Rejeitado', 'Devolvido') AND (coordenador_alvo_id IS NULL OR coordenador_alvo_id = $usuario_id) $sql_sem_filter")->fetchColumn();
+        $kpi_meus_rejeitados = $pdo->query("SELECT COUNT(*) FROM solicitacoes_hae WHERE status_coordenador = 'Rejeitado' AND coordenador_id = $usuario_id $sql_sem_filter")->fetchColumn();
+        $kpi_meus_devolvidos = $pdo->query("SELECT COUNT(*) FROM solicitacoes_hae WHERE status_coordenador = 'Devolvido' AND coordenador_id = $usuario_id $sql_sem_filter")->fetchColumn();
+        $kpi_meus_aprovados = $pdo->query("SELECT COUNT(*) FROM solicitacoes_hae WHERE status_coordenador = 'Aprovado' AND coordenador_id = $usuario_id $sql_sem_filter")->fetchColumn();
     } else {
         // DIRETOR
-        $stmt_kpi1 = $pdo->query("SELECT COUNT(*) FROM solicitacoes_hae WHERE status_diretor = 'Pendente' AND status_coordenador = 'Aprovado' AND status_aprovacao NOT IN ('Rejeitado', 'Devolvido')");
-        $kpi_analises = $stmt_kpi1->fetchColumn();
-        
-        $kpi_total_usuarios = $pdo->query("SELECT COUNT(*) FROM usuarios")->fetchColumn();
-        
-        $stmt_rej = $pdo->prepare("SELECT COUNT(*) FROM solicitacoes_hae WHERE status_diretor = 'Rejeitado' AND diretor_id = ?");
-        $stmt_rej->execute([$usuario_id]);
-        $kpi_meus_rejeitados = $stmt_rej->fetchColumn();
-
-        $stmt_dev = $pdo->prepare("SELECT COUNT(*) FROM solicitacoes_hae WHERE status_diretor = 'Devolvido' AND diretor_id = ?");
-        $stmt_dev->execute([$usuario_id]);
-        $kpi_meus_devolvidos = $stmt_dev->fetchColumn();
-
-        $stmt_apr = $pdo->prepare("SELECT COUNT(*) FROM solicitacoes_hae WHERE status_diretor = 'Aprovado' AND diretor_id = ?");
-        $stmt_apr->execute([$usuario_id]);
-        $kpi_meus_aprovados = $stmt_apr->fetchColumn();
+        $kpi_analises = $pdo->query("SELECT COUNT(*) FROM solicitacoes_hae WHERE status_diretor = 'Pendente' AND status_coordenador = 'Aprovado' AND status_aprovacao NOT IN ('Rejeitado', 'Devolvido') $sql_sem_filter")->fetchColumn();
+        $kpi_total_usuarios = $pdo->query("SELECT COUNT(*) FROM usuarios")->fetchColumn(); // Usuários não dependem de semestre
+        $kpi_meus_rejeitados = $pdo->query("SELECT COUNT(*) FROM solicitacoes_hae WHERE status_diretor = 'Rejeitado' AND diretor_id = $usuario_id $sql_sem_filter")->fetchColumn();
+        $kpi_meus_devolvidos = $pdo->query("SELECT COUNT(*) FROM solicitacoes_hae WHERE status_diretor = 'Devolvido' AND diretor_id = $usuario_id $sql_sem_filter")->fetchColumn();
+        $kpi_meus_aprovados = $pdo->query("SELECT COUNT(*) FROM solicitacoes_hae WHERE status_diretor = 'Aprovado' AND diretor_id = $usuario_id $sql_sem_filter")->fetchColumn();
 
         // ------------------ CÁLCULOS DO ORÇAMENTO DE HAE ------------------
-        $kpi_total_horas_aprovadas = $pdo->query("SELECT SUM(quantidade_horas) FROM solicitacoes_hae WHERE status_aprovacao = 'Aprovado'")->fetchColumn() ?: 0;
+        $kpi_total_horas_aprovadas = $pdo->query("SELECT SUM(quantidade_horas) FROM solicitacoes_hae WHERE status_aprovacao = 'Aprovado' $sql_sem_filter")->fetchColumn() ?: 0;
         
         $stmt_orcamento = $pdo->query("SELECT valor FROM configuracoes WHERE chave = 'total_hae_disponivel'");
         $orcamento_db = $stmt_orcamento->fetchColumn();
         $kpi_hae_disponivel = $orcamento_db ? (int)$orcamento_db : 0;
-        
         $kpi_saldo_hae = $kpi_hae_disponivel - $kpi_total_horas_aprovadas;
         // ------------------------------------------------------------------
         
-        $kpi_rejeitados_global = $pdo->query("SELECT COUNT(*) FROM solicitacoes_hae WHERE status_aprovacao = 'Rejeitado'")->fetchColumn();
-        $kpi_devolvidos_global = $pdo->query("SELECT COUNT(*) FROM solicitacoes_hae WHERE status_aprovacao = 'Devolvido'")->fetchColumn();
+        $kpi_rejeitados_global = $pdo->query("SELECT COUNT(*) FROM solicitacoes_hae WHERE status_aprovacao = 'Rejeitado' $sql_sem_filter")->fetchColumn();
+        $kpi_devolvidos_global = $pdo->query("SELECT COUNT(*) FROM solicitacoes_hae WHERE status_aprovacao = 'Devolvido' $sql_sem_filter")->fetchColumn();
     }
 
-    $kpi_projetos_ativos = $pdo->query("SELECT COUNT(*) FROM solicitacoes_hae WHERE status_aprovacao = 'Aprovado'")->fetchColumn();
+    $kpi_projetos_ativos = $pdo->query("SELECT COUNT(*) FROM solicitacoes_hae WHERE status_aprovacao = 'Aprovado' $sql_sem_filter")->fetchColumn();
 
-    $stmt_kpi3 = $pdo->prepare("SELECT COUNT(*) FROM relatorios_hae WHERE mes_referencia = ? AND ano_referencia = ? AND status = 'Publicado'");
+    $stmt_kpi3 = $pdo->prepare("SELECT COUNT(*) FROM relatorios_hae r JOIN solicitacoes_hae s ON r.solicitacao_id = s.id WHERE r.mes_referencia = ? AND r.ano_referencia = ? AND r.status = 'Publicado' $sql_sem_filter_prefix");
     $stmt_kpi3->execute([$mes_passado_num, $ano_passado_num]);
     $kpi_relatorios_mes = $stmt_kpi3->fetchColumn();
 
-    // Verificação de inadimplência geral
-    $stmt = $pdo->query("SELECT s.id, s.titulo_projeto, COALESCE(s.data_aprovacao_diretor, s.data_aprovacao_coordenador, s.data_criacao) AS data_base, u.nome, u.telefone_whatsapp FROM solicitacoes_hae s JOIN usuarios u ON s.professor_id = u.id WHERE s.status_aprovacao = 'Aprovado'");
+    $stmt = $pdo->query("SELECT s.id, s.titulo_projeto, COALESCE(s.data_aprovacao_diretor, s.data_aprovacao_coordenador, s.data_criacao) AS data_base, u.nome, u.telefone_whatsapp FROM solicitacoes_hae s JOIN usuarios u ON s.professor_id = u.id WHERE s.status_aprovacao = 'Aprovado' $sql_sem_filter_prefix");
     $projetos_aprovados = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     foreach ($projetos_aprovados as $proj) {
@@ -192,7 +179,6 @@ else {
         .btn-whatsapp { background: #25D366; color: #fff; padding: 8px 15px; border-radius: 6px; text-decoration: none; font-size: 12px; font-weight: bold; display: inline-flex; align-items: center; gap: 6px; transition: 0.3s; }
         .btn-whatsapp:hover { background: #128C7E; }
         
-        /* ESTILOS DO NOVO CARD DE ORÇAMENTO (HAE) */
         .card-orcamento { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr 1fr; background: #fff; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid #eee; border-left: 5px solid #8e44ad; overflow: hidden; margin-bottom: 20px;}
         .orcamento-box { padding: 25px; text-align: center; border-right: 1px solid #eee; }
         .orcamento-box:last-child { border-right: none; }
@@ -250,8 +236,19 @@ else {
                 <button class="mobile-toggle" id="mobile-toggle"><i class="fa-solid fa-bars"></i></button>
                 <h1>Visão Geral do Sistema</h1>
             </div>
-            <div class="user-info">
-                Hoje é <strong><?php echo $hoje->format('d/m/Y'); ?></strong>
+            
+            <!-- CONTROLE DE FILTRO TEMPORAL INTEGRADO NO TOPO -->
+            <div class="user-info" style="display:flex; align-items:center; gap: 15px; flex-wrap: wrap; justify-content: flex-end;">
+                <span class="data-hoje">Hoje é <strong><?php echo $hoje->format('d/m/Y'); ?></strong></span>
+                <form method="GET" style="margin:0; display:flex; align-items:center; gap:8px; background: #fff; padding: 6px 12px; border-radius: 6px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); border: 1px solid #eee;">
+                    <i class="fa-solid fa-calendar-days" style="color: var(--fatec-red);"></i>
+                    <select name="semestre" onchange="this.form.submit()" style="border: none; background: transparent; font-weight: bold; color: #444; outline: none; cursor: pointer; font-size: 13px;">
+                        <option value="Todos" <?php echo $filtro_semestre == 'Todos' ? 'selected' : ''; ?>>Histórico Completo</option>
+                        <?php foreach($semestres_disponiveis as $s): ?>
+                            <option value="<?php echo htmlspecialchars($s); ?>" <?php echo $filtro_semestre == $s ? 'selected' : ''; ?>>Semestre <?php echo htmlspecialchars($s); ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </form>
             </div>
         </header>
 
@@ -286,7 +283,7 @@ else {
             <?php if (count($pendencias_professor) == 0): ?>
                 <div class="alerta-box" style="background: #f4fbf7; border-left: 5px solid #2ecc71; color: #27ae60; border: 1px solid #d1e7dd;">
                     <i class="fa-solid fa-circle-check"></i>
-                    <div class="alerta-info"><h4>Tudo em dia!</h4><p>Você não possui nenhum relatório pendente.</p></div>
+                    <div class="alerta-info"><h4>Tudo em dia!</h4><p>Você não possui nenhum relatório pendente no semestre selecionado.</p></div>
                 </div>
             <?php else: ?>
                 <?php foreach ($pendencias_professor as $pendencia): ?>
@@ -307,7 +304,6 @@ else {
         <!-- ========================================== -->
         <?php else: ?>
             
-            <!-- BLOCO 1: GESTÃO PESSOAL (IGUAL PARA DIRETOR E COORDENADOR) -->
             <h2 style="font-size: 15px; color: #7f8c8d; margin-bottom: 15px; text-transform: uppercase; letter-spacing: 0.5px;"><i class="fa-solid fa-user-shield"></i> Minhas Ações de Avaliação</h2>
             <div class="dashboard-cards">
                 <a href="analisar_solicitacoes.php" class="card" style="<?php echo $kpi_analises > 0 ? 'border-bottom-color: #f39c12;' : 'border-bottom-color: #2ecc71;'; ?>">
@@ -328,11 +324,9 @@ else {
                 </a>
             </div>
 
-            <!-- BLOCO 2: INSTITUCIONAL FATEC -->
             <h2 style="font-size: 15px; color: #7f8c8d; margin-bottom: 15px; text-transform: uppercase; letter-spacing: 0.5px;"><i class="fa-solid fa-building-columns"></i> Panorama Global da Fatec</h2>
             
             <?php if ($funcao == 'Diretor'): ?>
-                <!-- NOVO PAINEL FINANCEIRO DE HAE (APENAS DIRETOR) -->
                 <div class="card-orcamento">
                     <div class="orcamento-box" style="background: #fdfafc;">
                         <h3><i class="fa-solid fa-wallet" style="color: #8e44ad;"></i> Total HAE Disponível</h3>
@@ -380,7 +374,6 @@ else {
                 <?php endif; ?>
             </div>
 
-            <!-- QUADRO DE ALERTAS -->
             <?php if ($dia_atual >= 11): ?>
                 <?php if (count($inadimplentes_geral) > 0): ?>
                     <div class="alerta-box atrasado">
