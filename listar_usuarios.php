@@ -13,21 +13,54 @@ $erro = "";
 $usuario_logado_id = $_SESSION['usuario_id'];
 
 // ==============================================================================
-// LÓGICA DE EXCLUSÃO DE USUÁRIO
+// LÓGICA DE EXCLUSÃO DE USUÁRIO E RESET DE SENHA
 // ==============================================================================
-if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao']) && $_POST['acao'] == 'excluir') {
-    $id_excluir = (int)$_POST['usuario_id'];
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao'])) {
     
-    if ($id_excluir === $usuario_logado_id) {
-        $erro = "Operação bloqueada: Você não pode excluir a sua própria conta.";
-    } else {
+    // EXCLUSÃO
+    if ($_POST['acao'] == 'excluir') {
+        $id_excluir = (int)$_POST['usuario_id'];
+        
+        if ($id_excluir === $usuario_logado_id) {
+            $erro = "Operação bloqueada: Você não pode excluir a sua própria conta.";
+        } else {
+            try {
+                $sql_del = "DELETE FROM usuarios WHERE id = ?";
+                $stmt_del = $pdo->prepare($sql_del);
+                $stmt_del->execute([$id_excluir]);
+                $sucesso = "Usuário excluído com sucesso!";
+            } catch (PDOException $e) {
+                $erro = "Não foi possível excluir este usuário. Ele possui projetos, relatórios ou pareceres vinculados no sistema.";
+            }
+        }
+    }
+    
+    // RESET DE SENHA (PARA DATA DE NASCIMENTO)
+    if ($_POST['acao'] == 'reset_senha') {
+        $id_reset = (int)$_POST['usuario_id'];
+        
         try {
-            $sql_del = "DELETE FROM usuarios WHERE id = ?";
-            $stmt_del = $pdo->prepare($sql_del);
-            $stmt_del->execute([$id_excluir]);
-            $sucesso = "Usuário excluído com sucesso!";
+            // Busca a data de nascimento do usuário no banco
+            $stmt_nasc = $pdo->prepare("SELECT data_nascimento, nome FROM usuarios WHERE id = ?");
+            $stmt_nasc->execute([$id_reset]);
+            $user_data = $stmt_nasc->fetch(PDO::FETCH_ASSOC);
+            
+            if ($user_data && !empty($user_data['data_nascimento'])) {
+                // Converte a data para o formato ddmmaaaa (Ex: 15051980)
+                $nova_senha_plana = date('dmY', strtotime($user_data['data_nascimento']));
+                $nova_senha_hash = md5($nova_senha_plana);
+                
+                // ATUALIZAÇÃO: Usa o status "2" para identificar que é apenas um Reset de Senha
+                $sql_reset = "UPDATE usuarios SET senha = ?, primeiro_acesso = 2 WHERE id = ?";
+                $stmt_reset = $pdo->prepare($sql_reset);
+                $stmt_reset->execute([$nova_senha_hash, $id_reset]);
+                
+                $sucesso = "Senha de <strong>" . htmlspecialchars($user_data['nome']) . "</strong> resetada com sucesso! A nova senha temporária é a data de nascimento (DDMMAAAA): <strong>$nova_senha_plana</strong>";
+            } else {
+                $erro = "Não foi possível resetar a senha: O usuário não possui data de nascimento cadastrada no sistema.";
+            }
         } catch (PDOException $e) {
-            $erro = "Não foi possível excluir este usuário. Ele possui projetos, relatórios ou pareceres vinculados no sistema.";
+            $erro = "Erro ao resetar a senha: " . $e->getMessage();
         }
     }
 }
@@ -90,7 +123,6 @@ if ($filtro_funcao != 'Todos') {
     $params[] = $filtro_funcao;
 }
 
-// ATUALIZAÇÃO: Puxando primeiro_acesso e data_nascimento para gerar a senha provisória
 $sql = "SELECT id, nome, email, telefone_whatsapp, funcao, data_admissao, tipo_contrato, primeiro_acesso, data_nascimento 
         FROM usuarios 
         WHERE " . implode(" AND ", $where) . " 
@@ -184,7 +216,7 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
         .btn-close:hover { color: #ccc; transform: scale(1.1); }
         
         .modal-body { padding: 20px; max-height: 70vh; overflow-y: auto; }
-        .modal-footer { padding: 15px 20px; background: #f8f9fa; border-top: 1px solid #eee; display: flex; justify-content: flex-end; gap: 10px; }
+        .modal-footer { padding: 15px 20px; background: #f8f9fa; border-top: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; gap: 10px; }
         
         .modal-body .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px; }
         .modal-body .full-width { grid-column: 1 / -1; }
@@ -197,7 +229,13 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
         .btn-salvar { background: var(--fatec-red); color: white; border: none; padding: 10px 20px; border-radius: 5px; font-weight: bold; cursor: pointer; transition: 0.2s; }
         .btn-salvar:hover { background: #8a0000; }
         
-        @media (max-width: 768px) { .modal-body .grid-2 { grid-template-columns: 1fr; } }
+        .btn-reset { background: #f39c12; color: #fff; border: none; padding: 10px 15px; border-radius: 5px; font-weight: bold; cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 5px; font-size: 13px;}
+        .btn-reset:hover { background: #d68910; }
+        
+        @media (max-width: 768px) { 
+            .modal-body .grid-2 { grid-template-columns: 1fr; } 
+            .modal-footer { flex-direction: column-reverse; align-items: stretch;}
+        }
     </style>
 </head>
 <body>
@@ -225,16 +263,16 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
                     <li><a href="analisar_solicitacoes.php" class="<?php echo ($pagina_atual == 'analisar_solicitacoes.php') ? 'active' : ''; ?>"><i class="fa-solid fa-clipboard-check"></i> <span class="menu-text">Analisar Solicitações</span></a></li>
                     <li><a href="acompanhar_relatorios.php" class="<?php echo ($pagina_atual == 'acompanhar_relatorios.php') ? 'active' : ''; ?>"><i class="fa-solid fa-chart-line"></i> <span class="menu-text">Acompanhar Relatórios</span></a></li>
                     <li><a href="relatorios_atrasados.php" class="<?php echo ($pagina_atual == 'relatorios_atrasados.php') ? 'active' : ''; ?>"><i class="fa-solid fa-file-invoice"></i> <span class="menu-text">Relatórios Atrasados</span></a></li>
-                    <li><a href="cadastrar_professor.php" class="<?php echo ($pagina_atual == 'cadastrar_professor.php') ? 'active' : ''; ?>"><i class="fa-solid fa-user-plus"></i> <span class="menu-text">Cadastrar Usuário</span></a></li>
                     
                     <?php if ($_SESSION['usuario_funcao'] == 'Diretor'): ?>
+                        <li><a href="projetos_hae.php" class="<?php echo ($pagina_atual == 'projetos_hae.php') ? 'active' : ''; ?>"><i class="fa-solid fa-list-check"></i> <span class="menu-text">Projetos HAE</span></a></li>
+                        <li><a href="cadastrar_professor.php" class="<?php echo ($pagina_atual == 'cadastrar_professor.php') ? 'active' : ''; ?>"><i class="fa-solid fa-user-plus"></i> <span class="menu-text">Cadastrar Usuário</span></a></li>
                         <li><a href="listar_usuarios.php" class="<?php echo ($pagina_atual == 'listar_usuarios.php') ? 'active' : ''; ?>"><i class="fa-solid fa-users"></i> <span class="menu-text">Lista de Usuários</span></a></li>
                     <?php endif; ?>
                 <?php endif; ?>
                 
                 <li><a href="perfil.php" class="<?php echo ($pagina_atual == 'perfil.php') ? 'active' : ''; ?>"><i class="fa-solid fa-user-gear"></i> <span class="menu-text">Meu Perfil</span></a></li>
                 
-                <!-- MENU DE CONFIGURAÇÕES: Oculto para Coordenador/Professor, posicionado antes de Sair -->
                 <?php if ($_SESSION['usuario_funcao'] == 'Diretor'): ?>
                     <li><a href="configuracoes.php" class="<?php echo ($pagina_atual == 'configuracoes.php') ? 'active' : ''; ?>"><i class="fa-solid fa-cogs"></i> <span class="menu-text">Configurações</span></a></li>
                 <?php endif; ?>
@@ -331,14 +369,14 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
                                     <td style="text-align: center;">
                                         <div class="acoes-flex" style="justify-content: center;">
                                             
-                                            <!-- REENVIO DE ACESSO VIA WHATSAPP (Aparece só se for primeiro acesso) -->
+                                            <!-- REENVIO DE ACESSO VIA WHATSAPP (Aparece se for primeiro_acesso 1 ou 2) -->
                                             <?php 
-                                            if ($u['primeiro_acesso'] == 1) {
+                                            if (in_array($u['primeiro_acesso'], [1, 2])) {
                                                 if (!empty($u['telefone_whatsapp'])) {
                                                     $num_whats = preg_replace('/[^0-9]/', '', $u['telefone_whatsapp']);
                                                     if (strlen($num_whats) >= 10) {
                                                         $senha_prov = date('dmY', strtotime($u['data_nascimento']));
-                                                        $msg_reenvio = urlencode("Olá " . $u['nome'] . "! Seu cadastro no portal HAE Fatec foi criado com sucesso.\n\n*Seus dados de acesso:*\nLogin: " . $u['email'] . "\nSenha provisória: " . $senha_prov . "\n\nPor favor, acesse o sistema para definir sua senha definitiva.\n\n https://sistemahae.page.gd");
+                                                        $msg_reenvio = urlencode("Olá " . $u['nome'] . "! Sua senha de acesso ao portal HAE Fatec foi resetada.\n\n*Seus dados de acesso:*\nLogin: " . $u['email'] . "\nSenha provisória: " . $senha_prov . "\n\nPor favor, acesse o sistema para definir sua nova senha definitiva.\n\n https://sistemahae.page.gd");
                                                         
                                                         echo '<a href="https://wa.me/55'.$num_whats.'?text='.$msg_reenvio.'" target="_blank" class="btn-action btn-whatsapp" title="Reenviar Acesso (WhatsApp)">
                                                                 <i class="fa-brands fa-whatsapp"></i>
@@ -408,8 +446,9 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
                     <h3><i class="fa-solid fa-user-pen"></i> Editar Conta do Usuário</h3>
                     <button type="button" class="btn-close" onclick="fecharModal()"><i class="fa-solid fa-xmark"></i></button>
                 </div>
-                <form method="POST">
-                    <div class="modal-body">
+                
+                <div class="modal-body">
+                    <form method="POST" id="formEdicaoGeral">
                         <input type="hidden" name="acao" value="editar">
                         <input type="hidden" name="edit_id" id="edit_id">
                         
@@ -453,12 +492,23 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
                             </select>
                         </div>
                         <p style="font-size: 11px; color: #888; margin-top: 15px;">* Alterações de senha ou assinatura só podem ser feitas pelo próprio usuário através da tela de Perfil.</p>
+                    </form>
+                </div>
+                
+                <div class="modal-footer">
+                    <div style="flex: 1;">
+                        <form method="POST" style="margin: 0;" onsubmit="return confirm('ATENÇÃO: Deseja resetar a senha deste usuário para a DATA DE NASCIMENTO dele? O usuário será forçado a criar uma nova senha no próximo login.');">
+                            <input type="hidden" name="acao" value="reset_senha">
+                            <input type="hidden" name="usuario_id" id="reset_id">
+                            <button type="submit" class="btn-reset"><i class="fa-solid fa-unlock-keyhole"></i> Resetar Senha</button>
+                        </form>
                     </div>
-                    <div class="modal-footer">
+                    
+                    <div style="display: flex; gap: 10px;">
                         <button type="button" class="btn-cancelar" onclick="fecharModal()">Cancelar</button>
-                        <button type="submit" class="btn-salvar">Salvar Alterações</button>
+                        <button type="submit" form="formEdicaoGeral" class="btn-salvar">Salvar Alterações</button>
                     </div>
-                </form>
+                </div>
             </div>
         </div>
 
@@ -468,6 +518,8 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
     <script>
         function abrirModalEdicao(id, nome, email, whatsapp, funcao, admissao, contrato) {
             document.getElementById('edit_id').value = id;
+            document.getElementById('reset_id').value = id; 
+            
             document.getElementById('edit_nome').value = nome;
             document.getElementById('edit_email').value = email;
             document.getElementById('edit_whatsapp').value = whatsapp;

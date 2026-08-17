@@ -39,7 +39,11 @@ function dispararEmailSistema($destinatario, $nome_destinatario, $assunto, $corp
         if (!empty($imagens_embutidas)) {
             foreach ($imagens_embutidas as $img) {
                 if (file_exists($img['path'])) {
-                    $mail->addEmbeddedImage($img['path'], $img['cid']);
+                    // O SEGREDO ESTÁ AQUI: Extrair o nome do arquivo para o provedor reconhecer
+                    $nome_arquivo = basename($img['path']);
+                    
+                    // Passar o $nome_arquivo como 3º parâmetro força o Gmail a colar a imagem inline
+                    $mail->addEmbeddedImage($img['path'], $img['cid'], $nome_arquivo);
                 }
             }
         }
