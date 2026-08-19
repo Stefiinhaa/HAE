@@ -1,37 +1,21 @@
 <?php
-/**
- * Função para disparar Push Notifications via OneSignal
- * 
- * @param int $usuario_alvo_id O ID do usuário no seu banco de dados
- * @param string $titulo O título da notificação (Ex: Projeto Devolvido)
- * @param string $mensagem O texto do push
- * @param string $url_destino Para qual página o usuário vai se clicar na notificação
- */
-require_once __DIR__ . '/config/api_keys.php'; 
+// Puxa o arquivo com as chaves que o GitHub ignora
+require_once __DIR__ . '/config/api_keys.php';
+
 function dispararPush($usuario_alvo_id, $titulo, $mensagem, $url_destino = "/painel.php") {
     
-    // =========================================================================
-    // COLE SUAS CHAVES DO ONESIGNAL AQUI
-    // =========================================================================
+    // Pega as chaves do arquivo seguro
     $app_id = ONESIGNAL_APP_ID;
     $rest_api_key = ONESIGNAL_REST_KEY;
-    // =========================================================================
 
-    $content = array(
-        "en" => $mensagem, // O OneSignal usa 'en' como padrão universal
-        "pt" => $mensagem
-    );
-    
-    $headings = array(
-        "en" => $titulo,
-        "pt" => $titulo
-    );
+    $content = array("en" => $mensagem, "pt" => $mensagem);
+    $headings = array("en" => $titulo, "pt" => $titulo);
 
-    // Configura o pacote de envio. Repare no "external_id" que aponta direto para o ID do usuário no banco.
+    // Formato robusto para encontrar o ID do banco de dados
     $fields = array(
         'app_id' => $app_id,
-        'include_aliases' => array('external_id' => [(string)$usuario_alvo_id]),
-        'target_channel' => 'push',
+        'include_external_user_ids' => [(string)$usuario_alvo_id],
+        'channel_for_external_user_ids' => 'push',
         'headings' => $headings,
         'contents' => $content,
         'url' => $url_destino
@@ -39,9 +23,8 @@ function dispararPush($usuario_alvo_id, $titulo, $mensagem, $url_destino = "/pai
 
     $fields_json = json_encode($fields);
 
-    // Disparo via cURL
     $ch = curl_init();
-    curl_setopt($ch, CURLOPT_URL, "https://api.onesignal.com/notifications?c=push");
+    curl_setopt($ch, CURLOPT_URL, "https://api.onesignal.com/notifications");
     curl_setopt($ch, CURLOPT_HTTPHEADER, array(
         'Content-Type: application/json; charset=utf-8',
         'Authorization: Basic ' . $rest_api_key

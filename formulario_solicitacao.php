@@ -44,13 +44,51 @@ $nome_professor = $_SESSION['nome'];
   window.OneSignalDeferred = window.OneSignalDeferred || [];
   OneSignalDeferred.push(async function(OneSignal) {
     await OneSignal.init({
-      appId: "f3a9b7ad-ba4b-420c-8290-99f87501f1a3",
-      safari_web_id: "web.onesignal.auto.sua_chave_safari_se_houver",
+      appId: "f3a9b7ad-ba4b-420c-8290-99f87501f1a3", // Seu App ID
+      
+      // DEIXA O SININHO EM PORTUGUÊS
       notifyButton: {
         enable: true,
+        text: {
+            'tip.state.unsubscribed': 'Ativar notificações',
+            'tip.state.subscribed': 'Você está inscrito',
+            'tip.state.blocked': 'Você bloqueou as notificações',
+            'message.prenotify': 'Clique para receber notificações',
+            'message.action.subscribed': 'Obrigado por se inscrever!',
+            'message.action.resubscribed': 'Você está inscrito novamente',
+            'message.action.unsubscribed': 'Você não receberá mais avisos',
+            'dialog.main.title': 'Notificações HAE',
+            'dialog.main.button.subscribe': 'INSCREVER-SE',
+            'dialog.main.button.unsubscribe': 'CANCELAR INSCRIÇÃO',
+            'dialog.blocked.title': 'Desbloquear Notificações',
+            'dialog.blocked.message': 'Siga as instruções para permitir notificações:'
+        }
       },
+      
+      // DEIXA O AVISO DO MEIO DA TELA EM PORTUGUÊS
+      promptOptions: {
+        slidedown: {
+          prompts: [{
+            type: "push",
+            autoPrompt: true,
+            text: {
+              actionMessage: "Gostaríamos de enviar avisos importantes sobre seus projetos HAE e prazos de relatórios.",
+              acceptButton: "Permitir",
+              cancelButton: "Agora Não"
+            },
+            delay: {
+              pageViews: 1,
+              timeDelay: 2
+            }
+          }]
+        }
+      }
     });
-    OneSignal.login("<?php echo isset($_SESSION['id_usuario']) ? $_SESSION['id_usuario'] : ''; ?>");
+
+    // Registra o ID apenas se o usuário estiver logado
+    <?php if(isset($_SESSION['usuario_id'])): ?>
+        OneSignal.login("<?php echo $_SESSION['usuario_id']; ?>");
+    <?php endif; ?>
   });
 </script>
 </head>
