@@ -47,6 +47,21 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
         .info-vazio { text-align: center; padding: 50px; color: #888; display: flex; flex-direction: column; align-items: center; gap: 10px; }
         .info-vazio i { font-size: 40px; color: #ddd; }
     </style>
+<!-- INTEGRAÇÃO ONESIGNAL (PUSH NOTIFICATIONS) -->
+<script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+<script>
+  window.OneSignalDeferred = window.OneSignalDeferred || [];
+  OneSignalDeferred.push(async function(OneSignal) {
+    await OneSignal.init({
+      appId: "f3a9b7ad-ba4b-420c-8290-99f87501f1a3",
+      safari_web_id: "web.onesignal.auto.sua_chave_safari_se_houver",
+      notifyButton: {
+        enable: true,
+      },
+    });
+    OneSignal.login("<?php echo $_SESSION['usuario_id']; ?>");
+  });
+</script>
 </head>
 <body>
 

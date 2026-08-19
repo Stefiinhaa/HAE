@@ -109,6 +109,21 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
         .alert-success { background: #d1e7dd; color: #0f5132; padding: 15px; border-radius: 6px; border-left: 4px solid #198754; margin-bottom: 20px; font-size: 14px; }
         .alert-error { background: #fee2e2; color: #b91c1c; padding: 15px; border-radius: 6px; border-left: 4px solid #b91c1c; margin-bottom: 20px; font-size: 14px; }
     </style>
+<!-- INTEGRAÇÃO ONESIGNAL (PUSH NOTIFICATIONS) -->
+<script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+<script>
+  window.OneSignalDeferred = window.OneSignalDeferred || [];
+  OneSignalDeferred.push(async function(OneSignal) {
+    await OneSignal.init({
+      appId: "f3a9b7ad-ba4b-420c-8290-99f87501f1a3",
+      safari_web_id: "web.onesignal.auto.sua_chave_safari_se_houver",
+      notifyButton: {
+        enable: true,
+      },
+    });
+    OneSignal.login("<?php echo $_SESSION['usuario_id']; ?>");
+  });
+</script>
 </head>
 <body>
 

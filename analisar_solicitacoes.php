@@ -2,6 +2,7 @@
 session_start();
 require 'config/conexao.php';
 require_once 'enviar_email.php';
+require_once 'enviar_push.php';
 
 // Segurança: Apenas Coordenador ou Diretor acessam
 if (!isset($_SESSION['usuario_id']) || !in_array($_SESSION['usuario_funcao'], ['Coordenador', 'Diretor'])) {
@@ -18,9 +19,8 @@ $mensagem = "";
 // ==============================================================================
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao'])) {
     $solicitacao_id = $_POST['solicitacao_id'];
-    $return_url = isset($_POST['return_url']) ? trim($_POST['return_url']) : ''; // Captura a memória de navegação
+    $return_url = isset($_POST['return_url']) ? trim($_POST['return_url']) : '';
     
-    // Identifica qual dos 3 botões foi clicado
     $acao_post = $_POST['acao'];
     if ($acao_post == 'aprovar') {
         $novo_status_individual = 'Aprovado';
@@ -54,7 +54,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao'])) {
             $stmt->execute([$status_dir, $parecer, $data_hoje, $usuario_id, $horas_aprovadas, $solicitacao_id]);
         }
 
-        // LÓGICA DE STATUS GLOBAL ATUALIZADA
+        // LÓGICA DE STATUS GLOBAL
         $global_status = 'Pendente';
         if ($status_coord == 'Rejeitado' || $status_dir == 'Rejeitado') {
             $global_status = 'Rejeitado'; 
@@ -67,10 +67,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao'])) {
         $pdo->prepare("UPDATE solicitacoes_hae SET status_aprovacao = ? WHERE id = ?")->execute([$global_status, $solicitacao_id]);
         
         // ==============================================================================
-        // 2. NOVA LÓGICA: AVISAR O DIRETOR SE O COORDENADOR APROVOU
+        // 2. AVISAR O DIRETOR SE O COORDENADOR APROVOU (EMAIL + PUSH)
         // ==============================================================================
         if ($funcao_logada == 'Coordenador' && $novo_status_individual == 'Aprovado') {
-            $stmt_dir = $pdo->query("SELECT nome, email FROM usuarios WHERE funcao = 'Diretor'");
+            $stmt_dir = $pdo->query("SELECT id, nome, email FROM usuarios WHERE funcao = 'Diretor'");
             $diretores = $stmt_dir->fetchAll(PDO::FETCH_ASSOC);
 
             if (!empty($diretores)) {
@@ -95,41 +95,55 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao'])) {
                     ";
                     $lista_img_dir = [['path' => 'img/link_acesso.jpeg', 'cid' => 'img_link_portal']];
                     dispararEmailSistema($dir['email'], $dir['nome'], $assunto_dir, $corpo_dir, $lista_img_dir);
+                    
+                    // PUSH PARA TODOS OS DIRETORES
+                    dispararPush($dir['id'], "Projeto Aguardando Análise 📋", "A Coordenação aprovou um projeto HAE. Ele aguarda sua análise final.", "https://sistemahae.page.gd/analisar_solicitacoes.php");
                 }
             }
         }
         
         // ==============================================================================
-        // 3. LÓGICA DE DISPARO DE E-MAIL PARA O PROFESSOR ATUALIZADA
+        // 3. DISPARO DE E-MAIL E PUSH PARA O PROFESSOR
         // ==============================================================================
-        $deve_enviar_email = false;
+        $deve_notificar_prof = false;
         $cor_topo = "";
         $status_texto = "";
         $msg_corpo = "";
         $assunto = "";
+        $push_titulo = "";
+        $push_mensagem = "";
 
         if ($novo_status_individual == 'Rejeitado') {
-            $deve_enviar_email = true;
+            $deve_notificar_prof = true;
             $cor_topo = "#c0392b";
             $assunto = "Projeto HAE Rejeitado";
             $status_texto = "Rejeitado (Bloqueado)";
             $msg_corpo = "O seu projeto foi analisado e <strong>rejeitado</strong> pela $funcao_logada. Este projeto foi encerrado e está bloqueado para edições. Veja o parecer oficial abaixo.";
+            
+            $push_titulo = "Projeto HAE Rejeitado ✕";
+            $push_mensagem = "Seu projeto foi rejeitado pela $funcao_logada. Acesse para visualizar o parecer.";
         } else if ($novo_status_individual == 'Devolvido') {
-            $deve_enviar_email = true;
-            $cor_topo = "#f39c12"; // Laranja
+            $deve_notificar_prof = true;
+            $cor_topo = "#f39c12";
             $assunto = "Atenção: Correções Necessárias - Projeto HAE";
             $status_texto = "Devolvido para Ajustes";
             $msg_corpo = "O seu projeto foi analisado e <strong>devolvido</strong> pela $funcao_logada. Veja o parecer oficial abaixo e realize as correções necessárias no portal para submetê-lo novamente.";
+            
+            $push_titulo = "Projeto HAE Devolvido ⟲";
+            $push_mensagem = "O avaliador encontrou pendências e devolveu seu projeto para ajustes.";
         } else if ($global_status == 'Aprovado') {
-            $deve_enviar_email = true;
+            $deve_notificar_prof = true;
             $cor_topo = "#27ae60";
             $assunto = "Aprovação Final: Projeto HAE Liberado";
             $status_texto = "Totalmente Aprovado";
             $msg_corpo = "Parabéns! O seu projeto passou por todas as instâncias e foi <strong>oficialmente aprovado</strong>. Ele já está ativo e pronto para o envio de relatórios.";
+            
+            $push_titulo = "Projeto HAE Aprovado! 🎉";
+            $push_mensagem = "Parabéns! Seu projeto foi aprovado e está ativo no sistema.";
         }
 
-        if ($deve_enviar_email) {
-            $stmt_prof = $pdo->prepare("SELECT u.nome, u.email, s.titulo_projeto FROM solicitacoes_hae s JOIN usuarios u ON s.professor_id = u.id WHERE s.id = ?");
+        if ($deve_notificar_prof) {
+            $stmt_prof = $pdo->prepare("SELECT u.id, u.nome, u.email, s.titulo_projeto FROM solicitacoes_hae s JOIN usuarios u ON s.professor_id = u.id WHERE s.id = ?");
             $stmt_prof->execute([$solicitacao_id]);
             $prof = $stmt_prof->fetch(PDO::FETCH_ASSOC);
 
@@ -158,7 +172,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao'])) {
                                 <strong>Parecer emitido:</strong><br>
                                 \"" . nl2br(htmlspecialchars($parecer)) . "\"
                             </div>
-                            <p>Para visualizar todos os detalhes, acesse o portal colando o endereço da imagem abaixo em seu navegador:</p>
+                            <p>Para visualizar todos os detalhes, acesse o portal:</p>
                             <div style='text-align: center; margin: 20px 0;'>
                                 <img src='cid:img_link_portal' alt='Link de Acesso' style='max-width: 250px; border: 1px solid #ccc; border-radius: 4px;'>
                             </div>
@@ -168,10 +182,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao'])) {
                 ";
                 $lista_imagens = [['path' => 'img/link_acesso.jpeg', 'cid' => 'img_link_portal']];
                 dispararEmailSistema($email_prof, $nome_prof, $assunto, $corpo_email, $lista_imagens);
+                
+                // DISPARO DO PUSH PARA O PROFESSOR
+                dispararPush($prof['id'], $push_titulo, $push_mensagem, "https://sistemahae.page.gd/meus_projetos.php");
             }
         }
 
-        // Redireciona aplicando a "memória" da URL se houver filtros ativos
         header("Location: analisar_solicitacoes.php?status=sucesso" . (!empty($return_url) ? "&" . $return_url : ""));
         exit;
     } catch (PDOException $e) {
@@ -188,23 +204,15 @@ $detalhes = null;
 $link_voltar = "analisar_solicitacoes.php";
 $back_query = "";
 
-// ==============================================================================
-// CONSTRUTOR DA MEMÓRIA DE NAVEGAÇÃO
-// ==============================================================================
 if ($visualizando_id) {
-    // Pega todos os parâmetros atuais da URL, exceto o ID do projeto e msg de status
     $back_params = $_GET;
     unset($back_params['id'], $back_params['status']);
     
-    // Se existir algum filtro ou página guardada, constrói a string
     if (!empty($back_params)) {
         $back_query = http_build_query($back_params);
         $link_voltar .= "?" . $back_query;
     }
 
-    // ==============================================================================
-    // TELA 2: VISÃO DETALHADA E PARECER (SPLIT VIEW)
-    // ==============================================================================
     $sql = "SELECT s.*, u.nome AS professor_nome, coord.nome AS nome_coordenador_alvo 
             FROM solicitacoes_hae s 
             JOIN usuarios u ON s.professor_id = u.id 
@@ -215,11 +223,6 @@ if ($visualizando_id) {
     $detalhes = $stmt->fetch(PDO::FETCH_ASSOC);
 
 } else {
-    // ==============================================================================
-    // TELA 1: GRID INTELIGENTE (ACORDEÃO) COM FILTROS E PAGINAÇÃO
-    // ==============================================================================
-    
-    // DEFINIÇÃO DO SEMESTRE ATUAL COMO PADRÃO
     $mes_atual_calc = (int)date('m');
     $ano_atual_calc = (int)date('Y');
     $semestre_padrao = ($mes_atual_calc <= 6) ? "1/$ano_atual_calc" : "2/$ano_atual_calc";
@@ -243,7 +246,6 @@ if ($visualizando_id) {
         $params[] = $filtro_semestre;
     }
 
-    // ================== LÓGICA DE FILTROS ==================
     if ($filtro_status == 'Aguardando') {
         if ($funcao_logada == 'Coordenador') {
             $where[] = "s.status_coordenador = 'Pendente' AND s.status_aprovacao NOT IN ('Rejeitado', 'Devolvido')";
@@ -334,6 +336,23 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
     <title>Analisar Solicitações - Fatec</title>
     <link rel="stylesheet" href="assets/css/painel.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- INTEGRAÇÃO ONESIGNAL (PUSH NOTIFICATIONS) -->
+    <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+    <script>
+      window.OneSignalDeferred = window.OneSignalDeferred || [];
+      OneSignalDeferred.push(async function(OneSignal) {
+        await OneSignal.init({
+          appId: "f3a9b7ad-ba4b-420c-8290-99f87501f1a3",
+          safari_web_id: "web.onesignal.auto.sua_chave_safari_se_houver",
+          notifyButton: {
+            enable: true,
+          },
+        });
+        OneSignal.login("<?php echo $_SESSION['usuario_id']; ?>");
+      });
+    </script>
+
     <style>
         .filter-bar { background: #fff; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.02); margin-bottom: 20px; display: flex; gap: 15px; align-items: flex-end; flex-wrap: wrap; border-left: 4px solid #3498db; }
         .filter-group { display: flex; flex-direction: column; flex: 1; min-width: 150px; }
@@ -375,7 +394,6 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
         .btn-action:hover { background: var(--fatec-red); }
         .btn-voltar { display: inline-flex; align-items: center; gap: 8px; margin-bottom: 20px; color: #666; text-decoration: none; font-weight: bold; font-size: 14px; }
         
-        /* BOTÕES DE FEEDBACK (DIREÇÃO E COORDENAÇÃO) */
         .btn-motivo { background: #e74c3c; color: #fff; border: none; cursor: pointer; }
         .btn-motivo:hover { background: #c0392b; }
         .btn-motivo-devolvido { background: #f39c12; color: #fff; border: none; cursor: pointer;}
@@ -405,7 +423,6 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
         .historico-box { background: #f8f9fa; border-left: 3px solid #3498db; padding: 15px; border-radius: 4px; margin-bottom: 20px; font-size: 13px; color: #444; }
         .btn-ver-pdf-mobile { display: none; background: #3498db; color: white; padding: 15px; text-align: center; border-radius: 6px; text-decoration: none; font-weight: bold; margin-bottom: 20px; }
         
-        /* ESTILOS DO MODAL (POPUP) - Reaproveitado do painel de projetos */
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 2000; align-items: center; justify-content: center; backdrop-filter: blur(3px); }
         .modal-box { background: #fff; padding: 25px; border-radius: 10px; width: 90%; max-width: 500px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); border-top: 4px solid #3498db; position: relative; animation: slideDown 0.3s ease-out; }
         @keyframes slideDown { from { transform: translateY(-30px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
@@ -494,9 +511,7 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
                     <h3 style="margin-bottom: 20px; color: var(--fatec-red); font-size: 18px;">Emitir Parecer (<?php echo $funcao_logada; ?>)</h3>
                     <a href="documento_hae.php?id=<?php echo $visualizando_id; ?>" target="_blank" class="btn-ver-pdf-mobile">📄 Abrir Documento em Tela Cheia</a>
                     
-                    <?php 
-                        if (!empty($detalhes['nome_coordenador_alvo'])): 
-                    ?>
+                    <?php if (!empty($detalhes['nome_coordenador_alvo'])): ?>
                         <div style="background: #f8f9fa; border: 1px solid #e9ecef; padding: 12px 15px; border-radius: 6px; margin-bottom: 20px; font-size: 13px; color: #495057; display: flex; align-items: center; gap: 12px; border-left: 4px solid #3498db;">
                             <i class="fa-solid fa-bullseye" style="color: #3498db; font-size: 18px;"></i>
                             <div>
@@ -515,30 +530,22 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
                         }
                     ?>
 
-                    <?php 
-                    if ($detalhes['status_aprovacao'] == 'Rejeitado'): 
-                    ?>
+                    <?php if ($detalhes['status_aprovacao'] == 'Rejeitado'): ?>
                         <div class="historico-box" style="border-left-color: #e74c3c; background: #fff9f9;">
                             <strong style="color: #c0392b;"><i class="fa-solid fa-ban"></i> Projeto Rejeitado (Fechado)</strong><br>
                             Este projeto já foi avaliado e reprovado definitivamente. Ele foi encerrado e não pode mais ser editado pelo professor.
                         </div>
-                    <?php 
-                    elseif ($detalhes['status_aprovacao'] == 'Devolvido'): 
-                    ?>
+                    <?php elseif ($detalhes['status_aprovacao'] == 'Devolvido'): ?>
                         <div class="historico-box" style="border-left-color: #f39c12; background: #fffdf5;">
                             <strong style="color: #d68910;"><i class="fa-solid fa-rotate-left"></i> Projeto Devolvido</strong><br>
                             Este projeto foi devolvido ao professor para ajustes. Ele poderá editá-lo e submetê-lo novamente para análise.
                         </div>
-                    <?php 
-                    elseif ($detalhes['status_aprovacao'] == 'Aprovado'): 
-                    ?>
+                    <?php elseif ($detalhes['status_aprovacao'] == 'Aprovado'): ?>
                         <div class="historico-box" style="border-left-color: #2ecc71; background: #f4fbf7;">
                             <strong style="color: #27ae60;"><i class="fa-solid fa-check-double"></i> Projeto Aprovado</strong><br>
                             Este projeto já foi totalmente aprovado por ambas as instâncias (Direção e Coordenação).
                         </div>
-                    <?php 
-                    elseif (($funcao_logada == 'Coordenador' && $detalhes['status_coordenador'] != 'Pendente') || ($funcao_logada == 'Diretor' && $detalhes['status_diretor'] != 'Pendente')): 
-                    ?>
+                    <?php elseif (($funcao_logada == 'Coordenador' && $detalhes['status_coordenador'] != 'Pendente') || ($funcao_logada == 'Diretor' && $detalhes['status_diretor'] != 'Pendente')): ?>
                         <div class="historico-box" style="border-left-color: #2ecc71; background: #f4fbf7;">
                             <strong style="color: #27ae60;"><i class="fa-solid fa-check"></i> Parecer Concluído</strong><br>
                             Você já emitiu e salvou o seu parecer favorável para este projeto. Agora estamos aguardando apenas a avaliação da outra instância.
@@ -729,7 +736,6 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
                                                                 $texto_status = 'Pendente (Ambos)';
                                                             }
 
-                                                            // CAPTURA DO MOTIVO PARA O MODAL
                                                             $motivo_recusa = "";
                                                             if (in_array($proj['status_aprovacao'], ['Rejeitado', 'Devolvido'])) {
                                                                 if (in_array($proj['status_diretor'], ['Rejeitado', 'Devolvido'])) {
@@ -739,7 +745,6 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
                                                                 }
                                                             }
                                                             
-                                                            // MEMÓRIA DE NAVEGAÇÃO PRO BOTÃO AVALIAR
                                                             $current_params = $_GET;
                                                             unset($current_params['status']);
                                                             $url_filters = http_build_query($current_params);
@@ -758,7 +763,6 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
                                                                         <span class="badge" style="background: #f1f3f5; color: #6c757d; border: 1px solid #dee2e6; margin-top: 4px; font-size: 10px;"><i class="fa-solid fa-user-tag"></i> Direcionado p/ <?php echo htmlspecialchars($proj['nome_coordenador_alvo']); ?></span>
                                                                     <?php endif; ?>
                                                                 <?php endif; ?>
-                                                                
                                                             </td>
                                                             <td><?php echo htmlspecialchars($proj['semestre']); ?></td>
                                                             <td><span class="badge <?php echo $badge_class; ?>"><?php echo $texto_status; ?></span></td>
@@ -767,7 +771,6 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
                                                                     <i class="fa-solid fa-folder-open"></i> Avaliar
                                                                 </a>
                                                                 
-                                                                <!-- BOTÃO DE FEEDBACK -->
                                                                 <?php if (in_array($proj['status_aprovacao'], ['Rejeitado', 'Devolvido'])): ?>
                                                                     <?php 
                                                                         $btn_color = $proj['status_aprovacao'] == 'Devolvido' ? 'btn-motivo-devolvido' : 'btn-motivo';
@@ -816,7 +819,6 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
 
     </main>
 
-    <!-- MODAL PARA EXIBIR O FEEDBACK -->
     <div class="modal-overlay" id="modalMotivo" onclick="fecharModalMotivo(event)">
         <div class="modal-box" onclick="event.stopPropagation();">
             <div class="modal-header">
@@ -844,7 +846,6 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
             }
         }
 
-        // FUNÇÕES DO MODAL DE FEEDBACK
         function abrirModalMotivo(btn, event) {
             event.stopPropagation(); 
             let texto = btn.getAttribute('data-motivo');

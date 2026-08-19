@@ -2,6 +2,7 @@
 session_start();
 require 'config/conexao.php';
 require_once 'enviar_email.php'; // Central de e-mails
+require_once 'enviar_push.php';  // ADICIONADO: Central de Notificações Push
 
 if (!isset($_SESSION['usuario_id']) || $_SESSION['usuario_funcao'] !== 'Professor') {
     header("Location: painel.php");
@@ -180,11 +181,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     ]);
                     
                     // =========================================================
-                    // DISPARO DE E-MAIL APÓS CORREÇÃO
+                    // DISPARO DE E-MAIL E PUSH APÓS CORREÇÃO
                     // =========================================================
                     if ($novo_status_coord == 'Aprovado') {
                         // O projeto pulou o coordenador e foi direto pro Diretor!
-                        $stmt_dir = $pdo->query("SELECT nome, email FROM usuarios WHERE funcao = 'Diretor'");
+                        // Adicionado a busca pelo ID para o Push
+                        $stmt_dir = $pdo->query("SELECT id, nome, email FROM usuarios WHERE funcao = 'Diretor'");
                         $diretores = $stmt_dir->fetchAll(PDO::FETCH_ASSOC);
 
                         if (!empty($diretores)) {
@@ -219,6 +221,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                 ";
                                 $lista_img = [['path' => 'img/link_acesso.jpeg', 'cid' => 'img_link_portal']];
                                 dispararEmailSistema($dir['email'], $dir['nome'], $assunto_dir, $corpo_email_dir, $lista_img);
+                                
+                                // NOVO: Push para o Diretor após Correção
+                                $titulo_push_dir = "Projeto HAE Corrigido 📋";
+                                $msg_push_dir = "O(A) prof(a) $nome_prof reenviou o projeto HAE para sua análise final.";
+                                dispararPush($dir['id'], $titulo_push_dir, $msg_push_dir, "https://sistemahae.page.gd/analisar_solicitacoes.php");
                             }
                         }
                     } else {
@@ -259,6 +266,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                 ";
                                 $lista_imagens_coord = [['path' => 'img/link_acesso.jpeg', 'cid' => 'img_link_portal']];
                                 dispararEmailSistema($email_coord, $nome_coord, $assunto_coord, $corpo_email_coord, $lista_imagens_coord);
+                                
+                                // NOVO: Push para o Coordenador após Correção
+                                $titulo_push = "Projeto HAE Corrigido 📋";
+                                $msg_push = "O(A) prof(a) $nome_prof reenviou um projeto direcionado para a sua avaliação.";
+                                dispararPush($coordenador_alvo_id, $titulo_push, $msg_push, "https://sistemahae.page.gd/analisar_solicitacoes.php");
                             }
                         }
                     }
@@ -321,6 +333,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                             ";
                             $lista_imagens_coord = [['path' => 'img/link_acesso.jpeg', 'cid' => 'img_link_portal']];
                             dispararEmailSistema($email_coord, $nome_coord, $assunto_coord, $corpo_email_coord, $lista_imagens_coord);
+                            
+                            // NOVO: Push para o Coordenador após novo envio
+                            $titulo_push = "Novo Projeto HAE 📋";
+                            $msg_push = "O(A) prof(a) $nome_prof enviou um projeto direcionado para a sua avaliação.";
+                            dispararPush($coordenador_alvo_id, $titulo_push, $msg_push, "https://sistemahae.page.gd/analisar_solicitacoes.php");
                         }
                     }
                 }
@@ -345,6 +362,23 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     <title><?php echo $modo_edicao ? 'Editar Solicitação' : 'Nova Solicitação'; ?> - HAE Fatec</title>
     <link rel="stylesheet" href="assets/css/painel.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- INTEGRAÇÃO ONESIGNAL (PUSH NOTIFICATIONS) -->
+    <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+    <script>
+      window.OneSignalDeferred = window.OneSignalDeferred || [];
+      OneSignalDeferred.push(async function(OneSignal) {
+        await OneSignal.init({
+          appId: "f3a9b7ad-ba4b-420c-8290-99f87501f1a3",
+          safari_web_id: "web.onesignal.auto.sua_chave_safari_se_houver",
+          notifyButton: {
+            enable: true,
+          },
+        });
+        OneSignal.login("<?php echo $_SESSION['usuario_id']; ?>");
+      });
+    </script>
+    
     <style>
         .form-card { background: #fff; padding: 30px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.03); border-top: 4px solid var(--fatec-red); }
         .form-section { margin-bottom: 30px; border-bottom: 1px solid #eee; padding-bottom: 20px; }

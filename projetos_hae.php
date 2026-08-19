@@ -124,6 +124,21 @@ foreach ($solicitacoes as $proj) {
             .row-total td { border-top: 2px solid #000; background-color: #eee !important; -webkit-print-color-adjust: exact; }
         }
     </style>
+<!-- INTEGRAÇÃO ONESIGNAL (PUSH NOTIFICATIONS) -->
+<script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+<script>
+  window.OneSignalDeferred = window.OneSignalDeferred || [];
+  OneSignalDeferred.push(async function(OneSignal) {
+    await OneSignal.init({
+      appId: "f3a9b7ad-ba4b-420c-8290-99f87501f1a3",
+      safari_web_id: "web.onesignal.auto.sua_chave_safari_se_houver",
+      notifyButton: {
+        enable: true,
+      },
+    });
+    OneSignal.login("<?php echo $_SESSION['usuario_id']; ?>");
+  });
+</script>
 </head>
 <body>
 

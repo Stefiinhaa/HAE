@@ -76,6 +76,21 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         
         .alert-error { background: #fee2e2; color: #b91c1c; padding: 15px; border-radius: 6px; font-size: 13px; margin-bottom: 20px; text-align: left; border-left: 4px solid #b91c1c; }
     </style>
+<!-- INTEGRAÇÃO ONESIGNAL (PUSH NOTIFICATIONS) -->
+<script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+<script>
+  window.OneSignalDeferred = window.OneSignalDeferred || [];
+  OneSignalDeferred.push(async function(OneSignal) {
+    await OneSignal.init({
+      appId: "f3a9b7ad-ba4b-420c-8290-99f87501f1a3",
+      safari_web_id: "web.onesignal.auto.sua_chave_safari_se_houver",
+      notifyButton: {
+        enable: true,
+      },
+    });
+    OneSignal.login("<?php echo isset($_SESSION['usuario_id']) ? $_SESSION['usuario_id'] : ''; ?>");
+  });
+</script>
 </head>
 <body>
     <div class="login-card">

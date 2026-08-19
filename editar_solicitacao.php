@@ -126,6 +126,21 @@ $pagina_atual = 'meus_projetos.php'; // Mantém o menu "Meus Projetos" ativo
         .aviso-revisao { background: #fff3cd; color: #856404; padding: 15px; border-radius: 6px; border-left: 4px solid #ffeeba; margin-bottom: 20px; font-size: 14px; }
         .btn-voltar { display: inline-flex; align-items: center; gap: 8px; margin-bottom: 20px; color: #666; text-decoration: none; font-weight: bold; font-size: 14px; }
     </style>
+<!-- INTEGRAÇÃO ONESIGNAL (PUSH NOTIFICATIONS) -->
+<script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+<script>
+  window.OneSignalDeferred = window.OneSignalDeferred || [];
+  OneSignalDeferred.push(async function(OneSignal) {
+    await OneSignal.init({
+      appId: "f3a9b7ad-ba4b-420c-8290-99f87501f1a3",
+      safari_web_id: "web.onesignal.auto.sua_chave_safari_se_houver",
+      notifyButton: {
+        enable: true,
+      },
+    });
+    OneSignal.login("<?php echo $_SESSION['usuario_id']; ?>");
+  });
+</script>
 </head>
 <body>
 

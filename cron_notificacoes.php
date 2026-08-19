@@ -16,6 +16,7 @@ date_default_timezone_set('America/Sao_Paulo');
 
 require __DIR__ . '/config/conexao.php';
 require_once __DIR__ . '/enviar_email.php';
+require_once __DIR__ . '/enviar_push.php'; // ADICIONADO: Motor de notificações Push
 
 $dia_hoje = (int)date('d');
 
@@ -36,8 +37,9 @@ $meses_ptbr = [
 $nome_mes_passado = $meses_ptbr[$mes_passado];
 
 try {
+    // ADICIONADO: 's.professor_id' na query para sabermos para quem enviar o Push
     $sql_pendentes = "
-        SELECT s.id as projeto_id, s.titulo_projeto, u.nome as professor_nome, u.email as professor_email
+        SELECT s.id as projeto_id, s.professor_id, s.titulo_projeto, u.nome as professor_nome, u.email as professor_email
         FROM solicitacoes_hae s
         JOIN usuarios u ON s.professor_id = u.id
         WHERE s.status_aprovacao = 'Aprovado'
@@ -93,6 +95,16 @@ try {
             
             $lista_imagens = [['path' => __DIR__ . '/img/link_acesso.jpeg', 'cid' => 'img_link_portal']];
             dispararEmailSistema($email, $nome, $assunto, $corpo_email, $lista_imagens);
+            
+            // =========================================================================
+            // NOVO: DISPARO DA NOTIFICAÇÃO PUSH DIRETO PRO CELULAR/NAVEGADOR DO PROFESSOR
+            // =========================================================================
+            $titulo_push = "Relatório Atrasado ⚠️";
+            $msg_push = "O relatório de $nome_mes_passado do projeto HAE está pendente. Envie até o dia 10!";
+            $link_destino = "https://sistemahae.page.gd/enviar_relatorio.php";
+            
+            dispararPush($proj['professor_id'], $titulo_push, $msg_push, $link_destino);
+            // =========================================================================
         }
         
         echo "Cobrancas enviadas para os professores com sucesso.";
