@@ -1,0 +1,3 @@
+# Ignorar arquivos com senhas e chaves
+config/api_keys.php
+config/conexao.php

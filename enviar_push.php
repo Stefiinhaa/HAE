@@ -7,13 +7,14 @@
  * @param string $mensagem O texto do push
  * @param string $url_destino Para qual página o usuário vai se clicar na notificação
  */
+require_once __DIR__ . '/config/api_keys.php'; 
 function dispararPush($usuario_alvo_id, $titulo, $mensagem, $url_destino = "/painel.php") {
     
     // =========================================================================
     // COLE SUAS CHAVES DO ONESIGNAL AQUI
     // =========================================================================
-    $app_id = "f3a9b7ad-ba4b-420c-8290-99f87501f1a3";
-    $rest_api_key = "CHAVE_REMOVIDA_POR_SEGURANCA";
+    $app_id = ONESIGNAL_APP_ID;
+    $rest_api_key = ONESIGNAL_REST_KEY;
     // =========================================================================
 
     $content = array(
