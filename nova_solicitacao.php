@@ -12,6 +12,12 @@ if (!isset($_SESSION['usuario_id']) || $_SESSION['usuario_funcao'] !== 'Professo
 $erro = "";
 $sucesso = "";
 
+$alerta_notificacao = "";
+if (isset($_SESSION['log_notificacao'])) {
+    $alerta_notificacao = $_SESSION['log_notificacao'];
+    unset($_SESSION['log_notificacao']);
+}
+
 $stmt_assinatura = $pdo->prepare("SELECT assinatura_path FROM usuarios WHERE id = ?");
 $stmt_assinatura->execute([$_SESSION['usuario_id']]);
 $dados_usuario = $stmt_assinatura->fetch(PDO::FETCH_ASSOC);
@@ -84,7 +90,18 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $professor_id = $_SESSION['usuario_id'];
         $edit_id_post = !empty($_POST['edit_id_post']) ? (int)$_POST['edit_id_post'] : 0;
         
-        $semestre = $_POST['semestre'];
+        // =======================================================
+        // HIGIENE DE DADOS: Forçando o padrão do Semestre (Tirando zero extra)
+        // =======================================================
+        $semestre_bruto = trim($_POST['semestre']);
+        $partes_semestre = explode('/', $semestre_bruto);
+        if (count($partes_semestre) == 2) {
+            // Se ele enviou "02 / 2026", transforma o "02" em inteiro "2" e limpa espaços
+            $semestre = (int)$partes_semestre[0] . '/' . trim($partes_semestre[1]);
+        } else {
+            $semestre = $semestre_bruto; 
+        }
+        
         $quantidade_horas = $_POST['quantidade_horas'];
         
         $titulo_post = trim($_POST['titulo_projeto']);
@@ -117,6 +134,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $erro = "O total mensal não pode ultrapassar 200 horas.";
         } else {
             try {
+                $log_disparos = []; 
+
                 if ($edit_id_post > 0) {
                     
                     $stmt_ver = $pdo->prepare("SELECT titulo_projeto, status_coordenador FROM solicitacoes_hae WHERE id = ?");
@@ -183,13 +202,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                     </div>
                                 ";
                                 
-                                try {
-                                    dispararEmailSistema($dir['email'], $dir['nome'], $assunto_dir, $corpo_email_dir);
-                                } catch (Exception $e) { error_log("Erro Email Diretor Correcao: " . $e->getMessage()); }
-
-                                try {
-                                    dispararPush($dir['id'], "Projeto HAE Corrigido 📋", "O(A) prof(a) $nome_prof reenviou o projeto HAE para sua análise final.", "https://sistemahae.page.gd/analisar_solicitacoes.php");
-                                } catch (Exception $e) { error_log("Erro Push Diretor Correcao: " . $e->getMessage()); }
+                                try { dispararEmailSistema($dir['email'], $dir['nome'], $assunto_dir, $corpo_email_dir); } catch (Exception $e) {}
+                                try { dispararPush($dir['id'], "Projeto HAE Corrigido 📋", "O(A) prof(a) $nome_prof reenviou o projeto HAE para sua análise final.", "https://sistemahae.page.gd/analisar_solicitacoes.php"); } catch (Exception $e) {}
                             }
                         }
                     } else {
@@ -210,7 +224,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         foreach ($coords_para_notificar as $coord) {
                             $nome_coord = $coord['nome'];
                             $email_coord = $coord['email'];
-
                             $assunto_coord = "Projeto Corrigido: Avaliação HAE";
                             
                             $corpo_email_coord = "
@@ -223,13 +236,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                 </div>
                             ";
                             
-                            try {
-                                dispararEmailSistema($email_coord, $nome_coord, $assunto_coord, $corpo_email_coord);
-                            } catch (Exception $e) { error_log("Erro Email Coord Correcao: " . $e->getMessage()); }
-
-                            try {
-                                dispararPush($coord['id'], "Projeto HAE Corrigido 📋", $msg_push, "https://sistemahae.page.gd/analisar_solicitacoes.php");
-                            } catch (Exception $e) { error_log("Erro Push Coord Correcao: " . $e->getMessage()); }
+                            try { dispararEmailSistema($email_coord, $nome_coord, $assunto_coord, $corpo_email_coord); } catch (Exception $e) {}
+                            try { dispararPush($coord['id'], "Projeto HAE Corrigido 📋", $msg_push, "https://sistemahae.page.gd/analisar_solicitacoes.php"); } catch (Exception $e) {}
                         }
                     }
 
@@ -271,7 +279,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     foreach ($coords_para_notificar as $coord) {
                         $nome_coord = $coord['nome'];
                         $email_coord = $coord['email'];
-
                         $assunto_coord = "Novo Projeto de HAE Aguardando Análise";
                         
                         $corpo_email_coord = "
@@ -284,13 +291,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                             </div>
                         ";
                         
-                        try {
-                            dispararEmailSistema($email_coord, $nome_coord, $assunto_coord, $corpo_email_coord);
-                        } catch (Exception $e) { error_log("Erro Email Coord Novo: " . $e->getMessage()); }
-
-                        try {
-                            dispararPush($coord['id'], "Novo Projeto HAE 📋", $msg_push, "https://sistemahae.page.gd/analisar_solicitacoes.php");
-                        } catch (Exception $e) { error_log("Erro Push Coord Novo: " . $e->getMessage()); }
+                        try { dispararEmailSistema($email_coord, $nome_coord, $assunto_coord, $corpo_email_coord); } catch (Exception $e) {}
+                        try { dispararPush($coord['id'], "Novo Projeto HAE 📋", $msg_push, "https://sistemahae.page.gd/analisar_solicitacoes.php"); } catch (Exception $e) {}
                     }
 
                     header("Location: meus_projetos.php?status=sucesso");
@@ -570,16 +572,16 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         <div class="grid-2">
                             <div class="full-width"><label>Detalhamento dos Recursos</label><textarea name="detalhamento_recursos"><?php echo htmlspecialchars($c_detalhamento); ?></textarea></div>
                             
-                            <!-- CORREÇÃO DE UX: Campo de Cronograma de Execução -->
+                            <!-- Cronograma Formatado -->
                             <div class="full-width">
-                                <label>Cronograma de Execução</label>
+                                <label>Cronograma de Execução <span style="color: var(--fatec-red); font-size: 11px; font-weight: normal;">(Atenção: Não utilize formato de tabela)</span></label>
                                 <div style="background: #fffdf5; border-left: 3px solid #f39c12; padding: 10px; margin-bottom: 8px; font-size: 12px; color: #555; border-radius: 4px;">
-                                    O cronograma deve ser preenchido em formato textual, contemplando todos os meses do período. <strong>Siga o padrão de exemplo:</strong><br>
+                                    O cronograma deve ser preenchido em formato textual, contemplando todos os meses do período. <strong>Siga o padrão:</strong><br>
                                     <em>Agosto: descrição das atividades que serão realizadas no mês.<br>
                                     Setembro: descrição das atividades que serão realizadas no mês.<br>
                                     E assim por diante...</em>
                                 </div>
-                                <textarea name="cronograma" required placeholder="mês A: descrição das atividades...&#10;mês B: descrição das atividades..." style="min-height: 120px;"><?php echo htmlspecialchars($c_cronograma); ?></textarea>
+                                <textarea name="cronograma" required placeholder="Agosto: descrição das atividades...&#10;Setembro: descrição das atividades..." style="min-height: 120px;"><?php echo htmlspecialchars($c_cronograma); ?></textarea>
                             </div>
                             
                             <div class="full-width"><label>Resultados Esperados</label><textarea name="resultados_esperados" required><?php echo htmlspecialchars($c_resultados); ?></textarea></div>
@@ -617,6 +619,17 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
     <script src="assets/js/painel.js"></script>
     <script>
+        // Limpa zeros a esquerda visualmente
+        const inputSemestre = document.querySelector('input[name="semestre"]');
+        if (inputSemestre) {
+            inputSemestre.addEventListener('blur', function(e) {
+                let val = e.target.value.trim();
+                if (val.startsWith('0')) {
+                    e.target.value = val.replace(/^0+/, '');
+                }
+            });
+        }
+
         function toggleProjetoAnterior() {
             const select = document.getElementById('projeto_anterior');
             const divAnterior = document.getElementById('div_nome_anterior');

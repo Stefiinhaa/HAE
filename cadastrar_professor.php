@@ -12,7 +12,7 @@ if (!isset($_SESSION['usuario_id']) || !in_array($_SESSION['usuario_funcao'], ['
 $sucesso = "";
 $erro = "";
 $link_wa = "";
-$resultados_importacao = []; // Array para guardar os resultados do CSV
+$resultados_importacao = []; // Array para guardar os resultados do Excel/CSV
 
 $pagina_atual = basename($_SERVER['PHP_SELF']);
 
@@ -70,8 +70,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao']) && $_POST['aca
             ";
             
             $lista_imagens = [
-                ['path' => 'img/link_acesso.jpeg', 'cid' => 'img_link_portal'],
-                ['path' => 'img/texto_senha.jpeg', 'cid' => 'img_texto_senha']
+                ['path' => __DIR__ . '/img/link_acesso.jpeg', 'cid' => 'img_link_portal'],
+                ['path' => __DIR__ . '/img/texto_senha.jpeg', 'cid' => 'img_texto_senha']
             ];
             
             $email_enviado = dispararEmailSistema($email, $nome, $assunto, $corpo_email, $lista_imagens);
@@ -94,36 +94,31 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao']) && $_POST['aca
 }
 
 // =========================================================================
-// 2. PROCESSAMENTO DE IMPORTAÇÃO EM LOTE (CSV)
+// 2. PROCESSAMENTO DE IMPORTAÇÃO EM LOTE (PLANILHA INTELIGENTE)
 // =========================================================================
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao']) && $_POST['acao'] == 'importar') {
-    if (isset($_FILES['arquivo_csv']) && $_FILES['arquivo_csv']['error'] == UPLOAD_ERR_OK) {
+    
+    // Recebe o JSON gerado pelo SheetJS no navegador
+    if (!empty($_POST['json_data'])) {
+        $dados_planilha = json_decode($_POST['json_data'], true);
         
-        $extensao = strtolower(pathinfo($_FILES['arquivo_csv']['name'], PATHINFO_EXTENSION));
-        if ($extensao != 'csv') {
-            $erro = "Formato de arquivo inválido. Por favor, envie um arquivo .CSV válido.";
-        } else {
-            $handle = fopen($_FILES['arquivo_csv']['tmp_name'], "r");
+        if (is_array($dados_planilha) && count($dados_planilha) > 1) {
             $linha_atual = 0;
             
-            while (($data = fgetcsv($handle, 1000, ";")) !== FALSE) {
+            foreach ($dados_planilha as $data) {
                 $linha_atual++;
+                if ($linha_atual == 1) continue; // Pula o cabeçalho (Linha 1)
                 
-                // Pula o cabeçalho (Linha 1)
-                if ($linha_atual == 1) continue;
+                // Evita erros caso alguma coluna esteja vazia
+                $nome = trim($data[0] ?? '');
+                $email = trim($data[1] ?? '');
+                $whatsapp = trim($data[2] ?? '');
+                $data_nascimento_bruta = trim($data[3] ?? '');
+                $funcao = trim($data[4] ?? '');
                 
-                // Valida se a linha tem pelo menos as 5 colunas básicas
-                if (count($data) < 5) continue;
+                if (empty($nome) || empty($email)) continue;
                 
-                $nome = trim($data[0]);
-                $email = trim($data[1]);
-                $whatsapp = trim($data[2]);
-                $data_nascimento_bruta = trim($data[3]);
-                $funcao = trim($data[4]);
-                
-                if(empty($nome) || empty($email)) continue;
-                
-                // Formatação segura da data (Se vier DD/MM/AAAA converte para AAAA-MM-DD)
+                // Formatação segura da data
                 if (strpos($data_nascimento_bruta, '/') !== false) {
                     $partes_data = explode('/', $data_nascimento_bruta);
                     if (count($partes_data) == 3) {
@@ -185,8 +180,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao']) && $_POST['aca
                         ";
                         
                         $lista_imagens = [
-                            ['path' => 'img/link_acesso.jpeg', 'cid' => 'img_link_portal'],
-                            ['path' => 'img/texto_senha.jpeg', 'cid' => 'img_texto_senha']
+                            ['path' => __DIR__ . '/img/link_acesso.jpeg', 'cid' => 'img_link_portal'],
+                            ['path' => __DIR__ . '/img/texto_senha.jpeg', 'cid' => 'img_texto_senha']
                         ];
                         
                         $email_enviado = dispararEmailSistema($email, $nome, $assunto, $corpo_email, $lista_imagens);
@@ -217,10 +212,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao']) && $_POST['aca
                     'link_wa' => $whatsapp_link_linha
                 ];
             }
-            fclose($handle);
+        } else {
+            $erro = "O arquivo enviado parece estar vazio ou com o formato corrompido.";
         }
     } else {
-        $erro = "Nenhum arquivo enviado ou ocorreu um erro no upload.";
+        $erro = "Nenhum dado recebido da planilha.";
     }
 }
 ?>
@@ -232,9 +228,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao']) && $_POST['aca
     <title>Cadastrar Usuários - Fatec</title>
     <link rel="stylesheet" href="assets/css/painel.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- BIBLIOTECA SHEETJS (Lê Excel direto no navegador) -->
+    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+
     <style>
-        .tabs-container { margin-bottom: 20px; display: flex; gap: 10px; }
-        .tab-btn { padding: 12px 25px; border: none; background: #e9ecef; color: #555; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.3s; font-size: 14px; }
+        .tabs-container { margin-bottom: 20px; display: flex; gap: 10px; flex-wrap: wrap; }
+        .tab-btn { flex: 1; padding: 12px 25px; border: none; background: #e9ecef; color: #555; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.3s; font-size: 14px; text-align: center; }
         .tab-btn:hover { background: #dde2e6; }
         .tab-btn.active { background: var(--fatec-red); color: #fff; box-shadow: 0 4px 10px rgba(178,0,0,0.2); }
 
@@ -252,31 +252,40 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao']) && $_POST['aca
 
         .btn-submit { width: 100%; background: var(--fatec-red); color: white; padding: 15px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 15px; transition: 0.3s; }
         .btn-submit:hover { background: #8a0000; }
+        .btn-submit:disabled { background: #95a5a6; cursor: not-allowed; }
 
-        .btn-whatsapp { display: block; text-align: center; background: #25D366; color: white; padding: 10px 15px; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 12px; transition: 0.3s; }
+        .btn-whatsapp { display: inline-block; text-align: center; background: #25D366; color: white; padding: 10px 15px; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 12px; transition: 0.3s; width: 100%; box-sizing: border-box;}
         .btn-whatsapp:hover { background: #128C7E; }
 
         #idade_display { font-size: 12px; color: #27ae60; font-weight: bold; margin-top: 5px; display: none; }
         
-        /* ESTILOS DA ÁREA DE IMPORTAÇÃO */
+        /* ESTILOS DA ÁREA DE IMPORTAÇÃO E TABELAS RESPONSIVAS */
         .info-box { background: #f8f9fa; border-left: 4px solid #3498db; padding: 20px; border-radius: 6px; margin-bottom: 25px; }
         .info-box h4 { margin-top: 0; color: #2c3e50; font-size: 16px; margin-bottom: 10px; }
         .info-box p { font-size: 13px; color: #555; margin-bottom: 10px; line-height: 1.5; }
-        .tabela-exemplo { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 12px; background: #fff; }
-        .tabela-exemplo th, .tabela-exemplo td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-        .tabela-exemplo th { background: #f1f3f5; color: #333; font-weight: bold; }
+        
+        /* O segredo para tabelas não quebrarem no celular */
+        .table-responsive { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; margin-top: 15px; border-radius: 6px; border: 1px solid #eee; }
+        
+        .tabela-exemplo, .tabela-resultados { width: 100%; border-collapse: collapse; font-size: 12px; background: #fff; min-width: 600px; }
+        .tabela-exemplo th, .tabela-exemplo td, .tabela-resultados th, .tabela-resultados td { border: 1px solid #ddd; padding: 10px; text-align: left; vertical-align: middle;}
+        .tabela-exemplo th, .tabela-resultados th { background: #f1f3f5; color: #333; font-weight: bold; }
         
         .upload-area { border: 2px dashed #ccc; padding: 40px 20px; text-align: center; border-radius: 8px; background: #fafbfc; transition: 0.3s; cursor: pointer; margin-bottom: 20px; }
         .upload-area:hover { border-color: var(--fatec-red); background: #fff9f9; }
         .upload-area i { font-size: 40px; color: #bbb; margin-bottom: 15px; }
         .upload-area p { margin: 0; color: #666; font-size: 14px; font-weight: bold; }
         .upload-area span { font-size: 12px; color: #999; }
-        #arquivo_csv { display: none; }
+        #arquivo_excel { display: none; }
         
-        /* ESTILOS DOS RESULTADOS DA IMPORTAÇÃO */
-        .tabela-resultados { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 13px; }
-        .tabela-resultados th, .tabela-resultados td { border: 1px solid #eee; padding: 12px; text-align: left; vertical-align: middle; }
-        .tabela-resultados th { background: #f8f9fa; font-weight: bold; color: #444; }
+        /* MEDIA QUERIES PARA CELULAR */
+        @media (max-width: 768px) {
+            .form-card { padding: 20px 15px; }
+            .grid-2 { grid-template-columns: 1fr; gap: 10px; }
+            .tabs-container { flex-direction: column; }
+            .upload-area { padding: 30px 15px; }
+            .upload-area p { font-size: 13px; }
+        }
     </style>
 </head>
 
@@ -332,36 +341,38 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao']) && $_POST['aca
         <?php if (!empty($resultados_importacao)): ?>
             <div class="form-card active" style="max-width: 1000px;">
                 <h2 style="color: var(--fatec-red); margin-top: 0; margin-bottom: 10px;"><i class="fa-solid fa-square-poll-vertical"></i> Relatório de Importação</h2>
-                <p style="color: #666; font-size: 14px; margin-bottom: 20px;">Abaixo estão os resultados do processamento do seu arquivo CSV.</p>
+                <p style="color: #666; font-size: 14px; margin-bottom: 20px;">Abaixo estão os resultados do processamento da sua planilha.</p>
                 
-                <table class="tabela-resultados">
-                    <thead>
-                        <tr>
-                            <th>Nome</th>
-                            <th>E-mail</th>
-                            <th>Função</th>
-                            <th>Status no Sistema</th>
-                            <th style="text-align: center;">Plano B (WhatsApp)</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php foreach($resultados_importacao as $res): ?>
+                <div class="table-responsive">
+                    <table class="tabela-resultados">
+                        <thead>
                             <tr>
-                                <td><strong><?php echo htmlspecialchars($res['nome']); ?></strong></td>
-                                <td><?php echo htmlspecialchars($res['email']); ?></td>
-                                <td><?php echo htmlspecialchars($res['funcao']); ?></td>
-                                <td><?php echo $res['status']; ?></td>
-                                <td style="text-align: center;">
-                                    <?php if(!empty($res['link_wa']) && strpos($res['status'], 'Já Cadastrado') === false): ?>
-                                        <a href="<?php echo $res['link_wa']; ?>" target="_blank" class="btn-whatsapp" style="margin: 0;"><i class="fa-brands fa-whatsapp"></i> Notificar</a>
-                                    <?php else: ?>
-                                        <span style="color:#aaa; font-size:11px;">N/A</span>
-                                    <?php endif; ?>
-                                </td>
+                                <th>Nome</th>
+                                <th>E-mail</th>
+                                <th>Função</th>
+                                <th>Status no Sistema</th>
+                                <th style="text-align: center; width: 150px;">Plano B (WhatsApp)</th>
                             </tr>
-                        <?php endforeach; ?>
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                            <?php foreach($resultados_importacao as $res): ?>
+                                <tr>
+                                    <td><strong><?php echo htmlspecialchars($res['nome']); ?></strong></td>
+                                    <td><?php echo htmlspecialchars($res['email']); ?></td>
+                                    <td><?php echo htmlspecialchars($res['funcao']); ?></td>
+                                    <td><?php echo $res['status']; ?></td>
+                                    <td style="text-align: center;">
+                                        <?php if(!empty($res['link_wa']) && strpos($res['status'], 'Já Cadastrado') === false): ?>
+                                            <a href="<?php echo $res['link_wa']; ?>" target="_blank" class="btn-whatsapp"><i class="fa-brands fa-whatsapp"></i> Notificar</a>
+                                        <?php else: ?>
+                                            <span style="color:#aaa; font-size:11px;">N/A</span>
+                                        <?php endif; ?>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
                 <br>
                 <div style="text-align: center;">
                     <a href="cadastrar_professor.php" style="background: #333; color: white; padding: 12px 25px; border-radius: 6px; text-decoration: none; font-weight: bold; display: inline-block;"><i class="fa-solid fa-arrow-left"></i> Voltar para Cadastros</a>
@@ -372,7 +383,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao']) && $_POST['aca
             <!-- TELA NORMAL DE CADASTRO COM ABAS -->
             <div class="tabs-container">
                 <button class="tab-btn active" onclick="switchTab('individual')"><i class="fa-solid fa-user-plus"></i> Cadastro Individual</button>
-                <button class="tab-btn" onclick="switchTab('lote')"><i class="fa-solid fa-file-csv"></i> Importar Planilha (Em Lote)</button>
+                <button class="tab-btn" onclick="switchTab('lote')"><i class="fa-solid fa-file-excel"></i> Importar Planilha (.xls, .xlsx, .csv)</button>
             </div>
 
             <!-- ABA 1: CADASTRO INDIVIDUAL -->
@@ -434,57 +445,62 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao']) && $_POST['aca
                 <?php endif; ?>
             </div>
 
-            <!-- ABA 2: IMPORTAÇÃO DE PLANILHA -->
+            <!-- ABA 2: IMPORTAÇÃO INTELIGENTE DE PLANILHA -->
             <div class="form-card" id="tab_lote" style="max-width: 800px;">
                 <div class="info-box">
                     <h4><i class="fa-solid fa-circle-info"></i> Instruções para Importação Perfeita</h4>
-                    <p>O sistema aceita arquivos no formato <strong>.CSV</strong> (separados por ponto e vírgula). O seu arquivo Excel deve conter <strong>exatamente 5 colunas</strong>, na ordem correta, e incluir um cabeçalho na primeira linha (que será ignorado pelo sistema).</p>
+                    <p>O sistema processa automaticamente arquivos do Excel <strong>(.xls, .xlsx)</strong> e arquivos <strong>.CSV</strong>. Sua planilha deve conter <strong>exatamente 5 colunas</strong>, e a primeira linha deve ser sempre o cabeçalho (que será ignorado pelo sistema).</p>
                     
-                    <p style="margin-top: 15px;"><strong>Formato exigido das colunas:</strong></p>
-                    <table class="tabela-exemplo">
-                        <thead>
-                            <tr>
-                                <th>Coluna A</th>
-                                <th>Coluna B</th>
-                                <th>Coluna C</th>
-                                <th>Coluna D</th>
-                                <th>Coluna E</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td><strong>Nome</strong></td>
-                                <td><strong>E-mail</strong></td>
-                                <td><strong>WhatsApp</strong></td>
-                                <td><strong>Data de Nasc.</strong></td>
-                                <td><strong>Função</strong></td>
-                            </tr>
-                            <tr style="color: #666; font-style: italic;">
-                                <td>Ana Silva</td>
-                                <td>ana@fatec.sp.gov.br</td>
-                                <td>(14) 99999-9999</td>
-                                <td>15/08/1980</td>
-                                <td>Professor</td>
-                            </tr>
-                        </tbody>
-                    </table>
+                    <p style="margin-top: 15px;"><strong>Formato exigido das colunas (nesta ordem):</strong></p>
+                    
+                    <div class="table-responsive">
+                        <table class="tabela-exemplo">
+                            <thead>
+                                <tr>
+                                    <th>Coluna A</th>
+                                    <th>Coluna B</th>
+                                    <th>Coluna C</th>
+                                    <th>Coluna D</th>
+                                    <th>Coluna E</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><strong>Nome</strong></td>
+                                    <td><strong>E-mail</strong></td>
+                                    <td><strong>WhatsApp</strong></td>
+                                    <td><strong>Data de Nasc.</strong></td>
+                                    <td><strong>Função</strong></td>
+                                </tr>
+                                <tr style="color: #666; font-style: italic;">
+                                    <td>Ana Silva</td>
+                                    <td>ana@fatec.sp.gov.br</td>
+                                    <td>(14) 99999-9999</td>
+                                    <td>15/08/1980</td>
+                                    <td>Professor</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    
                     <ul style="font-size: 12px; color: #e74c3c; margin-top: 15px; padding-left: 15px;">
-                        <li>A Data de Nascimento pode ser no formato <strong>DD/MM/AAAA</strong> ou <strong>AAAA-MM-DD</strong>.</li>
+                        <li>A Data de Nascimento deve preferencialmente estar no formato <strong>DD/MM/AAAA</strong>.</li>
                         <li>A Função deve ser escrita exatamente como: <strong>Professor</strong>, <strong>Coordenador</strong> ou <strong>Diretor</strong>.</li>
                     </ul>
                 </div>
 
-                <form method="POST" enctype="multipart/form-data">
+                <form method="POST" id="formImportacao">
                     <input type="hidden" name="acao" value="importar">
+                    <input type="hidden" name="json_data" id="json_data" value="">
                     
-                    <div class="upload-area" onclick="document.getElementById('arquivo_csv').click();">
-                        <i class="fa-solid fa-cloud-arrow-up"></i>
-                        <p id="upload_text">Clique aqui para selecionar o seu arquivo .CSV</p>
-                        <span>Ou arraste e solte o arquivo aqui</span>
-                        <input type="file" name="arquivo_csv" id="arquivo_csv" accept=".csv" required onchange="atualizarNomeArquivo(this)">
+                    <div class="upload-area" onclick="document.getElementById('arquivo_excel').click();">
+                        <i class="fa-solid fa-file-excel" style="color: #27ae60;"></i>
+                        <p id="upload_text">Clique aqui para selecionar a sua Planilha (Excel ou CSV)</p>
+                        <span>Formatos aceitos: .xlsx, .xls, .csv</span>
+                        <input type="file" id="arquivo_excel" accept=".xlsx, .xls, .csv" required onchange="atualizarNomeArquivo(this)">
                     </div>
 
-                    <button type="submit" class="btn-submit" style="background-color: #3498db;"><i class="fa-solid fa-gears"></i> Processar Planilha e Cadastrar</button>
+                    <button type="submit" class="btn-submit" id="btn_processar_lote" style="background-color: #27ae60;"><i class="fa-solid fa-gears"></i> Processar Planilha e Cadastrar</button>
                 </form>
             </div>
         <?php endif; ?>
@@ -508,17 +524,55 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao']) && $_POST['aca
             }
         }
 
-        // Atualiza o texto do botão de Upload
         function atualizarNomeArquivo(input) {
             const texto = document.getElementById('upload_text');
             if (input.files && input.files.length > 0) {
-                texto.innerHTML = "Arquivo selecionado: <strong style='color:var(--fatec-red);'>" + input.files[0].name + "</strong>";
+                texto.innerHTML = "Arquivo selecionado: <strong style='color:#27ae60;'>" + input.files[0].name + "</strong>";
             } else {
-                texto.innerHTML = "Clique aqui para selecionar o seu arquivo .CSV";
+                texto.innerHTML = "Clique aqui para selecionar a sua Planilha (Excel ou CSV)";
             }
         }
 
-        // Máscara WhatsApp
+        // MOTOR DE LEITURA DO EXCEL (SheetJS)
+        document.getElementById('formImportacao').addEventListener('submit', function(e) {
+            e.preventDefault(); 
+            
+            const fileInput = document.getElementById('arquivo_excel');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                alert("Por favor, selecione um arquivo.");
+                return;
+            }
+
+            const btnProcessar = document.getElementById('btn_processar_lote');
+            btnProcessar.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Lendo arquivo e processando envios...';
+            btnProcessar.disabled = true;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, {type: 'array'});
+                    const firstSheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[firstSheetName];
+                    
+                    const jsonArr = XLSX.utils.sheet_to_json(worksheet, {header: 1, defval: "", raw: false});
+                    
+                    document.getElementById('json_data').value = JSON.stringify(jsonArr);
+                    
+                    HTMLFormElement.prototype.submit.call(document.getElementById('formImportacao'));
+                } catch (error) {
+                    alert("Erro ao ler o arquivo Excel. Verifique se não está corrompido.");
+                    btnProcessar.innerHTML = '<i class="fa-solid fa-gears"></i> Processar Planilha e Cadastrar';
+                    btnProcessar.disabled = false;
+                }
+            };
+            
+            reader.readAsArrayBuffer(file);
+        });
+
+        // Máscara WhatsApp Individual
         const inputWhatsapp = document.getElementById('whatsapp');
         if (inputWhatsapp) {
             inputWhatsapp.addEventListener('input', function (e) {
@@ -530,7 +584,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao']) && $_POST['aca
             });
         }
 
-        // Cálculo de Idade
+        // Cálculo de Idade Individual
         const inputDataNasc = document.getElementById('data_nascimento');
         if (inputDataNasc) {
             inputDataNasc.addEventListener('input', function () {
