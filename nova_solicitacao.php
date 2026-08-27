@@ -569,7 +569,19 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         </div>
                         <div class="grid-2">
                             <div class="full-width"><label>Detalhamento dos Recursos</label><textarea name="detalhamento_recursos"><?php echo htmlspecialchars($c_detalhamento); ?></textarea></div>
-                            <div class="full-width"><label>Cronograma de Execução</label><textarea name="cronograma" required placeholder="Ex: Março a Julho de 2026"><?php echo htmlspecialchars($c_cronograma); ?></textarea></div>
+                            
+                            <!-- CORREÇÃO DE UX: Campo de Cronograma de Execução -->
+                            <div class="full-width">
+                                <label>Cronograma de Execução</label>
+                                <div style="background: #fffdf5; border-left: 3px solid #f39c12; padding: 10px; margin-bottom: 8px; font-size: 12px; color: #555; border-radius: 4px;">
+                                    O cronograma deve ser preenchido em formato textual, contemplando todos os meses do período. <strong>Siga o padrão de exemplo:</strong><br>
+                                    <em>Agosto: descrição das atividades que serão realizadas no mês.<br>
+                                    Setembro: descrição das atividades que serão realizadas no mês.<br>
+                                    E assim por diante...</em>
+                                </div>
+                                <textarea name="cronograma" required placeholder="mês A: descrição das atividades...&#10;mês B: descrição das atividades..." style="min-height: 120px;"><?php echo htmlspecialchars($c_cronograma); ?></textarea>
+                            </div>
+                            
                             <div class="full-width"><label>Resultados Esperados</label><textarea name="resultados_esperados" required><?php echo htmlspecialchars($c_resultados); ?></textarea></div>
                         </div>
                     </div>
