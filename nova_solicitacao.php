@@ -1,8 +1,8 @@
 <?php
 session_start();
 require 'config/conexao.php';
-require_once 'enviar_email.php'; // Central de e-mails
-require_once 'enviar_push.php';  // ADICIONADO: Central de Notificações Push
+require_once 'enviar_email.php'; 
+require_once 'enviar_push.php';  
 
 if (!isset($_SESSION['usuario_id']) || $_SESSION['usuario_funcao'] !== 'Professor') {
     header("Location: painel.php");
@@ -12,17 +12,11 @@ if (!isset($_SESSION['usuario_id']) || $_SESSION['usuario_funcao'] !== 'Professo
 $erro = "";
 $sucesso = "";
 
-// ==============================================================================
-// VERIFICAÇÃO DE ASSINATURA OBRIGATÓRIA (TRAVA DE SEGURANÇA)
-// ==============================================================================
 $stmt_assinatura = $pdo->prepare("SELECT assinatura_path FROM usuarios WHERE id = ?");
 $stmt_assinatura->execute([$_SESSION['usuario_id']]);
 $dados_usuario = $stmt_assinatura->fetch(PDO::FETCH_ASSOC);
 $tem_assinatura = !empty($dados_usuario['assinatura_path']);
 
-// ==============================================================================
-// BUSCA AS CATEGORIAS E COORDENADORES DO BANCO
-// ==============================================================================
 $stmt_cat = $pdo->query("SELECT nome FROM categorias_projeto ORDER BY nome ASC");
 $categorias_db = $stmt_cat->fetchAll(PDO::FETCH_COLUMN);
 $categorias_padrao = ['Acadêmico', 'Administrativo', 'Extensão à comunidade'];
@@ -30,9 +24,6 @@ $categorias_padrao = ['Acadêmico', 'Administrativo', 'Extensão à comunidade']
 $stmt_coords = $pdo->query("SELECT id, nome FROM usuarios WHERE funcao = 'Coordenador' ORDER BY nome ASC");
 $lista_coordenadores = $stmt_coords->fetchAll(PDO::FETCH_ASSOC);
 
-// ==============================================================================
-// LÓGICA DE CLONAGEM E EDIÇÃO
-// ==============================================================================
 $clone_id = isset($_GET['clone_id']) ? (int) $_GET['clone_id'] : 0;
 $edit_id = isset($_GET['edit_id']) ? (int) $_GET['edit_id'] : 0;
 
@@ -55,10 +46,8 @@ if ($clone_id > 0) {
     }
 }
 
-// Preenche os campos e ESCONDE o versionamento automático da tela do professor
 $c_semestre = $registro_base['semestre'] ?? '';
 $c_qtd_horas = $registro_base['quantidade_horas'] ?? '';
-
 $c_titulo_bruto = $registro_base['titulo_projeto'] ?? '';
 $c_titulo = preg_replace('/\s*-\s*v\d+\.\d+\s*$/i', '', $c_titulo_bruto);
 
@@ -88,11 +77,7 @@ if ($registro_base && !empty($registro_base['recursos_necessarios'])) {
     $recursos_array = array_map('trim', explode(',', $registro_base['recursos_necessarios']));
 }
 
-// ==============================================================================
-// PROCESSAMENTO DO FORMULÁRIO
-// ==============================================================================
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    
     if (!$tem_assinatura) {
         $erro = "Ação bloqueada: É obrigatório cadastrar a assinatura no seu perfil antes de submeter um projeto.";
     } else {
@@ -102,7 +87,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $semestre = $_POST['semestre'];
         $quantidade_horas = $_POST['quantidade_horas'];
         
-        // Remove qualquer versão antiga e prepara o campo
         $titulo_post = trim($_POST['titulo_projeto']);
         $titulo_limpo = preg_replace('/\s*-\s*v\d+\.\d+\s*$/i', '', $titulo_post);
         
@@ -135,7 +119,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             try {
                 if ($edit_id_post > 0) {
                     
-                    // DESCOBRE A VERSÃO ANTERIOR E O STATUS DO COORDENADOR
                     $stmt_ver = $pdo->prepare("SELECT titulo_projeto, status_coordenador FROM solicitacoes_hae WHERE id = ?");
                     $stmt_ver->execute([$edit_id_post]);
                     $dados_banco = $stmt_ver->fetch(PDO::FETCH_ASSOC);
@@ -150,13 +133,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         $titulo_final = $titulo_limpo . " - v1.1";
                     }
 
-                    // AQUI ESTÁ A MÁGICA: Se o Coordenador já aprovou antes, não limpa a avaliação dele!
                     if ($status_coord_atual == 'Aprovado') {
                         $novo_status_coord = 'Aprovado';
-                        $query_parecer_coord = "parecer_coordenador = parecer_coordenador"; // Mantém o parecer antigo intacto
+                        $query_parecer_coord = "parecer_coordenador = parecer_coordenador, data_aprovacao_coordenador = data_aprovacao_coordenador"; 
                     } else {
                         $novo_status_coord = 'Pendente';
-                        $query_parecer_coord = "parecer_coordenador = NULL"; // Limpa para ele ler de novo
+                        $query_parecer_coord = "parecer_coordenador = NULL, data_aprovacao_coordenador = NULL"; 
                     }
 
                     $sql = "UPDATE solicitacoes_hae SET 
@@ -169,7 +151,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                             status_coordenador = ?, 
                             status_diretor = 'Pendente',
                             {$query_parecer_coord}, 
-                            parecer_diretor = NULL
+                            parecer_diretor = NULL,
+                            data_aprovacao_diretor = NULL
                             WHERE id = ? AND professor_id = ? AND status_aprovacao IN ('Pendente', 'Devolvido')";
                             
                     $stmt = $pdo->prepare($sql);
@@ -180,12 +163,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         $cronograma, $resultados_esperados, $novo_status_coord, $edit_id_post, $professor_id
                     ]);
                     
-                    // =========================================================
-                    // DISPARO DE E-MAIL E PUSH APÓS CORREÇÃO
-                    // =========================================================
                     if ($novo_status_coord == 'Aprovado') {
-                        // O projeto pulou o coordenador e foi direto pro Diretor!
-                        // Adicionado a busca pelo ID para o Push
                         $stmt_dir = $pdo->query("SELECT id, nome, email FROM usuarios WHERE funcao = 'Diretor'");
                         $diretores = $stmt_dir->fetchAll(PDO::FETCH_ASSOC);
 
@@ -193,85 +171,65 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                             $assunto_dir = "Projeto HAE Corrigido: Aguardando sua Análise";
                             foreach ($diretores as $dir) {
                                 $nome_prof = $_SESSION['usuario_nome']; 
+                                
                                 $corpo_email_dir = "
-                                    <div style='font-family: Arial, sans-serif; color: #333; line-height: 1.6; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;'>
-                                        <div style='background-color: #f39c12; padding: 20px; text-align: center; color: white;'>
-                                            <h2 style='margin: 0; font-size: 20px;'>Projeto HAE Corrigido</h2>
-                                        </div>
-                                        <div style='padding: 20px;'>
-                                            <h3 style='color: #f39c12; margin-top: 0;'>Olá, Diretor(a) {$dir['nome']}.</h3>
-                                            <p>O(A) professor(a) <strong>$nome_prof</strong> corrigiu e reenviou um projeto que havia sido devolvido por você.</p>
-                                            
-                                            <div style='background: #f9f9f9; padding: 15px; border-left: 4px solid #f39c12; margin: 15px 0;'>
-                                                <ul style='margin: 0; padding-left: 20px;'>
-                                                    <li style='margin-bottom: 8px;'><strong>Projeto:</strong> $titulo_final</li>
-                                                </ul>
-                                            </div>
-                                            
-                                            <p>Como a aprovação da Coordenação já havia sido emitida anteriormente, ela foi <strong>mantida</strong> pelo sistema.</p>
-                                            <p>O projeto está agora <strong>aguardando diretamente a sua análise final</strong>.</p>
-                                            
-                                            <p>Acesse o portal para visualizar as atualizações:</p>
-                                            <div style='text-align: center; margin: 20px 0;'>
-                                                <img src='cid:img_link_portal' alt='Link de Acesso' style='max-width: 250px; border: 1px solid #ccc; border-radius: 4px;'>
-                                            </div>
-                                            <p style='margin-top: 25px; font-size: 14px; color: #555;'>Atenciosamente,<br><strong>Gestão Acadêmica - Fatec</strong></p>
-                                        </div>
+                                    <div style='font-family: Arial, sans-serif; color: #2c3e50; padding: 20px; border: 1px solid #ddd; border-radius: 8px;'>
+                                        <h2 style='color: #f39c12; margin-top: 0;'>Projeto HAE Corrigido</h2>
+                                        <p>Olá, Diretor(a) <strong>" . htmlspecialchars($dir['nome']) . "</strong>,</p>
+                                        <p>O(A) professor(a) <strong>$nome_prof</strong> corrigiu e reenviou o projeto <strong>$titulo_final</strong>.</p>
+                                        <p>Como a aprovação da Coordenação já havia sido emitida anteriormente, ela foi mantida. O projeto <strong>aguarda diretamente a sua análise final</strong>.</p>
+                                        <p>Acesse o painel do <strong>Sistema HAE</strong> diretamente pelo seu navegador para emitir o parecer.</p>
+                                        <p style='margin-top: 20px; font-size: 12px; color: #7f8c8d;'>Mensagem automática do Sistema de Gestão Acadêmica HAE - Fatec.</p>
                                     </div>
                                 ";
-                                $lista_img = [['path' => 'img/link_acesso.jpeg', 'cid' => 'img_link_portal']];
-                                dispararEmailSistema($dir['email'], $dir['nome'], $assunto_dir, $corpo_email_dir, $lista_img);
                                 
-                                // NOVO: Push para o Diretor após Correção
-                                $titulo_push_dir = "Projeto HAE Corrigido 📋";
-                                $msg_push_dir = "O(A) prof(a) $nome_prof reenviou o projeto HAE para sua análise final.";
-                                dispararPush($dir['id'], $titulo_push_dir, $msg_push_dir, "https://sistemahae.page.gd/analisar_solicitacoes.php");
+                                try {
+                                    dispararEmailSistema($dir['email'], $dir['nome'], $assunto_dir, $corpo_email_dir);
+                                } catch (Exception $e) { error_log("Erro Email Diretor Correcao: " . $e->getMessage()); }
+
+                                try {
+                                    dispararPush($dir['id'], "Projeto HAE Corrigido 📋", "O(A) prof(a) $nome_prof reenviou o projeto HAE para sua análise final.", "https://sistemahae.page.gd/analisar_solicitacoes.php");
+                                } catch (Exception $e) { error_log("Erro Push Diretor Correcao: " . $e->getMessage()); }
                             }
                         }
                     } else {
-                        // Se não pulou o Coordenador, manda o e-mail tradicional para ele
+                        $nome_prof = $_SESSION['usuario_nome']; 
+                        $coords_para_notificar = [];
+                        
                         if (!empty($coordenador_alvo_id)) {
-                            $stmt_coord = $pdo->prepare("SELECT nome, email FROM usuarios WHERE id = ?");
+                            $stmt_coord = $pdo->prepare("SELECT id, nome, email FROM usuarios WHERE id = ?");
                             $stmt_coord->execute([$coordenador_alvo_id]);
-                            $coord = $stmt_coord->fetch(PDO::FETCH_ASSOC);
+                            if ($c = $stmt_coord->fetch(PDO::FETCH_ASSOC)) $coords_para_notificar[] = $c;
+                            $msg_push = "O(A) prof(a) $nome_prof reenviou um projeto direcionado para a sua avaliação.";
+                        } else {
+                            $stmt_coord = $pdo->query("SELECT id, nome, email FROM usuarios WHERE funcao = 'Coordenador'");
+                            $coords_para_notificar = $stmt_coord->fetchAll(PDO::FETCH_ASSOC);
+                            $msg_push = "O(A) prof(a) $nome_prof reenviou um projeto para avaliação da equipe.";
+                        }
 
-                            if ($coord) {
-                                $nome_coord = $coord['nome'];
-                                $email_coord = $coord['email'];
-                                $nome_prof = $_SESSION['usuario_nome']; 
+                        foreach ($coords_para_notificar as $coord) {
+                            $nome_coord = $coord['nome'];
+                            $email_coord = $coord['email'];
 
-                                $assunto_coord = "Novo Projeto Direcionado: Avaliação HAE";
-                                $corpo_email_coord = "
-                                    <div style='font-family: Arial, sans-serif; color: #333; line-height: 1.6; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;'>
-                                        <div style='background-color: #3498db; padding: 20px; text-align: center; color: white;'>
-                                            <h2 style='margin: 0; font-size: 20px;'>Nova Solicitação Direcionada</h2>
-                                        </div>
-                                        <div style='padding: 20px;'>
-                                            <h3 style='color: #3498db; margin-top: 0;'>Olá, Coordenador(a) $nome_coord.</h3>
-                                            <p>O(A) professor(a) <strong>$nome_prof</strong> corrigiu e submeteu um projeto HAE e <strong>direcionou a análise prioritariamente para você</strong>.</p>
-                                            
-                                            <div style='background: #f9f9f9; padding: 15px; border-left: 4px solid #3498db; margin: 15px 0;'>
-                                                <ul style='margin: 0; padding-left: 20px;'>
-                                                    <li style='margin-bottom: 8px;'><strong>Projeto:</strong> $titulo_final</li>
-                                                    <li style='margin-bottom: 8px;'><strong>Categoria:</strong> $categoria</li>
-                                                </ul>
-                                            </div>
-                                            
-                                            <p>Acesse o portal para visualizar os detalhes e emitir o seu parecer oficial:</p>
-                                            <div style='text-align: center; margin: 20px 0;'>
-                                                <img src='cid:img_link_portal' alt='Link de Acesso' style='max-width: 250px; border: 1px solid #ccc; border-radius: 4px;'>
-                                            </div>
-                                        </div>
-                                    </div>
-                                ";
-                                $lista_imagens_coord = [['path' => 'img/link_acesso.jpeg', 'cid' => 'img_link_portal']];
-                                dispararEmailSistema($email_coord, $nome_coord, $assunto_coord, $corpo_email_coord, $lista_imagens_coord);
-                                
-                                // NOVO: Push para o Coordenador após Correção
-                                $titulo_push = "Projeto HAE Corrigido 📋";
-                                $msg_push = "O(A) prof(a) $nome_prof reenviou um projeto direcionado para a sua avaliação.";
-                                dispararPush($coordenador_alvo_id, $titulo_push, $msg_push, "https://sistemahae.page.gd/analisar_solicitacoes.php");
-                            }
+                            $assunto_coord = "Projeto Corrigido: Avaliação HAE";
+                            
+                            $corpo_email_coord = "
+                                <div style='font-family: Arial, sans-serif; color: #2c3e50; padding: 20px; border: 1px solid #ddd; border-radius: 8px;'>
+                                    <h2 style='color: #3498db; margin-top: 0;'>Projeto HAE Reenviado</h2>
+                                    <p>Olá, Coordenador(a) <strong>" . htmlspecialchars($nome_coord) . "</strong>,</p>
+                                    <p>O(A) professor(a) <strong>$nome_prof</strong> realizou as correções solicitadas e submeteu o projeto <strong>$titulo_final</strong> novamente para análise.</p>
+                                    <p>Acesse o painel do <strong>Sistema HAE</strong> diretamente pelo seu navegador para visualizar e emitir o parecer oficial.</p>
+                                    <p style='margin-top: 20px; font-size: 12px; color: #7f8c8d;'>Mensagem automática do Sistema de Gestão Acadêmica HAE - Fatec.</p>
+                                </div>
+                            ";
+                            
+                            try {
+                                dispararEmailSistema($email_coord, $nome_coord, $assunto_coord, $corpo_email_coord);
+                            } catch (Exception $e) { error_log("Erro Email Coord Correcao: " . $e->getMessage()); }
+
+                            try {
+                                dispararPush($coord['id'], "Projeto HAE Corrigido 📋", $msg_push, "https://sistemahae.page.gd/analisar_solicitacoes.php");
+                            } catch (Exception $e) { error_log("Erro Push Coord Correcao: " . $e->getMessage()); }
                         }
                     }
 
@@ -295,59 +253,51 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         $categoria, $justificativa, $objetivo, $metodologia, $envolvidos, $recursos_necessarios, $detalhamento_recursos,
                         $cronograma, $resultados_esperados
                     ]);
-                    $sucesso = "Solicitação de HAE enviada com sucesso para análise da coordenação!";
+                    
+                    $nome_prof = $_SESSION['usuario_nome']; 
+                    $coords_para_notificar = [];
                     
                     if (!empty($coordenador_alvo_id)) {
-                        $stmt_coord = $pdo->prepare("SELECT nome, email FROM usuarios WHERE id = ?");
+                        $stmt_coord = $pdo->prepare("SELECT id, nome, email FROM usuarios WHERE id = ?");
                         $stmt_coord->execute([$coordenador_alvo_id]);
-                        $coord = $stmt_coord->fetch(PDO::FETCH_ASSOC);
-
-                        if ($coord) {
-                            $nome_coord = $coord['nome'];
-                            $email_coord = $coord['email'];
-                            $nome_prof = $_SESSION['usuario_nome']; 
-
-                            $assunto_coord = "Novo Projeto Direcionado: Avaliação HAE";
-                            $corpo_email_coord = "
-                                <div style='font-family: Arial, sans-serif; color: #333; line-height: 1.6; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;'>
-                                    <div style='background-color: #3498db; padding: 20px; text-align: center; color: white;'>
-                                        <h2 style='margin: 0; font-size: 20px;'>Nova Solicitação Direcionada</h2>
-                                    </div>
-                                    <div style='padding: 20px;'>
-                                        <h3 style='color: #3498db; margin-top: 0;'>Olá, Coordenador(a) $nome_coord.</h3>
-                                        <p>O(A) professor(a) <strong>$nome_prof</strong> acabou de submeter um projeto HAE e <strong>direcionou a análise prioritariamente para você</strong>.</p>
-                                        
-                                        <div style='background: #f9f9f9; padding: 15px; border-left: 4px solid #3498db; margin: 15px 0;'>
-                                            <ul style='margin: 0; padding-left: 20px;'>
-                                                <li style='margin-bottom: 8px;'><strong>Projeto:</strong> $titulo_final</li>
-                                                <li style='margin-bottom: 8px;'><strong>Categoria:</strong> $categoria</li>
-                                            </ul>
-                                        </div>
-                                        
-                                        <p>Acesse o portal para visualizar os detalhes e emitir o seu parecer oficial:</p>
-                                        <div style='text-align: center; margin: 20px 0;'>
-                                            <img src='cid:img_link_portal' alt='Link de Acesso' style='max-width: 250px; border: 1px solid #ccc; border-radius: 4px;'>
-                                        </div>
-                                    </div>
-                                </div>
-                            ";
-                            $lista_imagens_coord = [['path' => 'img/link_acesso.jpeg', 'cid' => 'img_link_portal']];
-                            dispararEmailSistema($email_coord, $nome_coord, $assunto_coord, $corpo_email_coord, $lista_imagens_coord);
-                            
-                            // NOVO: Push para o Coordenador após novo envio
-                            $titulo_push = "Novo Projeto HAE 📋";
-                            $msg_push = "O(A) prof(a) $nome_prof enviou um projeto direcionado para a sua avaliação.";
-                            dispararPush($coordenador_alvo_id, $titulo_push, $msg_push, "https://sistemahae.page.gd/analisar_solicitacoes.php");
-                        }
+                        if ($c = $stmt_coord->fetch(PDO::FETCH_ASSOC)) $coords_para_notificar[] = $c;
+                        $msg_push = "O(A) prof(a) $nome_prof enviou um projeto direcionado para a sua avaliação.";
+                    } else {
+                        $stmt_coord = $pdo->query("SELECT id, nome, email FROM usuarios WHERE funcao = 'Coordenador'");
+                        $coords_para_notificar = $stmt_coord->fetchAll(PDO::FETCH_ASSOC);
+                        $msg_push = "O(A) prof(a) $nome_prof acabou de submeter um projeto HAE para avaliação da equipe.";
                     }
+
+                    foreach ($coords_para_notificar as $coord) {
+                        $nome_coord = $coord['nome'];
+                        $email_coord = $coord['email'];
+
+                        $assunto_coord = "Novo Projeto de HAE Aguardando Análise";
+                        
+                        $corpo_email_coord = "
+                            <div style='font-family: Arial, sans-serif; color: #2c3e50; padding: 20px; border: 1px solid #ddd; border-radius: 8px;'>
+                                <h2 style='color: #3498db; margin-top: 0;'>Nova Solicitação de Projeto</h2>
+                                <p>Olá, Coordenador(a) <strong>" . htmlspecialchars($nome_coord) . "</strong>,</p>
+                                <p>O(A) professor(a) <strong>$nome_prof</strong> acabou de submeter o projeto <strong>$titulo_final</strong> e ele aguarda a sua análise inicial.</p>
+                                <p>Acesse o painel do <strong>Sistema HAE</strong> diretamente pelo seu navegador para emitir o parecer oficial.</p>
+                                <p style='margin-top: 20px; font-size: 12px; color: #7f8c8d;'>Mensagem automática do Sistema de Gestão Acadêmica HAE - Fatec.</p>
+                            </div>
+                        ";
+                        
+                        try {
+                            dispararEmailSistema($email_coord, $nome_coord, $assunto_coord, $corpo_email_coord);
+                        } catch (Exception $e) { error_log("Erro Email Coord Novo: " . $e->getMessage()); }
+
+                        try {
+                            dispararPush($coord['id'], "Novo Projeto HAE 📋", $msg_push, "https://sistemahae.page.gd/analisar_solicitacoes.php");
+                        } catch (Exception $e) { error_log("Erro Push Coord Novo: " . $e->getMessage()); }
+                    }
+
+                    header("Location: meus_projetos.php?status=sucesso");
+                    exit;
                 }
                 
-                $registro_base = null; $c_titulo = ''; $c_obj_escola = ''; $c_justificativa = ''; 
-                $c_objetivo = ''; $c_metodologia = ''; $c_envolvidos = ''; $c_detalhamento = ''; 
-                $c_cronograma = ''; $c_resultados = ''; $recursos_array = [];
-                $c_coordenador_alvo = ''; $c_semestre = ''; $c_qtd_horas = ''; $c_categoria = '';
-                
-            } catch (PDOException $e) {
+            } catch (Exception $e) {
                 $erro = "Erro ao processar solicitação: " . $e->getMessage();
             }
         }
@@ -363,59 +313,47 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     <link rel="stylesheet" href="assets/css/painel.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
-    <!-- INTEGRAÇÃO ONESIGNAL (PUSH NOTIFICATIONS) -->
-    <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
-    <script>
-      window.OneSignalDeferred = window.OneSignalDeferred || [];
-      OneSignalDeferred.push(async function(OneSignal) {
-        await OneSignal.init({
-          appId: "f3a9b7ad-ba4b-420c-8290-99f87501f1a3", // Seu App ID
-          
-          // DEIXA O SININHO EM PORTUGUÊS
-          notifyButton: {
-            enable: true,
-            text: {
-                'tip.state.unsubscribed': 'Ativar notificações',
-                'tip.state.subscribed': 'Você está inscrito',
-                'tip.state.blocked': 'Você bloqueou as notificações',
-                'message.prenotify': 'Clique para receber notificações',
-                'message.action.subscribed': 'Obrigado por se inscrever!',
-                'message.action.resubscribed': 'Você está inscrito novamente',
-                'message.action.unsubscribed': 'Você não receberá mais avisos',
-                'dialog.main.title': 'Notificações HAE',
-                'dialog.main.button.subscribe': 'INSCREVER-SE',
-                'dialog.main.button.unsubscribe': 'CANCELAR INSCRIÇÃO',
-                'dialog.blocked.title': 'Desbloquear Notificações',
-                'dialog.blocked.message': 'Siga as instruções para permitir notificações:'
-            }
-          },
-          
-          // DEIXA O AVISO DO MEIO DA TELA EM PORTUGUÊS
-          promptOptions: {
-            slidedown: {
-              prompts: [{
-                type: "push",
-                autoPrompt: true,
-                text: {
-                  actionMessage: "Gostaríamos de enviar avisos importantes sobre seus projetos HAE e prazos de relatórios.",
-                  acceptButton: "Permitir",
-                  cancelButton: "Agora Não"
-                },
-                delay: {
-                  pageViews: 1,
-                  timeDelay: 2
-                }
-              }]
-            }
-          }
-        });
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-messaging-compat.js"></script>
+<script>
+  const firebaseConfig = {
+      apiKey: "AIzaSyCXkLWCZD3vKkybvp41YyyU_G2vaeZRcs0",
+      authDomain: "hae-fatec.firebaseapp.com",
+      projectId: "hae-fatec",
+      storageBucket: "hae-fatec.firebasestorage.app",
+      messagingSenderId: "732325516207",
+      appId: "1:732325516207:web:93cdd26e78656ec2ee156a"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const messaging = firebase.messaging();
 
-        // Registra o ID apenas se o usuário estiver logado
-        <?php if(isset($_SESSION['usuario_id'])): ?>
-            OneSignal.login("<?php echo $_SESSION['usuario_id']; ?>");
-        <?php endif; ?>
-      });
-    </script>
+  function solicitarPermissaoPush() {
+    Notification.requestPermission().then((permission) => {
+        if (permission === 'granted') {
+            navigator.serviceWorker.register('./firebase-messaging-sw.js')
+            .then(function(registration) {
+                return messaging.getToken({ 
+                    vapidKey: "BEgkKtj6Eq-ttKtvBL3xOoIoyAAdwiWxOLLygWTlwBSEqWx8AY5oZsvFRY033g71NhAhDKg_kcYEErTiE0cbmoE",
+                    serviceWorkerRegistration: registration
+                });
+            })
+            .then((currentToken) => {
+                if (currentToken) {
+                    fetch('salvar_token.php', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ token: currentToken })
+                    });
+                }
+            }).catch((err) => console.log('Erro ao pegar token:', err));
+        }
+    });
+}
+
+  document.addEventListener("DOMContentLoaded", function() {
+      solicitarPermissaoPush();
+  });
+</script>
     
     <style>
         .form-card { background: #fff; padding: 30px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.03); border-top: 4px solid var(--fatec-red); }
@@ -511,7 +449,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         <?php if ($sucesso) echo "<div class='alert-success'>✅ $sucesso</div>"; ?>
         <?php if ($erro) echo "<div class='alert-success' style='background:#fee2e2; color:#b91c1c; border-color:#b91c1c;'>❌ $erro</div>"; ?>
 
-        <!-- SE NÃO TIVER ASSINATURA, MOSTRA O AVISO E OCULTA O FORMULÁRIO -->
         <?php if (!$tem_assinatura): ?>
             <div class="form-card" style="text-align: center; padding: 50px 20px;">
                 <i class="fa-solid fa-file-signature" style="font-size: 60px; color: #e74c3c; margin-bottom: 20px;"></i>
@@ -525,7 +462,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             </div>
             
         <?php else: ?>
-            <!-- SE TIVER ASSINATURA, MOSTRA O FORMULÁRIO NORMALMENTE -->
             <?php if ($modo_edicao && !$sucesso): ?>
                 <?php if (isset($registro_base['status_aprovacao']) && $registro_base['status_aprovacao'] == 'Devolvido'): ?>
                     <div class="aviso-box aviso-devolvido">
@@ -713,7 +649,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             }
         }
 
-        // Dropdown Inteligente de Categoria
         const inputCat = document.getElementById('categoria');
         const listaCat = document.getElementById('lista_categorias');
 

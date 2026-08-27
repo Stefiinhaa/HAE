@@ -166,57 +166,54 @@ else {
     <link rel="stylesheet" href="assets/css/painel.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- INTEGRAÇÃO ONESIGNAL (PUSH NOTIFICATIONS) -->
-    <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+    <!-- FIREBASE PUSH NOTIFICATIONS -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-messaging-compat.js"></script>
     <script>
-      window.OneSignalDeferred = window.OneSignalDeferred || [];
-      OneSignalDeferred.push(async function(OneSignal) {
-        await OneSignal.init({
-          appId: "f3a9b7ad-ba4b-420c-8290-99f87501f1a3", // Seu App ID
-          
-          // DEIXA O SININHO EM PORTUGUÊS
-          notifyButton: {
-            enable: true,
-            text: {
-                'tip.state.unsubscribed': 'Ativar notificações',
-                'tip.state.subscribed': 'Você está inscrito',
-                'tip.state.blocked': 'Você bloqueou as notificações',
-                'message.prenotify': 'Clique para receber notificações',
-                'message.action.subscribed': 'Obrigado por se inscrever!',
-                'message.action.resubscribed': 'Você está inscrito novamente',
-                'message.action.unsubscribed': 'Você não receberá mais avisos',
-                'dialog.main.title': 'Notificações HAE',
-                'dialog.main.button.subscribe': 'INSCREVER-SE',
-                'dialog.main.button.unsubscribe': 'CANCELAR INSCRIÇÃO',
-                'dialog.blocked.title': 'Desbloquear Notificações',
-                'dialog.blocked.message': 'Siga as instruções para permitir notificações:'
-            }
-          },
-          
-          // DEIXA O AVISO DO MEIO DA TELA EM PORTUGUÊS
-          promptOptions: {
-            slidedown: {
-              prompts: [{
-                type: "push",
-                autoPrompt: true,
-                text: {
-                  actionMessage: "Gostaríamos de enviar avisos importantes sobre seus projetos HAE e prazos de relatórios.",
-                  acceptButton: "Permitir",
-                  cancelButton: "Agora Não"
-                },
-                delay: {
-                  pageViews: 1,
-                  timeDelay: 2
-                }
-              }]
-            }
-          }
-        });
+        // Configuração do seu projeto (Copiado da sua imagem)
+        const firebaseConfig = {
+            apiKey: "AIzaSyCXkLWCZD3vKkybvp41YyyU_G2vaeZRcs0", 
+            authDomain: "hae-fatec.firebaseapp.com",
+            projectId: "hae-fatec",
+            storageBucket: "hae-fatec.firebasestorage.app",
+            messagingSenderId: "732325516207",
+            appId: "1:732325516207:web:93cdd26e78656ec2ee156a"
+        };
 
-        // Registra o ID apenas se o usuário estiver logado
-        <?php if(isset($_SESSION['usuario_id'])): ?>
-            OneSignal.login("<?php echo $_SESSION['usuario_id']; ?>");
-        <?php endif; ?>
-      });
+        // Inicializa o Firebase
+        firebase.initializeApp(firebaseConfig);
+        const messaging = firebase.messaging();
+
+        // Função para pedir permissão e salvar no banco
+        function ativarNotificacoesHAE() {
+            Notification.requestPermission().then((permission) => {
+                if (permission === 'granted') {
+                    console.log('Permissão concedida!');
+
+                    // ==============================================================
+                    // COLE SUA VAPID KEY AQUI DENTRO DAS ASPAS
+                    // ==============================================================
+                    messaging.getToken({ vapidKey: "BEgkKtj6Eq-ttKtvBL3xOoIoyAAdwiWxOLLygWTlwBSEqWx8AY5oZsvFRY033g71NhAhDKg_kcYEErTiE0cbmoE" })
+                        // ==============================================================
+
+                        .then((currentToken) => {
+                            if (currentToken) {
+                                // Envia o token para o PHP salvar silenciosamente
+                                fetch('salvar_token.php', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ token: currentToken })
+                                }).then(response => console.log('Token salvo no banco.'));
+                            }
+                        }).catch((err) => console.log('Erro ao gerar token:', err));
+                }
+            });
+        }
+
+        // Pede a permissão assim que a página carrega
+        document.addEventListener("DOMContentLoaded", function () {
+            ativarNotificacoesHAE();
+        });
     </script>
     <style>
         .dashboard-cards {
@@ -537,11 +534,13 @@ else {
                     style="<?php echo count($pendencias_professor) > 0 ? 'border-bottom-color: #e74c3c;' : 'border-bottom-color: #2ecc71;'; ?>">
                     <div class="card-icon"
                         style="background: <?php echo count($pendencias_professor) > 0 ? '#fdf2f2' : '#f4fbf7'; ?>; color: <?php echo count($pendencias_professor) > 0 ? '#e74c3c' : '#2ecc71'; ?>;">
-                        <i class="fa-solid fa-bell"></i></div>
+                        <i class="fa-solid fa-bell"></i>
+                    </div>
                     <div class="card-info">
                         <h3>Pendências Atuais</h3>
                         <p style="color: <?php echo count($pendencias_professor) > 0 ? '#c0392b' : '#27ae60'; ?>;">
-                            <?php echo count($pendencias_professor); ?></p>
+                            <?php echo count($pendencias_professor); ?>
+                        </p>
                     </div>
                 </a>
             </div>
@@ -580,17 +579,20 @@ else {
 
             <h2
                 style="font-size: 15px; color: #7f8c8d; margin-bottom: 15px; text-transform: uppercase; letter-spacing: 0.5px;">
-                <i class="fa-solid fa-user-shield"></i> Minhas Ações de Avaliação</h2>
+                <i class="fa-solid fa-user-shield"></i> Minhas Ações de Avaliação
+            </h2>
             <div class="dashboard-cards">
                 <a href="analisar_solicitacoes.php" class="card"
                     style="<?php echo $kpi_analises > 0 ? 'border-bottom-color: #f39c12;' : 'border-bottom-color: #2ecc71;'; ?>">
                     <div class="card-icon"
                         style="background: <?php echo $kpi_analises > 0 ? '#fffdf5' : '#f4fbf7'; ?>; color: <?php echo $kpi_analises > 0 ? '#f39c12' : '#2ecc71'; ?>;">
-                        <i class="fa-solid fa-clipboard-list"></i></div>
+                        <i class="fa-solid fa-clipboard-list"></i>
+                    </div>
                     <div class="card-info">
                         <h3>Aguardando Análise</h3>
                         <p style="color: <?php echo $kpi_analises > 0 ? '#d68910' : '#27ae60'; ?>;">
-                            <?php echo $kpi_analises; ?></p>
+                            <?php echo $kpi_analises; ?>
+                        </p>
                     </div>
                 </a>
                 <a href="analisar_solicitacoes.php?status_filtro=MeusAprovados" class="card"
@@ -624,7 +626,8 @@ else {
 
             <h2
                 style="font-size: 15px; color: #7f8c8d; margin-bottom: 15px; text-transform: uppercase; letter-spacing: 0.5px;">
-                <i class="fa-solid fa-building-columns"></i> Panorama Global da Fatec</h2>
+                <i class="fa-solid fa-building-columns"></i> Panorama Global da Fatec
+            </h2>
 
             <?php if ($funcao == 'Diretor'): ?>
                 <div class="card-orcamento">

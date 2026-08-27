@@ -76,57 +76,40 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         
         .alert-error { background: #fee2e2; color: #b91c1c; padding: 15px; border-radius: 6px; font-size: 13px; margin-bottom: 20px; text-align: left; border-left: 4px solid #b91c1c; }
     </style>
-<!-- INTEGRAÇÃO ONESIGNAL (PUSH NOTIFICATIONS) -->
-<script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+<!-- FIREBASE PUSH NOTIFICATIONS -->
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-messaging-compat.js"></script>
 <script>
-  window.OneSignalDeferred = window.OneSignalDeferred || [];
-  OneSignalDeferred.push(async function(OneSignal) {
-    await OneSignal.init({
-      appId: "f3a9b7ad-ba4b-420c-8290-99f87501f1a3", // Seu App ID
-      
-      // DEIXA O SININHO EM PORTUGUÊS
-      notifyButton: {
-        enable: true,
-        text: {
-            'tip.state.unsubscribed': 'Ativar notificações',
-            'tip.state.subscribed': 'Você está inscrito',
-            'tip.state.blocked': 'Você bloqueou as notificações',
-            'message.prenotify': 'Clique para receber notificações',
-            'message.action.subscribed': 'Obrigado por se inscrever!',
-            'message.action.resubscribed': 'Você está inscrito novamente',
-            'message.action.unsubscribed': 'Você não receberá mais avisos',
-            'dialog.main.title': 'Notificações HAE',
-            'dialog.main.button.subscribe': 'INSCREVER-SE',
-            'dialog.main.button.unsubscribe': 'CANCELAR INSCRIÇÃO',
-            'dialog.blocked.title': 'Desbloquear Notificações',
-            'dialog.blocked.message': 'Siga as instruções para permitir notificações:'
-        }
-      },
-      
-      // DEIXA O AVISO DO MEIO DA TELA EM PORTUGUÊS
-      promptOptions: {
-        slidedown: {
-          prompts: [{
-            type: "push",
-            autoPrompt: true,
-            text: {
-              actionMessage: "Gostaríamos de enviar avisos importantes sobre seus projetos HAE e prazos de relatórios.",
-              acceptButton: "Permitir",
-              cancelButton: "Agora Não"
-            },
-            delay: {
-              pageViews: 1,
-              timeDelay: 2
-            }
-          }]
-        }
-      }
-    });
+  const firebaseConfig = {
+      apiKey: "AIzaSyCXkLWCZD3vKkybvp41YyyU_G2vaeZRcs0",
+      authDomain: "hae-fatec.firebaseapp.com",
+      projectId: "hae-fatec",
+      storageBucket: "hae-fatec.firebasestorage.app",
+      messagingSenderId: "732325516207",
+      appId: "1:732325516207:web:93cdd26e78656ec2ee156a"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const messaging = firebase.messaging();
 
-    // Registra o ID apenas se o usuário estiver logado
-    <?php if(isset($_SESSION['usuario_id'])): ?>
-        OneSignal.login("<?php echo $_SESSION['usuario_id']; ?>");
-    <?php endif; ?>
+  function solicitarPermissaoPush() {
+      Notification.requestPermission().then((permission) => {
+          if (permission === 'granted') {
+              messaging.getToken({ vapidKey: "BEgkKtj6Eq-ttKtvBL3xOoIoyAAdwiWxOLLygWTlwBSEqWx8AY5oZsvFRY033g71NhAhDKg_kcYEErTiE0cbmoE" })
+                .then((currentToken) => {
+                  if (currentToken) {
+                      fetch('salvar_token.php', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ token: currentToken })
+                      });
+                  }
+              }).catch((err) => console.log('Erro ao pegar token:', err));
+          }
+      });
+  }
+
+  document.addEventListener("DOMContentLoaded", function() {
+      solicitarPermissaoPush();
   });
 </script>
 </head>

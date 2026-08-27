@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Tempo de geração: 10/08/2026 às 01:34
+-- Tempo de geração: 27/08/2026 às 03:04
 -- Versão do servidor: 10.4.32-MariaDB
 -- Versão do PHP: 8.2.12
 
@@ -61,6 +61,27 @@ INSERT INTO `configuracoes` (`id`, `chave`, `valor`) VALUES
 (1, 'logo_institucional', 'uploads/logo_fatec_1785789131.jpeg'),
 (2, 'ano_eleitoral', '0'),
 (3, 'total_hae_disponivel', '250');
+
+-- --------------------------------------------------------
+
+--
+-- Estrutura para tabela `fcm_tokens`
+--
+
+CREATE TABLE `fcm_tokens` (
+  `id` int(11) NOT NULL,
+  `usuario_id` int(11) NOT NULL,
+  `token` varchar(255) NOT NULL,
+  `data_registro` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Despejando dados para a tabela `fcm_tokens`
+--
+
+INSERT INTO `fcm_tokens` (`id`, `usuario_id`, `token`, `data_registro`) VALUES
+(1, 1, 'fZVfH1IyY4bWXPZk7Uzu_w:APA91bGaAVmOzvMwAhFFRTKfzUDiwq42xQG9mpJOCRVNAyuZwwdf2OoaiF-1BFWNuJkKE_EHU9ePsGQBh3RBM9yykeHC-UrRwuv1lJGVnSnMLPE-MVhbPDg', '2026-08-26 23:41:33'),
+(38, 29, 'eptVGBZ1QkbA2PklC0pD7w:APA91bGMt6y2Z84c7E83fEwabDboQZQA3jdeCTd9M0SpNtlHE0dAOvEPOisoKYStAdwBoAgeO8tjEFJ9R7KpRGJLEq1qPPyWqL_n1_-Wl-hhXAiN0D1oZbM', '2026-08-27 00:19:55');
 
 -- --------------------------------------------------------
 
@@ -129,7 +150,7 @@ CREATE TABLE `solicitacoes_hae` (
   `detalhamento_recursos` text DEFAULT NULL,
   `cronograma` text NOT NULL,
   `resultados_esperados` text NOT NULL,
-  `status_aprovacao` enum('Pendente','Aprovado','Rejeitado') DEFAULT 'Pendente',
+  `status_aprovacao` enum('Pendente','Aprovado','Rejeitado','Devolvido') DEFAULT 'Pendente',
   `status_coordenador` varchar(20) DEFAULT 'Pendente',
   `status_diretor` varchar(20) DEFAULT 'Pendente',
   `parecer_diretor` text DEFAULT NULL,
@@ -163,7 +184,13 @@ INSERT INTO `solicitacoes_hae` (`id`, `professor_id`, `coordenador_alvo_id`, `co
 (18, 29, 7, NULL, 7, 2, 'projeto aprovado', '2026-07-29', NULL, '2/2026', 8, NULL, 'realizando teste de hojee 29.07', 0, NULL, 'testando 29.07 testando 29.07testando 29.07testando 29.07testando 29.07testando 29.07testando 29.07testando 29.07testando 29.07', 24, 12, 8, 44, 198, 'Acadêmico', 'testando 29.07testando 29.07testando 29.07', 'testando 29.07testando 29.07testando 29.07', 'testando 29.07testando 29.07testando 29.07', 'testando 29.07testando 29.07testando 29.07', 'Físico,Humano', 'testando 29.07testando 29.07testando 29.07', 'testando 29.07testando 29.07testando 29.07testando 29.07', 'testando 29.07testando 29.07testando 29.07testando 29.07testando 29.07', 'Aprovado', 'Aprovado', 'Aprovado', 'esta de acordo, projeto aprovado !!!', '2026-07-29', NULL, NULL, '2026-07-29 19:20:38'),
 (19, 29, 7, NULL, 7, 2, 'perfeito', '2026-07-29', NULL, '1/2026', 8, NULL, 'realizando teste de hojee 29.07 de rejeição', 0, NULL, 'testando rejeição testando rejeição testando rejeição testando rejeição testando rejeição testando rejeição testando rejeição ', 24, 12, 8, 44, 198, 'Administrativo', 'testando rejeição testando rejeição testando rejeição ', 'testando rejeição testando rejeição testando rejeição ', 'testando rejeição testando rejeição testando rejeição ', 'testando rejeição testando rejeição testando rejeição testando rejeição testando rejeição ', 'Financeiro,Físico', 'testando rejeição testando rejeição testando rejeição testando rejeição ', 'testando rejeição testando rejeição testando rejeição ', 'testando rejeição testando rejeição testando rejeição ', 'Aprovado', 'Aprovado', 'Aprovado', 'otimo aprovado !!!', '2026-07-29', NULL, NULL, '2026-07-29 19:32:06'),
 (20, 29, 7, NULL, 7, NULL, 'ruim', NULL, NULL, '1/2026', 8, NULL, 'realizando outro teste rejeição!!!!', 0, NULL, 'testando rejeição testando rejeição testando rejeição testando rejeição testando rejeição testando rejeição testando rejeição ', 24, 12, 8, 44, 198, 'Extensão à comunidade', 'testando rejeição testando rejeição testando rejeição testando rejeição testando rejeição ', 'testando rejeição testando rejeição testando rejeição testando rejeição ', 'testando rejeição testando rejeição testando rejeição testando rejeição testando rejeição ', 'testando rejeição testando rejeição testando rejeição testando rejeição testando rejeição ', 'Financeiro,Físico', 'testando rejeição testando rejeição testando rejeição testando rejeição ', 'testando rejeição testando rejeição ', 'testando rejeição testando rejeição testando rejeição ', 'Rejeitado', 'Rejeitado', 'Pendente', NULL, NULL, NULL, NULL, '2026-07-29 19:35:44'),
-(21, 8, 7, NULL, NULL, 2, NULL, NULL, NULL, '2/2026', 4, NULL, 'realizando teste de hoje 0308', 0, NULL, 'aaaaaaaa', 10, 5, 4, 19, 86, 'Acadêmico', 'aaaaaaaaaaaaa', 'aaaaaaaaaa', 'aaaaaaaaaa', 'aaaaaaaaaa', 'Humano', 'aaaaaaaaaaaaaaaaa', 'aaaaaaaaaaaaaaa', 'aaaaaaaaaaaaaaaaa', 'Pendente', 'Pendente', 'Aprovado', 's', '2026-08-03', NULL, NULL, '2026-08-03 17:33:12');
+(21, 8, 7, NULL, NULL, 2, NULL, NULL, NULL, '2/2026', 4, NULL, 'realizando teste de hoje 0308', 0, NULL, 'aaaaaaaa', 10, 5, 4, 19, 86, 'Acadêmico', 'aaaaaaaaaaaaa', 'aaaaaaaaaa', 'aaaaaaaaaa', 'aaaaaaaaaa', 'Humano', 'aaaaaaaaaaaaaaaaa', 'aaaaaaaaaaaaaaa', 'aaaaaaaaaaaaaaaaa', 'Pendente', 'Pendente', 'Aprovado', 's', '2026-08-03', NULL, NULL, '2026-08-03 17:33:12'),
+(23, 1, 7, NULL, 7, NULL, NULL, NULL, NULL, '2/2026', 8, NULL, 'eeeeeeeeeee - v1.3', 0, NULL, 'eeeeeeeeeee', 22, 11, 8, 41, 185, 'Acadêmico', 'eeeeeeeeeee', 'eeeeeeee', 'eeeeeeeeeeee', 'eeeeeeeeeee', 'Físico,Humano', 'eeeeeeeeeee', 'eeeeeeeeeeeeeeeeee', 'eeeeeeeeeeeeeeeeee', 'Pendente', 'Pendente', 'Pendente', NULL, NULL, NULL, NULL, '2026-08-24 19:44:59'),
+(25, 1, 7, NULL, 7, 2, 'bom', '2026-08-24', NULL, '2/2026', 8, NULL, 'mmmmmmmmmmmmm - v1.0', 0, NULL, 'mmmmmmmmmmmmmm', 22, 11, 8, 41, 185, 'Administrativo', 'mmmmmmmmmmmmmmmmm', 'mmmmmmmmmmmmmmm', 'mmmmmmmmmm', 'mmmmmmmmmm', 'Físico,Humano', 'mmmmmmmmmmm', 'mmmmmmmmmmm', 'mmmmmmmmmm', 'Aprovado', 'Aprovado', 'Aprovado', 'otimo', '2026-08-24', NULL, NULL, '2026-08-24 20:18:55'),
+(27, 1, 7, NULL, 7, NULL, 'devolvendo outro af\n\n???? PRAZO PARA CORREÇÃO:\nO projeto deverá ser ajustado e submetido novamente no portal até o dia 28/08/2026 às 12:00.', NULL, NULL, '2/2026', 8, NULL, 'bbbbbbbbbbbbbbbbbbbbbb - v1.0', 0, NULL, 'bbbbbbbbbbbbb', 22, 11, 6, 39, 176, 'Administrativo', 'bbbbbbbbb', 'bbbbbbbbb', 'bbbbbbbbbbbbb', 'bbbbbbb', 'Físico,Humano', 'bbbbbbbbb', 'bbbbbbbbbbbbbb', 'bbbbbbbbb', 'Devolvido', 'Devolvido', 'Pendente', NULL, NULL, NULL, NULL, '2026-08-24 20:42:57'),
+(29, 1, 7, NULL, 7, NULL, 'mds testando pega logo\n\n???? PRAZO PARA CORREÇÃO:\nO projeto deverá ser ajustado e submetido novamente no portal até o dia 25/08/2026 às 08:30.', NULL, NULL, '2/2026', 8, NULL, 'vvvvvvv - v1.1', 0, NULL, 'vvvvvvvvv', 22, 11, 8, 41, 185, 'Acadêmico', 'vvvvvvvvvvvvv', 'vvvvvvvv', 'vvvvvv', 'vvvvvvvvv', 'Físico,Humano', 'vvvvvvvvvvvv', 'vvvvvvvvvvvv', 'vvvvvvvvvv', 'Devolvido', 'Devolvido', 'Pendente', NULL, NULL, NULL, NULL, '2026-08-24 23:39:41'),
+(30, 1, 7, NULL, 7, 29, 'agora vai teste coord.', '2026-08-25', NULL, '2/2026', 8, NULL, 'cccccccccccccccccee - v1.4', 0, NULL, 'cccccccc', 22, 11, 8, 41, 185, 'Administrativo', 'ccccccccccc', 'ccccccccccc', 'ccccccccccccc', 'cccccccc', 'Físico,Humano', 'ccccccccc', 'ccccccccccc', 'ccccccccccac', 'Pendente', 'Aprovado', 'Pendente', NULL, NULL, NULL, NULL, '2026-08-24 23:41:08'),
+(31, 1, 7, NULL, 7, 29, 'ok', '2026-08-27', NULL, '2/2026', 8, NULL, 'iiiiiiiiiiii - v1.5', 0, NULL, 'iiiiiiiiii', 22, 11, 8, 41, 185, 'Acadêmico', 'iiiiiiiiii', 'iiiiiiiiiiiiiiiiiiiiiiii', 'iiiiiiiiiiiiii', 'iiiiiiiiiiiiiiiiiiiiiiiiiiii', 'Físico,Humano', 'iiiiiiiiiiiiiiiiiiiiiiiiii', 'iiiiiiiiiiii', 'iiiiiiiiiiiiiiiii', 'Rejeitado', 'Aprovado', 'Rejeitado', 'eita', NULL, NULL, NULL, '2026-08-25 00:38:48');
 
 -- --------------------------------------------------------
 
@@ -196,7 +223,7 @@ INSERT INTO `usuarios` (`id`, `nome`, `email`, `telefone_whatsapp`, `funcao`, `d
 (3, 'Teste professoraa', 'professora@gmail.com', '(14) 99837-3207', 'Professor', '2006-11-12', '2025-03-01', 'Indeterminado', 'ADS', 'uploads/assinaturas/dd9d1889e20ed1ca009b5a54459f8795.jpg', '1d8bbc4294d306e8ba3ec733b0b06180', 0),
 (4, 'professor_teste', 'professorteste@gmail.com', '(14) 99837-3207', 'Professor', '2006-11-12', '2014-04-04', 'Indeterminado', 'especialista em TI', 'uploads/assinaturas/4c7bd8b0a262942fec377e0cb3763944.jpg', '1d8bbc4294d306e8ba3ec733b0b06180', 0),
 (6, 'Victor Matheus', 'victor.matheus@cps.sp.gov.br', '(14) 99837-3207', 'Professor', '1999-12-08', '2023-03-02', 'Indeterminado', 'ADS', 'uploads/assinaturas/79f9c768743cb1228a7d8ae3e3129edd.jpg', '1d8bbc4294d306e8ba3ec733b0b06180', 0),
-(7, 'Adriano Nakamura', 'nakamura@cps.sp.gov.br', '(14) 99837-3207', 'Coordenador', '1957-10-28', '2009-04-12', 'Indeterminado', 'nakamura@cps.sp.gov.br', 'uploads/assinaturas/5e53c2367047a679b99234e8cd7962a9.avif', '1d8bbc4294d306e8ba3ec733b0b06180', 0),
+(7, 'Adriano Nakamura', 'nakamura@gmail.com', '(14) 99837-3207', 'Coordenador', '1957-10-28', '2009-04-12', 'Indeterminado', 'nakamura@cps.sp.gov.br', 'uploads/assinaturas/5e53c2367047a679b99234e8cd7962a9.avif', '1d8bbc4294d306e8ba3ec733b0b06180', 0),
 (8, 'eduarda professora', 'eduardaprofessora@gmail.com', '(14) 99837-3207', 'Professor', '2007-02-03', '2022-05-04', 'Indeterminado', 'eduardaprofessora@gmail.com', 'uploads/assinaturas/23c6560e00f19601811392924978be82.jpg', '1d8bbc4294d306e8ba3ec733b0b06180', 0),
 (9, 'joao professor', 'joao@gmail.com', '(14) 99837-3207', 'Professor', '2000-11-12', '2023-03-04', 'Indeterminado', 'joao@gmail.com', 'uploads/assinaturas/9dd5bb59783570ede18df44b647cf7ca.svg', '1d8bbc4294d306e8ba3ec733b0b06180', 0),
 (10, 'maria teste', 'maria@gmail.com', '(14) 99837-3207', 'Professor', '2007-11-12', '2007-02-03', 'Indeterminado', 'ADS', 'uploads/assinaturas/6973a39fac579c1874c7102bff592ef9.jpeg', '1d8bbc4294d306e8ba3ec733b0b06180', 0),
@@ -207,7 +234,7 @@ INSERT INTO `usuarios` (`id`, `nome`, `email`, `telefone_whatsapp`, `funcao`, `d
 (15, 'aaa@gmail.com', 'aaa@gmail.com', '(14) 99837-3207', 'Professor', '2006-11-12', NULL, NULL, NULL, NULL, '01d2960db8e87a1ddd3a140378d87d29', 1),
 (16, 'diiiirrrreeeetooooor', 'diretor1212@gmail.com', '(14) 99837-3207', 'Diretor', '2006-11-12', NULL, NULL, NULL, NULL, '01d2960db8e87a1ddd3a140378d87d29', 1),
 (17, 'aaa', 'aa@gmail.com', '(14) 99837-3207', 'Professor', '2006-11-12', NULL, NULL, NULL, NULL, '01d2960db8e87a1ddd3a140378d87d29', 1),
-(29, 'Stefani de Oliveira Santos', 'stefanisantos12112006@gmail.com', '(14) 99837-3207', 'Professor', '2006-11-12', '2022-03-03', 'Indeterminado', 'doutarado em ciencia da computação', 'uploads/assinaturas/8edc0288eb90fad646308b0b5faeab04.jpg', '1d8bbc4294d306e8ba3ec733b0b06180', 0);
+(29, 'Stefani de Oliveira Santos', 'stefanisantos12112006@gmail.com', '(14) 99837-3207', 'Diretor', '2006-11-12', '2022-03-03', 'Indeterminado', 'doutarado em ciencia da computação', 'uploads/assinaturas/8edc0288eb90fad646308b0b5faeab04.jpg', '1d8bbc4294d306e8ba3ec733b0b06180', 0);
 
 --
 -- Índices para tabelas despejadas
@@ -226,6 +253,14 @@ ALTER TABLE `categorias_projeto`
 ALTER TABLE `configuracoes`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `chave` (`chave`);
+
+--
+-- Índices de tabela `fcm_tokens`
+--
+ALTER TABLE `fcm_tokens`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `token` (`token`),
+  ADD KEY `usuario_id` (`usuario_id`);
 
 --
 -- Índices de tabela `relatorios_hae`
@@ -266,6 +301,12 @@ ALTER TABLE `configuracoes`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
+-- AUTO_INCREMENT de tabela `fcm_tokens`
+--
+ALTER TABLE `fcm_tokens`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=48;
+
+--
 -- AUTO_INCREMENT de tabela `relatorios_hae`
 --
 ALTER TABLE `relatorios_hae`
@@ -275,7 +316,7 @@ ALTER TABLE `relatorios_hae`
 -- AUTO_INCREMENT de tabela `solicitacoes_hae`
 --
 ALTER TABLE `solicitacoes_hae`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=22;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=32;
 
 --
 -- AUTO_INCREMENT de tabela `usuarios`
@@ -286,6 +327,12 @@ ALTER TABLE `usuarios`
 --
 -- Restrições para tabelas despejadas
 --
+
+--
+-- Restrições para tabelas `fcm_tokens`
+--
+ALTER TABLE `fcm_tokens`
+  ADD CONSTRAINT `fcm_tokens_ibfk_1` FOREIGN KEY (`usuario_id`) REFERENCES `usuarios` (`id`) ON DELETE CASCADE;
 
 --
 -- Restrições para tabelas `relatorios_hae`

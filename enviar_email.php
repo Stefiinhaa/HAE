@@ -9,13 +9,6 @@ use PHPMailer\PHPMailer\Exception;
 
 /**
  * Função global para disparo de e-mails do sistema HAE usando Gmail
- * 
- * @param string $destinatario Email de quem vai receber
- * @param string $nome_destinatario Nome de quem vai receber
- * @param string $assunto Assunto do e-mail
- * @param string $corpo_html Corpo do e-mail formatado em HTML
- * @param array $imagens_embutidas Array de arrays contendo 'path' e 'cid' das imagens
- * @return bool True se enviou com sucesso, False se falhou
  */
 function dispararEmailSistema($destinatario, $nome_destinatario, $assunto, $corpo_html, $imagens_embutidas = []) {
     $mail = new PHPMailer(true);
@@ -31,18 +24,27 @@ function dispararEmailSistema($destinatario, $nome_destinatario, $assunto, $corp
         $mail->Port       = 465;                         
         $mail->CharSet    = 'UTF-8';
 
+        // =========================================================
+        // CORREÇÃO PARA O XAMPP/LOCALHOST:
+        // Obriga o PHP a ignorar a verificação restrita de SSL local
+        // =========================================================
+        $mail->SMTPOptions = array(
+            'ssl' => array(
+                'verify_peer' => false,
+                'verify_peer_name' => false,
+                'allow_self_signed' => true
+            )
+        );
+
         // Remetente e Destinatário
         $mail->setFrom('sistemahae@gmail.com', 'HAE Fatec Garça'); 
         $mail->addAddress($destinatario, $nome_destinatario);
 
-        // Laço de repetição para embutir todas as imagens passadas na lista
+        // Laço de repetição para embutir todas as imagens (caso existam)
         if (!empty($imagens_embutidas)) {
             foreach ($imagens_embutidas as $img) {
                 if (file_exists($img['path'])) {
-                    // O SEGREDO ESTÁ AQUI: Extrair o nome do arquivo para o provedor reconhecer
                     $nome_arquivo = basename($img['path']);
-                    
-                    // Passar o $nome_arquivo como 3º parâmetro força o Gmail a colar a imagem inline
                     $mail->addEmbeddedImage($img['path'], $img['cid'], $nome_arquivo);
                 }
             }
@@ -52,12 +54,14 @@ function dispararEmailSistema($destinatario, $nome_destinatario, $assunto, $corp
         $mail->isHTML(true);
         $mail->Subject = $assunto;
         $mail->Body    = $corpo_html;
-        
         $mail->AltBody = strip_tags($corpo_html);
 
         $mail->send();
         return true;
+        
     } catch (Exception $e) {
+        // Salva o erro silencioso no log do servidor para diagnóstico profundo
+        error_log("Erro no PHPMailer: {$mail->ErrorInfo}");
         return false;
     }
 }

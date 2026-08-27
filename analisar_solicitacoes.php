@@ -14,9 +14,6 @@ $funcao_logada = $_SESSION['usuario_funcao'];
 $usuario_id = $_SESSION['usuario_id'];
 $mensagem = "";
 
-// ==============================================================================
-// 1. PROCESSAMENTO DE APROVAÇÃO / DEVOLUÇÃO / REJEIÇÃO
-// ==============================================================================
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao'])) {
     $solicitacao_id = $_POST['solicitacao_id'];
     $return_url = isset($_POST['return_url']) ? trim($_POST['return_url']) : '';
@@ -33,6 +30,21 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao'])) {
     $horas_aprovadas = $_POST['horas_aprovadas'] ?? 0;
     $parecer = trim($_POST['parecer']);
     $data_hoje = ($novo_status_individual == 'Aprovado') ? date('Y-m-d') : null;
+
+    $tem_prazo = false;
+    $prazo_data = "";
+    $prazo_hora = "";
+    
+    if ($acao_post == 'devolver') {
+        if (!empty($_POST['prazo_data']) && !empty($_POST['prazo_hora'])) {
+            $tem_prazo = true;
+            $prazo_data = date('d/m/Y', strtotime($_POST['prazo_data']));
+            $prazo_hora = $_POST['prazo_hora'];
+            
+            // CORREÇÃO: Trocado o Emoji por uma marcação de texto segura
+            $parecer .= "\n\n[ PRAZO PARA CORREÇÃO ]\nO projeto deverá ser ajustado e submetido novamente no portal até o dia $prazo_data às $prazo_hora.";
+        }
+    }
 
     try {
         $stmt_current = $pdo->prepare("SELECT status_coordenador, status_diretor FROM solicitacoes_hae WHERE id = ?");
@@ -54,7 +66,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao'])) {
             $stmt->execute([$status_dir, $parecer, $data_hoje, $usuario_id, $horas_aprovadas, $solicitacao_id]);
         }
 
-        // LÓGICA DE STATUS GLOBAL
         $global_status = 'Pendente';
         if ($status_coord == 'Rejeitado' || $status_dir == 'Rejeitado') {
             $global_status = 'Rejeitado'; 
@@ -66,9 +77,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao'])) {
 
         $pdo->prepare("UPDATE solicitacoes_hae SET status_aprovacao = ? WHERE id = ?")->execute([$global_status, $solicitacao_id]);
         
-        // ==============================================================================
-        // 2. AVISAR O DIRETOR SE O COORDENADOR APROVOU (EMAIL + PUSH)
-        // ==============================================================================
+        // NOTIFICAR DIRETOR (Se Coordenador Aprovou)
         if ($funcao_logada == 'Coordenador' && $novo_status_individual == 'Aprovado') {
             $stmt_dir = $pdo->query("SELECT id, nome, email FROM usuarios WHERE funcao = 'Diretor'");
             $diretores = $stmt_dir->fetchAll(PDO::FETCH_ASSOC);
@@ -77,34 +86,27 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao'])) {
                 $assunto_dir = "Nova Pendência: Projeto HAE Aguardando Análise";
                 foreach ($diretores as $dir) {
                     $corpo_dir = "
-                        <div style='font-family: Arial, sans-serif; color: #333; line-height: 1.6; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;'>
-                            <div style='background-color: #f39c12; padding: 20px; text-align: center; color: white;'>
-                                <h2 style='margin: 0; font-size: 20px;'>Ação Necessária - Sistema HAE</h2>
-                            </div>
-                            <div style='padding: 20px;'>
-                                <h3 style='color: #f39c12; margin-top: 0;'>Olá, Diretor(a) " . $dir['nome'] . ".</h3>
-                                <p>Um projeto HAE acabou de receber o parecer favorável da Coordenação.</p>
-                                <p>Este projeto agora está <strong>aguardando a sua análise final</strong> para ser totalmente aprovado e liberado para o professor.</p>
-                                <p>Acesse o portal para emitir o seu parecer:</p>
-                                <div style='text-align: center; margin: 20px 0;'>
-                                    <img src='cid:img_link_portal' alt='Link de Acesso' style='max-width: 250px; border: 1px solid #ccc; border-radius: 4px;'>
-                                </div>
-                                <p style='margin-top: 25px; font-size: 14px; color: #555;'>Atenciosamente,<br><strong>Gestão Acadêmica - Fatec</strong></p>
-                            </div>
+                        <div style='font-family: Arial, sans-serif; color: #2c3e50; padding: 20px; border: 1px solid #ddd; border-radius: 8px;'>
+                            <h2 style='color: #f39c12; margin-top: 0;'>Ação Necessária - Sistema HAE</h2>
+                            <p>Olá, Diretor(a) <strong>" . htmlspecialchars($dir['nome']) . "</strong>,</p>
+                            <p>Um projeto HAE acabou de receber o parecer favorável da Coordenação e agora <strong>aguarda a sua análise final</strong>.</p>
+                            <p>Por favor, acesse o painel do <strong>Sistema HAE</strong> no seu navegador para emitir o parecer oficial.</p>
+                            <p style='margin-top: 20px; font-size: 12px; color: #7f8c8d;'>Mensagem automática do Sistema de Gestão Acadêmica HAE - Fatec.</p>
                         </div>
                     ";
-                    $lista_img_dir = [['path' => 'img/link_acesso.jpeg', 'cid' => 'img_link_portal']];
-                    dispararEmailSistema($dir['email'], $dir['nome'], $assunto_dir, $corpo_dir, $lista_img_dir);
                     
-                    // PUSH PARA TODOS OS DIRETORES
-                    dispararPush($dir['id'], "Projeto Aguardando Análise 📋", "A Coordenação aprovou um projeto HAE. Ele aguarda sua análise final.", "https://sistemahae.page.gd/analisar_solicitacoes.php");
+                    try {
+                        dispararEmailSistema($dir['email'], $dir['nome'], $assunto_dir, $corpo_dir);
+                    } catch (Exception $e) { error_log("Erro Email Diretor: " . $e->getMessage()); }
+
+                    try {
+                        dispararPush($dir['id'], "Projeto Aguardando Análise 📋", "A Coordenação aprovou um projeto HAE. Ele aguarda sua análise final.", "https://sistemahae.page.gd/analisar_solicitacoes.php");
+                    } catch (Exception $e) { error_log("Erro Push Diretor: " . $e->getMessage()); }
                 }
             }
         }
         
-        // ==============================================================================
-        // 3. DISPARO DE E-MAIL E PUSH PARA O PROFESSOR
-        // ==============================================================================
+        // NOTIFICAR PROFESSOR (Sobre a avaliação)
         $deve_notificar_prof = false;
         $cor_topo = "";
         $status_texto = "";
@@ -118,19 +120,32 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao'])) {
             $cor_topo = "#c0392b";
             $assunto = "Projeto HAE Rejeitado";
             $status_texto = "Rejeitado (Bloqueado)";
-            $msg_corpo = "O seu projeto foi analisado e <strong>rejeitado</strong> pela $funcao_logada. Este projeto foi encerrado e está bloqueado para edições. Veja o parecer oficial abaixo.";
+            $msg_corpo = "O seu projeto foi analisado e <strong>REJEITADO</strong> pela $funcao_logada. Este projeto foi encerrado e está bloqueado para edições.";
             
             $push_titulo = "Projeto HAE Rejeitado ✕";
             $push_mensagem = "Seu projeto foi rejeitado pela $funcao_logada. Acesse para visualizar o parecer.";
+            
         } else if ($novo_status_individual == 'Devolvido') {
             $deve_notificar_prof = true;
             $cor_topo = "#f39c12";
             $assunto = "Atenção: Correções Necessárias - Projeto HAE";
             $status_texto = "Devolvido para Ajustes";
-            $msg_corpo = "O seu projeto foi analisado e <strong>devolvido</strong> pela $funcao_logada. Veja o parecer oficial abaixo e realize as correções necessárias no portal para submetê-lo novamente.";
+            
+            $msg_corpo = "O seu projeto foi analisado e <strong>DEVOLVIDO</strong> pela $funcao_logada. Veja o parecer oficial abaixo e realize as correções necessárias no portal.";
             
             $push_titulo = "Projeto HAE Devolvido ⟲";
             $push_mensagem = "O avaliador encontrou pendências e devolveu seu projeto para ajustes.";
+            
+            if ($tem_prazo) {
+                $msg_corpo .= "
+                <div style='background: #fff; border: 1px solid #e0e0e0; border-left: 4px solid #e74c3c; padding: 15px; margin-top: 20px; font-size: 14px; border-radius: 4px;'>
+                    <strong style='color: #c0392b; display: block; margin-bottom: 5px;'>📅 PRAZO DE ENTREGA ESTABELECIDO:</strong>
+                    Para não comprometer o calendário de aprovações, solicitamos que o projeto corrigido seja submetido no sistema impreterivelmente até o dia <strong>$prazo_data</strong> às <strong>$prazo_hora</strong>.
+                </div>";
+                
+                $push_mensagem .= " ⏳ Prazo para correção: $prazo_data às $prazo_hora.";
+            }
+            
         } else if ($global_status == 'Aprovado') {
             $deve_notificar_prof = true;
             $cor_topo = "#27ae60";
@@ -153,44 +168,35 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao'])) {
                 $titulo_proj = $prof['titulo_projeto'];
 
                 $corpo_email = "
-                    <div style='font-family: Arial, sans-serif; color: #333; line-height: 1.6; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;'>
-                        <div style='background-color: $cor_topo; padding: 20px; text-align: center; color: white;'>
-                            <h2 style='margin: 0; font-size: 20px;'>Atualização - Sistema HAE Fatec</h2>
+                    <div style='font-family: Arial, sans-serif; color: #2c3e50; padding: 20px; border: 1px solid #ddd; border-radius: 8px;'>
+                        <h2 style='color: $cor_topo; margin-top: 0;'>Atualização do Projeto HAE</h2>
+                        <p>Olá, Prof(a). <strong>" . htmlspecialchars($nome_prof) . "</strong>,</p>
+                        <p>O seu projeto <strong>$titulo_proj</strong> passou por uma avaliação e o status foi atualizado para: <strong>$status_texto</strong>.</p>
+                        <p>$msg_corpo</p>
+                        
+                        <div style='background-color: #f8f9fa; padding: 15px; border-left: 4px solid $cor_topo; margin: 15px 0; font-style: italic;'>
+                            <strong>Parecer Oficial:</strong><br>
+                            " . nl2br(htmlspecialchars($parecer)) . "
                         </div>
-                        <div style='padding: 20px;'>
-                            <h3 style='color: $cor_topo; margin-top: 0;'>Olá, Prof(a). $nome_prof.</h3>
-                            <p>Houve uma atualização no status de avaliação do seu projeto HAE.</p>
-                            <div style='background: #f9f9f9; padding: 15px; border-left: 4px solid $cor_topo; margin: 15px 0;'>
-                                <ul style='margin: 0; padding-left: 20px;'>
-                                    <li style='margin-bottom: 8px;'><strong>Projeto:</strong> $titulo_proj</li>
-                                    <li style='margin-bottom: 8px;'><strong>Novo Status:</strong> $status_texto</li>
-                                    <li style='margin-bottom: 8px;'><strong>Avaliador:</strong> $funcao_logada</li>
-                                </ul>
-                            </div>
-                            <p>$msg_corpo</p>
-                            <div style='background: #fffdf5; padding: 15px; border: 1px solid #faeccc; border-radius: 4px; margin: 15px 0; font-style: italic; color: #555;'>
-                                <strong>Parecer emitido:</strong><br>
-                                \"" . nl2br(htmlspecialchars($parecer)) . "\"
-                            </div>
-                            <p>Para visualizar todos os detalhes, acesse o portal:</p>
-                            <div style='text-align: center; margin: 20px 0;'>
-                                <img src='cid:img_link_portal' alt='Link de Acesso' style='max-width: 250px; border: 1px solid #ccc; border-radius: 4px;'>
-                            </div>
-                            <p style='margin-top: 25px; font-size: 14px; color: #555;'>Atenciosamente,<br><strong>Gestão Acadêmica - Fatec</strong></p>
-                        </div>
+                        
+                        <p>Acesse o painel do <strong>Sistema HAE</strong> no seu navegador para visualizar os detalhes e realizar correções, se necessário.</p>
+                        <p style='margin-top: 20px; font-size: 12px; color: #7f8c8d;'>Mensagem automática do Sistema de Gestão Acadêmica HAE - Fatec.</p>
                     </div>
                 ";
-                $lista_imagens = [['path' => 'img/link_acesso.jpeg', 'cid' => 'img_link_portal']];
-                dispararEmailSistema($email_prof, $nome_prof, $assunto, $corpo_email, $lista_imagens);
                 
-                // DISPARO DO PUSH PARA O PROFESSOR
-                dispararPush($prof['id'], $push_titulo, $push_mensagem, "https://sistemahae.page.gd/meus_projetos.php");
+                try {
+                    dispararEmailSistema($email_prof, $nome_prof, $assunto, $corpo_email);
+                } catch (Exception $e) { error_log("Erro Email Professor: " . $e->getMessage()); }
+
+                try {
+                    dispararPush($prof['id'], $push_titulo, $push_mensagem, "https://sistemahae.page.gd/meus_projetos.php");
+                } catch (Exception $e) { error_log("Erro Push Professor: " . $e->getMessage()); }
             }
         }
 
         header("Location: analisar_solicitacoes.php?status=sucesso" . (!empty($return_url) ? "&" . $return_url : ""));
         exit;
-    } catch (PDOException $e) {
+    } catch (Exception $e) {
         $mensagem = "Erro ao processar: " . $e->getMessage();
     }
 }
@@ -249,8 +255,6 @@ if ($visualizando_id) {
     if ($filtro_status == 'Aguardando') {
         if ($funcao_logada == 'Coordenador') {
             $where[] = "s.status_coordenador = 'Pendente' AND s.status_aprovacao NOT IN ('Rejeitado', 'Devolvido')";
-            $where[] = "(s.coordenador_alvo_id IS NULL OR s.coordenador_alvo_id = ?)";
-            $params[] = $usuario_id;
         } else {
             $where[] = "s.status_diretor = 'Pendente' AND s.status_coordenador = 'Aprovado' AND s.status_aprovacao NOT IN ('Rejeitado', 'Devolvido')";
         }
@@ -337,59 +341,46 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
     <link rel="stylesheet" href="assets/css/painel.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
-    <!-- INTEGRAÇÃO ONESIGNAL (PUSH NOTIFICATIONS) -->
-    <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-messaging-compat.js"></script>
     <script>
-      window.OneSignalDeferred = window.OneSignalDeferred || [];
-      OneSignalDeferred.push(async function(OneSignal) {
-        await OneSignal.init({
-          appId: "f3a9b7ad-ba4b-420c-8290-99f87501f1a3", // Seu App ID
-          
-          // DEIXA O SININHO EM PORTUGUÊS
-          notifyButton: {
-            enable: true,
-            text: {
-                'tip.state.unsubscribed': 'Ativar notificações',
-                'tip.state.subscribed': 'Você está inscrito',
-                'tip.state.blocked': 'Você bloqueou as notificações',
-                'message.prenotify': 'Clique para receber notificações',
-                'message.action.subscribed': 'Obrigado por se inscrever!',
-                'message.action.resubscribed': 'Você está inscrito novamente',
-                'message.action.unsubscribed': 'Você não receberá mais avisos',
-                'dialog.main.title': 'Notificações HAE',
-                'dialog.main.button.subscribe': 'INSCREVER-SE',
-                'dialog.main.button.unsubscribe': 'CANCELAR INSCRIÇÃO',
-                'dialog.blocked.title': 'Desbloquear Notificações',
-                'dialog.blocked.message': 'Siga as instruções para permitir notificações:'
-            }
-          },
-          
-          // DEIXA o AVISO DO MEIO DA TELA EM PORTUGUÊS
-          promptOptions: {
-            slidedown: {
-              prompts: [{
-                type: "push",
-                autoPrompt: true,
-                text: {
-                  actionMessage: "Gostaríamos de enviar avisos importantes sobre seus projetos HAE e prazos de relatórios.",
-                  acceptButton: "Permitir",
-                  cancelButton: "Agora Não"
-                },
-                delay: {
-                  // DEIXA O AVISO DO MEIO DA TELA EM PORTUGUÊS
-                  pageViews: 1,
-                  timeDelay: 2
-                }
-              }]
-            }
-          }
-        });
+    const firebaseConfig = {
+        apiKey: "AIzaSyCXkLWCZD3vKkybvp41YyyU_G2vaeZRcs0",
+        authDomain: "hae-fatec.firebaseapp.com",
+        projectId: "hae-fatec",
+        storageBucket: "hae-fatec.firebasestorage.app",
+        messagingSenderId: "732325516207",
+        appId: "1:732325516207:web:93cdd26e78656ec2ee156a"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const messaging = firebase.messaging();
 
-        // Registra o ID apenas se o usuário estiver logado
-        <?php if(isset($_SESSION['usuario_id'])): ?>
-            OneSignal.login("<?php echo $_SESSION['usuario_id']; ?>");
-        <?php endif; ?>
-      });
+    function solicitarPermissaoPush() {
+    Notification.requestPermission().then((permission) => {
+        if (permission === 'granted') {
+            navigator.serviceWorker.register('./firebase-messaging-sw.js')
+            .then(function(registration) {
+                return messaging.getToken({ 
+                    vapidKey: "BEgkKtj6Eq-ttKtvBL3xOoIoyAAdwiWxOLLygWTlwBSEqWx8AY5oZsvFRY033g71NhAhDKg_kcYEErTiE0cbmoE",
+                    serviceWorkerRegistration: registration
+                });
+            })
+            .then((currentToken) => {
+                if (currentToken) {
+                    fetch('salvar_token.php', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ token: currentToken })
+                    });
+                }
+            }).catch((err) => console.log('Erro ao pegar token:', err));
+        }
+    });
+}
+
+    document.addEventListener("DOMContentLoaded", function() {
+        solicitarPermissaoPush();
+    });
     </script>
 
     <style>
@@ -599,6 +590,27 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
                             
                             <label>Seu Parecer Oficial</label>
                             <textarea name="parecer" id="campo_parecer" rows="5" placeholder="Digite sua avaliação sobre o projeto..." required><?php echo ($funcao_logada == 'Coordenador') ? htmlspecialchars($detalhes['parecer_coordenador']) : htmlspecialchars($detalhes['parecer_diretor']); ?></textarea>
+                            
+                            <div style="border: 1px solid #e0e0e0; padding: 15px; border-radius: 6px; margin-bottom: 20px; background: #fafbfc;">
+                                <label style="cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 14px; color: #333; margin: 0;">
+                                    <input type="checkbox" id="check_prazo" onchange="document.getElementById('box_prazo_campos').style.display = this.checked ? 'grid' : 'none';" style="width: 16px; height: 16px; margin: 0; cursor: pointer;"> 
+                                    <span style="font-weight: 600;"><i class="fa-solid fa-stopwatch" style="color: #e74c3c;"></i> Estabelecer prazo limite para correção</span>
+                                </label>
+                                
+                                <div id="box_prazo_campos" style="display: none; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 15px; padding-top: 15px; border-top: 1px dashed #ccc;">
+                                    <div>
+                                        <span style="display: block; font-size: 12px; color: #555; font-weight: bold; margin-bottom: 5px;">Data Limite</span>
+                                        <input type="date" name="prazo_data" style="margin-bottom: 0; padding: 10px; border-radius: 4px; border: 1px solid #ccc; width: 100%; box-sizing: border-box;">
+                                    </div>
+                                    <div>
+                                        <span style="display: block; font-size: 12px; color: #555; font-weight: bold; margin-bottom: 5px;">Horário Limite</span>
+                                        <input type="time" name="prazo_hora" style="margin-bottom: 0; padding: 10px; border-radius: 4px; border: 1px solid #ccc; width: 100%; box-sizing: border-box;">
+                                    </div>
+                                    <div style="grid-column: 1 / -1;">
+                                        <p style="font-size: 12px; color: #777; margin: 0;"><i class="fa-solid fa-circle-info"></i> O professor será notificado no sistema, por e-mail e Push/WhatsApp sobre este prazo.</p>
+                                    </div>
+                                </div>
+                            </div>
                             
                             <div class="botoes-acao">
                                 <button type="submit" name="acao" value="aprovar" class="btn-aprovar" onclick="return validarParecer('aprovar');">✓ Aprovar Projeto HAE</button>
@@ -909,6 +921,16 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
             if (acao === 'rejeitar') {
                 return confirm('Tem certeza que deseja REJEITAR DEFINITIVAMENTE este projeto HAE? (O professor será bloqueado de editá-lo)');
             } else if (acao === 'devolver') {
+                let checkPrazo = document.getElementById('check_prazo');
+                if (checkPrazo && checkPrazo.checked) {
+                    let dataPrazo = document.querySelector('input[name="prazo_data"]').value;
+                    let horaPrazo = document.querySelector('input[name="prazo_hora"]').value;
+                    if (!dataPrazo || !horaPrazo) {
+                        alert('Por favor, preencha a Data e o Horário limite ou desmarque a opção de prazo.');
+                        return false;
+                    }
+                }
+                
                 return confirm('Deseja DEVOLVER este projeto para o professor fazer correções?');
             } else {
                 return confirm('Confirmar o seu parecer FAVORÁVEL para este projeto?');
