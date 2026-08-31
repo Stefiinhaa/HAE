@@ -8,6 +8,36 @@ if (!isset($_SESSION['usuario_id']) || $_SESSION['usuario_funcao'] !== 'Diretor'
     exit;
 }
 
+// Lógica de exclusão do projeto pelo Diretor
+if (isset($_GET['excluir_id'])) {
+    $excluir_id = (int)$_GET['excluir_id'];
+    
+    try {
+        $pdo->beginTransaction();
+        
+        // Deleta os relatórios vinculados à solicitação para evitar erro de Foreign Key
+        $stmt_del_rel = $pdo->prepare("DELETE FROM relatorios_hae WHERE solicitacao_id = ?");
+        $stmt_del_rel->execute([$excluir_id]);
+        
+        // Deleta a solicitação
+        $stmt_del_sol = $pdo->prepare("DELETE FROM solicitacoes_hae WHERE id = ?");
+        $stmt_del_sol->execute([$excluir_id]);
+        
+        $pdo->commit();
+        
+        // Redireciona com mensagem de sucesso e removendo o parâmetro da URL
+        $url = "projetos_hae.php?msg=excluido";
+        if (isset($_GET['semestre'])) {
+            $url .= "&semestre=" . urlencode($_GET['semestre']) . "&status=" . urlencode($_GET['status']);
+        }
+        header("Location: " . $url);
+        exit;
+    } catch (Exception $e) {
+        $pdo->rollBack();
+        die("Erro ao excluir o projeto: " . $e->getMessage());
+    }
+}
+
 $pagina_atual = basename($_SERVER['PHP_SELF']);
 
 // Definição do semestre atual (Inteligência Temporal)
@@ -109,19 +139,33 @@ foreach ($solicitacoes as $proj) {
         .row-total { background-color: #f8f9fa; font-weight: bold; }
         .row-total td { border-top: 2px solid #333; border-bottom: none; font-size: 15px; color: #000; padding: 15px; }
 
+        .col-acao { text-align: center; width: 80px; }
+        .btn-excluir { color: #c0392b; background: transparent; border: 1px solid transparent; padding: 6px 10px; border-radius: 4px; font-weight: 500; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 5px; font-size: 12px; transition: 0.2s; }
+        .btn-excluir:hover { background: rgba(231, 76, 60, 0.1); border-color: rgba(231, 76, 60, 0.3); }
+
         /* ESTILOS PARA QUANDO O DIRETOR CLICAR EM IMPRIMIR/SALVAR PDF */
         @media print {
-            body { background: #fff; margin: 0; padding: 0; }
-            .sidebar, .header-top, .filter-bar, .btn-imprimir { display: none !important; }
+            body { background: #fff; margin: 0; padding: 0; font-family: Arial, sans-serif; }
+            .sidebar, .header-top, .filter-bar, .btn-imprimir, .col-acao, .btn-excluir, .alert-success { display: none !important; }
             .main-content { margin: 0 !important; padding: 0 !important; width: 100% !important; }
-            .relatorio-container { box-shadow: none; border: none; padding: 0; }
-            .header-relatorio { display: block; }
-            .tabela-relatorio th { border-bottom: 2px solid #000; background-color: #eee !important; -webkit-print-color-adjust: exact; }
-            .tabela-relatorio td { border-bottom: 1px solid #ccc; color: #000; }
-            .col-prof { border-right: 1px solid #999; }
-            .col-destaque { color: #000 !important; }
-            .linha-separadora td { border-top: 2px solid #666 !important; } /* Mais forte no papel */
-            .row-total td { border-top: 2px solid #000; background-color: #eee !important; -webkit-print-color-adjust: exact; }
+            .relatorio-container { box-shadow: none; border: none; padding: 0; border-top: none; }
+            
+            .header-relatorio { display: block; text-align: center; margin-bottom: 25px; border-bottom: 2px solid #333; padding-bottom: 15px; }
+            .header-relatorio h2 { margin: 0; font-size: 22px; text-transform: uppercase; color: #000; letter-spacing: 1px; }
+            .header-relatorio p { font-size: 12px; color: #555; margin-top: 5px; }
+            
+            .tabela-relatorio { width: 100%; border-collapse: collapse; min-width: auto; }
+            .tabela-relatorio th { border-bottom: 2px solid #000; background-color: #f2f2f2 !important; -webkit-print-color-adjust: exact; color: #000; font-size: 11px; padding: 10px; text-transform: uppercase; }
+            .tabela-relatorio td { border-bottom: 1px solid #ddd; color: #000; font-size: 12px; padding: 8px 10px; }
+            
+            .col-prof { border-right: 1px solid #888; font-weight: bold; color: #000; width: 25%; }
+            .col-titulo { width: 45%; }
+            .col-num { width: 15%; text-align: center !important; }
+            .col-destaque { color: #000 !important; font-weight: bold; }
+            
+            .linha-separadora td { border-top: 1px solid #000 !important; border-bottom: none !important; padding: 0 !important; height: 1px; } 
+            
+            .row-total td { border-top: 2px solid #000; border-bottom: 2px solid #000; background-color: #f2f2f2 !important; -webkit-print-color-adjust: exact; color: #000; font-size: 13px; font-weight: bold; padding: 12px 10px; }
         }
     </style>
 <!-- FIREBASE PUSH NOTIFICATIONS -->
@@ -201,6 +245,10 @@ foreach ($solicitacoes as $proj) {
             <div class="user-info">Olá, <strong><?php echo htmlspecialchars($_SESSION['usuario_nome']); ?></strong></div>
         </header>
 
+        <?php if (isset($_GET['msg']) && $_GET['msg'] == 'excluido'): ?>
+            <div class="alert-success"><i class="fa-solid fa-check-circle"></i> Projeto e seus relatórios excluídos com sucesso!</div>
+        <?php endif; ?>
+
         <form method="GET" class="filter-bar">
             <div class="filter-group">
                 <label>Semestre / Período</label>
@@ -243,6 +291,7 @@ foreach ($solicitacoes as $proj) {
                         <th class="col-titulo">Título do Projeto</th>
                         <th class="col-num">Nº HAEs SOLICITADOS</th>
                         <th class="col-num">Nº HAEs CONCEDIDOS</th>
+                        <th class="col-acao">Ações</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -276,15 +325,20 @@ foreach ($solicitacoes as $proj) {
                                 <td class="col-titulo"><?php echo htmlspecialchars($titulo_limpo) . $aviso_status; ?></td>
                                 <td class="col-num"><?php echo $solicitado; ?></td>
                                 <td class="col-num col-destaque"><?php echo $concedido; ?></td>
+                                <td class="col-acao">
+                                    <a href="projetos_hae.php?excluir_id=<?php echo $p['id']; ?><?php echo isset($_GET['semestre']) ? '&semestre=' . urlencode($_GET['semestre']) . '&status=' . urlencode($_GET['status']) : ''; ?>" class="btn-excluir" onclick="return confirm('Tem certeza que deseja excluir permanentemente este projeto e todos os seus relatórios? Esta ação não pode ser desfeita.');">
+                                        <i class="fa-solid fa-trash"></i> Excluir
+                                    </a>
+                                </td>
                             </tr>
                             <?php endforeach; ?>
                             
                             <!-- Linha divisória nítida entre professores -->
-                            <tr class="linha-separadora"><td colspan="4"></td></tr>
+                            <tr class="linha-separadora"><td colspan="5"></td></tr>
                             
                         <?php endforeach; ?>
                     <?php else: ?>
-                        <tr><td colspan="4" style="text-align: center; padding: 40px; color: #888;">Nenhum projeto encontrado para este período com o status selecionado.</td></tr>
+                        <tr><td colspan="5" style="text-align: center; padding: 40px; color: #888;">Nenhum projeto encontrado para este período com o status selecionado.</td></tr>
                     <?php endif; ?>
                 </tbody>
                 <?php if (count($projetos_agrupados) > 0): ?>
@@ -293,6 +347,7 @@ foreach ($solicitacoes as $proj) {
                         <td colspan="2" style="text-align: right;">TOTAL DE HAEs:</td>
                         <td class="col-num"><?php echo str_pad($total_solicitado, 2, '0', STR_PAD_LEFT); ?></td>
                         <td class="col-num" style="color: var(--fatec-red);"><?php echo str_pad($total_concedido, 2, '0', STR_PAD_LEFT); ?></td>
+                        <td class="col-acao"></td>
                     </tr>
                 </tfoot>
                 <?php endif; ?>
