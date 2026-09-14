@@ -15,17 +15,14 @@ if (isset($_GET['excluir_id'])) {
     try {
         $pdo->beginTransaction();
         
-        // Deleta os relatórios vinculados à solicitação para evitar erro de Foreign Key
         $stmt_del_rel = $pdo->prepare("DELETE FROM relatorios_hae WHERE solicitacao_id = ?");
         $stmt_del_rel->execute([$excluir_id]);
         
-        // Deleta a solicitação
         $stmt_del_sol = $pdo->prepare("DELETE FROM solicitacoes_hae WHERE id = ?");
         $stmt_del_sol->execute([$excluir_id]);
         
         $pdo->commit();
         
-        // Redireciona com mensagem de sucesso e removendo o parâmetro da URL
         $url = "projetos_hae.php?msg=excluido";
         if (isset($_GET['semestre'])) {
             $url .= "&semestre=" . urlencode($_GET['semestre']) . "&status=" . urlencode($_GET['status']);
@@ -40,7 +37,6 @@ if (isset($_GET['excluir_id'])) {
 
 $pagina_atual = basename($_SERVER['PHP_SELF']);
 
-// Definição do semestre atual (Inteligência Temporal)
 $mes_atual_calc = (int)date('m');
 $ano_atual_calc = (int)date('Y');
 $semestre_padrao = ($mes_atual_calc <= 6) ? "1/$ano_atual_calc" : "2/$ano_atual_calc";
@@ -48,14 +44,12 @@ $semestre_padrao = ($mes_atual_calc <= 6) ? "1/$ano_atual_calc" : "2/$ano_atual_
 $filtro_semestre = isset($_GET['semestre']) ? trim($_GET['semestre']) : $semestre_padrao;
 $filtro_status = isset($_GET['status']) ? trim($_GET['status']) : 'Todos'; 
 
-// Busca os semestres disponíveis no banco
 $stmt_sem = $pdo->query("SELECT DISTINCT semestre FROM solicitacoes_hae ORDER BY semestre DESC");
 $semestres_disponiveis = $stmt_sem->fetchAll(PDO::FETCH_COLUMN);
 if (!in_array($semestre_padrao, $semestres_disponiveis)) {
     array_unshift($semestres_disponiveis, $semestre_padrao);
 }
 
-// Monta a consulta SQL
 $where = ["1=1"];
 $params = [];
 
@@ -69,7 +63,8 @@ if ($filtro_status != 'Todos') {
     $params[] = $filtro_status;
 }
 
-$sql = "SELECT s.id, s.titulo_projeto, s.quantidade_horas, s.status_aprovacao, u.nome AS professor_nome 
+// CORREÇÃO: Buscando horas_aprovadas e horas_especificas do banco
+$sql = "SELECT s.id, s.titulo_projeto, s.quantidade_horas, s.horas_aprovadas, s.horas_especificas, s.status_aprovacao, u.nome AS professor_nome 
         FROM solicitacoes_hae s 
         JOIN usuarios u ON s.professor_id = u.id 
         WHERE " . implode(" AND ", $where) . " 
@@ -79,18 +74,32 @@ $stmt = $pdo->prepare($sql);
 $stmt->execute($params);
 $solicitacoes = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// Agrupa os projetos por Professor
 $projetos_agrupados = [];
 $total_concedido = 0;
 $total_solicitado = 0;
 
 foreach ($solicitacoes as $proj) {
+    $solicitado_valor = (int)$proj['quantidade_horas'];
+    $concedido_valor = $proj['horas_aprovadas'] !== null ? (int)$proj['horas_aprovadas'] : null;
+
+    // HIGIENE DE DADOS: Recupera o valor original dos projetos antigos do banco que foram sobrescritos
+    if ($proj['status_aprovacao'] == 'Aprovado' && $concedido_valor === null) {
+        $concedido_valor = $solicitado_valor; // O diretor aprovou esse valor (que está salvo no lugar errado)
+        $solicitado_valor = (int)$proj['horas_especificas']; // Backup da solicitação original do professor 
+    }
+
+    if ($concedido_valor === null) {
+        $concedido_valor = 0;
+    }
+
+    $proj['solicitado_real'] = $solicitado_valor;
+    $proj['concedido_real'] = $concedido_valor;
+
     $projetos_agrupados[$proj['professor_nome']][] = $proj;
     
-    // Cálculos de Totalizadores
-    $total_solicitado += $proj['quantidade_horas'];
+    $total_solicitado += $solicitado_valor;
     if ($proj['status_aprovacao'] == 'Aprovado') {
-        $total_concedido += $proj['quantidade_horas'];
+        $total_concedido += $concedido_valor;
     }
 }
 ?>
@@ -129,7 +138,6 @@ foreach ($solicitacoes as $proj) {
         .col-num { text-align: center !important; width: 15%; font-size: 15px; }
         .col-destaque { font-weight: bold; color: var(--fatec-red); }
         
-        /* LINHA DE SEPARAÇÃO NÍTIDA ENTRE PROFESSORES */
         .linha-separadora td {
             padding: 0 !important;
             border-top: 2px solid #bdc3c7 !important;
@@ -143,7 +151,6 @@ foreach ($solicitacoes as $proj) {
         .btn-excluir { color: #c0392b; background: transparent; border: 1px solid transparent; padding: 6px 10px; border-radius: 4px; font-weight: 500; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 5px; font-size: 12px; transition: 0.2s; }
         .btn-excluir:hover { background: rgba(231, 76, 60, 0.1); border-color: rgba(231, 76, 60, 0.3); }
 
-        /* ESTILOS PARA QUANDO O DIRETOR CLICAR EM IMPRIMIR/SALVAR PDF */
         @media print {
             body { background: #fff; margin: 0; padding: 0; font-family: Arial, sans-serif; }
             .sidebar, .header-top, .filter-bar, .btn-imprimir, .col-acao, .btn-excluir, .alert-success { display: none !important; }
@@ -224,7 +231,6 @@ foreach ($solicitacoes as $proj) {
                 <li><a href="acompanhar_relatorios.php"><i class="fa-solid fa-chart-line"></i> <span class="menu-text">Acompanhar Relatórios</span></a></li>
                 <li><a href="relatorios_atrasados.php"><i class="fa-solid fa-file-invoice"></i> <span class="menu-text">Relatórios Atrasados</span></a></li>
                 
-                <!-- MENU EXCLUSIVO DO DIRETOR -->
                 <li><a href="projetos_hae.php" class="active"><i class="fa-solid fa-list-check"></i> <span class="menu-text">Projetos HAE</span></a></li>
                 <li><a href="cadastrar_professor.php"><i class="fa-solid fa-user-plus"></i> <span class="menu-text">Cadastrar Usuário</span></a></li>
                 <li><a href="listar_usuarios.php"><i class="fa-solid fa-users"></i> <span class="menu-text">Lista de Usuários</span></a></li>
@@ -302,14 +308,12 @@ foreach ($solicitacoes as $proj) {
                                 $is_first = true;
                                 
                                 foreach ($projetos as $p):
-                                    // Limpa a versão do nome do projeto para o relatório final
                                     $titulo_limpo = preg_replace('/\s*-\s*v\d+\.\d+\s*$/i', '', $p['titulo_projeto']);
                                     
-                                    // Regra de exibição: Solicitado sempre aparece. Concedido só aparece se foi aprovado.
-                                    $solicitado = str_pad($p['quantidade_horas'], 2, '0', STR_PAD_LEFT);
-                                    $concedido = ($p['status_aprovacao'] == 'Aprovado') ? str_pad($p['quantidade_horas'], 2, '0', STR_PAD_LEFT) : '-';
+                                    // CORREÇÃO: Utiliza os valores que separamos na Lógica de Higiene de Dados
+                                    $solicitado = str_pad($p['solicitado_real'], 2, '0', STR_PAD_LEFT);
+                                    $concedido = ($p['status_aprovacao'] == 'Aprovado') ? str_pad($p['concedido_real'], 2, '0', STR_PAD_LEFT) : '-';
                                     
-                                    // Adiciona um aviso visual discreto se o projeto não estiver aprovado
                                     $aviso_status = "";
                                     if ($p['status_aprovacao'] != 'Aprovado') {
                                         $cor = ($p['status_aprovacao'] == 'Pendente') ? '#3498db' : (($p['status_aprovacao'] == 'Devolvido') ? '#f39c12' : '#e74c3c');
@@ -333,7 +337,6 @@ foreach ($solicitacoes as $proj) {
                             </tr>
                             <?php endforeach; ?>
                             
-                            <!-- Linha divisória nítida entre professores -->
                             <tr class="linha-separadora"><td colspan="5"></td></tr>
                             
                         <?php endforeach; ?>

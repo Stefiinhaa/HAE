@@ -35,13 +35,18 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao'])) {
     $prazo_data = "";
     $prazo_hora = "";
     
+    // NOVA VARIÁVEL DA DATA DE INÍCIO DOS RELATÓRIOS
+    $data_inicio_relatorios = null;
+    if ($acao_post == 'aprovar' && $funcao_logada == 'Diretor') {
+        $data_inicio_relatorios = !empty($_POST['data_inicio_relatorios']) ? $_POST['data_inicio_relatorios'] : null;
+    }
+    
     if ($acao_post == 'devolver') {
         if (!empty($_POST['prazo_data']) && !empty($_POST['prazo_hora'])) {
             $tem_prazo = true;
             $prazo_data = date('d/m/Y', strtotime($_POST['prazo_data']));
             $prazo_hora = $_POST['prazo_hora'];
             
-            // CORREÇÃO: Trocado o Emoji por uma marcação de texto segura
             $parecer .= "\n\n[ PRAZO PARA CORREÇÃO ]\nO projeto deverá ser ajustado e submetido novamente no portal até o dia $prazo_data às $prazo_hora.";
         }
     }
@@ -54,16 +59,18 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao'])) {
         $status_coord = $current['status_coordenador'];
         $status_dir = $current['status_diretor'];
 
+        // ATUALIZANDO O BANCO DE DADOS
         if ($funcao_logada == 'Coordenador') {
             $status_coord = $novo_status_individual;
-            $sql = "UPDATE solicitacoes_hae SET status_coordenador = ?, parecer_coordenador = ?, data_aprovacao_coordenador = ?, coordenador_id = ?, quantidade_horas = ? WHERE id = ?";
+            $sql = "UPDATE solicitacoes_hae SET status_coordenador = ?, parecer_coordenador = ?, data_aprovacao_coordenador = ?, coordenador_id = ?, horas_aprovadas = ? WHERE id = ?";
             $stmt = $pdo->prepare($sql);
             $stmt->execute([$status_coord, $parecer, $data_hoje, $usuario_id, $horas_aprovadas, $solicitacao_id]);
         } else if ($funcao_logada == 'Diretor') {
             $status_dir = $novo_status_individual;
-            $sql = "UPDATE solicitacoes_hae SET status_diretor = ?, parecer_diretor = ?, data_aprovacao_diretor = ?, diretor_id = ?, quantidade_horas = ? WHERE id = ?";
+            // O Diretor agora salva a data_inicio_relatorios
+            $sql = "UPDATE solicitacoes_hae SET status_diretor = ?, parecer_diretor = ?, data_aprovacao_diretor = ?, diretor_id = ?, horas_aprovadas = ?, data_inicio_relatorios = ? WHERE id = ?";
             $stmt = $pdo->prepare($sql);
-            $stmt->execute([$status_dir, $parecer, $data_hoje, $usuario_id, $horas_aprovadas, $solicitacao_id]);
+            $stmt->execute([$status_dir, $parecer, $data_hoje, $usuario_id, $horas_aprovadas, $data_inicio_relatorios, $solicitacao_id]);
         }
 
         $global_status = 'Pendente';
@@ -77,7 +84,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao'])) {
 
         $pdo->prepare("UPDATE solicitacoes_hae SET status_aprovacao = ? WHERE id = ?")->execute([$global_status, $solicitacao_id]);
         
-        // NOTIFICAR DIRETOR (Se Coordenador Aprovou)
+        // NOTIFICAR DIRETOR
         if ($funcao_logada == 'Coordenador' && $novo_status_individual == 'Aprovado') {
             $stmt_dir = $pdo->query("SELECT id, nome, email FROM usuarios WHERE funcao = 'Diretor'");
             $diretores = $stmt_dir->fetchAll(PDO::FETCH_ASSOC);
@@ -95,18 +102,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao'])) {
                         </div>
                     ";
                     
-                    try {
-                        dispararEmailSistema($dir['email'], $dir['nome'], $assunto_dir, $corpo_dir);
-                    } catch (Exception $e) { error_log("Erro Email Diretor: " . $e->getMessage()); }
-
-                    try {
-                        dispararPush($dir['id'], "Projeto Aguardando Análise 📋", "A Coordenação aprovou um projeto HAE. Ele aguarda sua análise final.", "https://sistemahae.page.gd/analisar_solicitacoes.php");
-                    } catch (Exception $e) { error_log("Erro Push Diretor: " . $e->getMessage()); }
+                    try { dispararEmailSistema($dir['email'], $dir['nome'], $assunto_dir, $corpo_dir); } catch (Exception $e) {}
+                    try { dispararPush($dir['id'], "Projeto Aguardando Análise 📋", "A Coordenação aprovou um projeto HAE. Ele aguarda sua análise final.", "https://sistemahae.page.gd/analisar_solicitacoes.php"); } catch (Exception $e) {}
                 }
             }
         }
         
-        // NOTIFICAR PROFESSOR (Sobre a avaliação)
+        // NOTIFICAR PROFESSOR
         $deve_notificar_prof = false;
         $cor_topo = "";
         $status_texto = "";
@@ -121,7 +123,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao'])) {
             $assunto = "Projeto HAE Rejeitado";
             $status_texto = "Rejeitado (Bloqueado)";
             $msg_corpo = "O seu projeto foi analisado e <strong>REJEITADO</strong> pela $funcao_logada. Este projeto foi encerrado e está bloqueado para edições.";
-            
             $push_titulo = "Projeto HAE Rejeitado ✕";
             $push_mensagem = "Seu projeto foi rejeitado pela $funcao_logada. Acesse para visualizar o parecer.";
             
@@ -130,9 +131,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao'])) {
             $cor_topo = "#f39c12";
             $assunto = "Atenção: Correções Necessárias - Projeto HAE";
             $status_texto = "Devolvido para Ajustes";
-            
             $msg_corpo = "O seu projeto foi analisado e <strong>DEVOLVIDO</strong> pela $funcao_logada. Veja o parecer oficial abaixo e realize as correções necessárias no portal.";
-            
             $push_titulo = "Projeto HAE Devolvido ⟲";
             $push_mensagem = "O avaliador encontrou pendências e devolveu seu projeto para ajustes.";
             
@@ -142,7 +141,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao'])) {
                     <strong style='color: #c0392b; display: block; margin-bottom: 5px;'>📅 PRAZO DE ENTREGA ESTABELECIDO:</strong>
                     Para não comprometer o calendário de aprovações, solicitamos que o projeto corrigido seja submetido no sistema impreterivelmente até o dia <strong>$prazo_data</strong> às <strong>$prazo_hora</strong>.
                 </div>";
-                
                 $push_mensagem .= " ⏳ Prazo para correção: $prazo_data às $prazo_hora.";
             }
             
@@ -152,7 +150,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao'])) {
             $assunto = "Aprovação Final: Projeto HAE Liberado";
             $status_texto = "Totalmente Aprovado";
             $msg_corpo = "Parabéns! O seu projeto passou por todas as instâncias e foi <strong>oficialmente aprovado</strong>. Ele já está ativo e pronto para o envio de relatórios.";
-            
             $push_titulo = "Projeto HAE Aprovado! 🎉";
             $push_mensagem = "Parabéns! Seu projeto foi aprovado e está ativo no sistema.";
         }
@@ -184,13 +181,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao'])) {
                     </div>
                 ";
                 
-                try {
-                    dispararEmailSistema($email_prof, $nome_prof, $assunto, $corpo_email);
-                } catch (Exception $e) { error_log("Erro Email Professor: " . $e->getMessage()); }
-
-                try {
-                    dispararPush($prof['id'], $push_titulo, $push_mensagem, "https://sistemahae.page.gd/meus_projetos.php");
-                } catch (Exception $e) { error_log("Erro Push Professor: " . $e->getMessage()); }
+                try { dispararEmailSistema($email_prof, $nome_prof, $assunto, $corpo_email); } catch (Exception $e) {}
+                try { dispararPush($prof['id'], $push_titulo, $push_mensagem, "https://sistemahae.page.gd/meus_projetos.php"); } catch (Exception $e) {}
             }
         }
 
@@ -586,11 +578,28 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
                             <input type="hidden" name="return_url" value="<?php echo htmlspecialchars($back_query); ?>">
                             
                             <label>Horas HAE Recomendadas/Aprovadas</label>
-                            <input type="number" name="horas_aprovadas" value="<?php echo $detalhes['quantidade_horas']; ?>" required min="0">
+                            <?php 
+                                // Sugere o valor preenchido pelo diretor se existir, senão mostra o do professor
+                                $valor_sugerido = ($detalhes['horas_aprovadas'] !== null) ? $detalhes['horas_aprovadas'] : $detalhes['quantidade_horas'];
+                            ?>
+                            <input type="number" name="horas_aprovadas" value="<?php echo htmlspecialchars($valor_sugerido); ?>" required min="0">
                             
                             <label>Seu Parecer Oficial</label>
                             <textarea name="parecer" id="campo_parecer" rows="5" placeholder="Digite sua avaliação sobre o projeto..." required><?php echo ($funcao_logada == 'Coordenador') ? htmlspecialchars($detalhes['parecer_coordenador']) : htmlspecialchars($detalhes['parecer_diretor']); ?></textarea>
                             
+                            <!-- NOVA ÁREA DE DATA DE INÍCIO APENAS PARA O DIRETOR -->
+                            <?php if ($funcao_logada == 'Diretor'): ?>
+                                <div style="border: 1px solid #e0e0e0; padding: 15px; border-radius: 6px; margin-bottom: 20px; background: #f4fbf7;">
+                                    <label style="color: #27ae60; margin-bottom: 5px;">
+                                        <i class="fa-solid fa-calendar-check"></i> Mês de Início dos Relatórios (Em caso de Aprovação)
+                                    </label>
+                                    <input type="date" name="data_inicio_relatorios" id="data_inicio_relatorios" style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
+                                    <p style="font-size: 12px; color: #666; margin-top: 5px; margin-bottom: 0;">
+                                        <i class="fa-solid fa-info-circle"></i> Defina a partir de qual data o sistema vai considerar o projeto como "ativo" para gerar as pendências de relatório.
+                                    </p>
+                                </div>
+                            <?php endif; ?>
+
                             <div style="border: 1px solid #e0e0e0; padding: 15px; border-radius: 6px; margin-bottom: 20px; background: #fafbfc;">
                                 <label style="cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 14px; color: #333; margin: 0;">
                                     <input type="checkbox" id="check_prazo" onchange="document.getElementById('box_prazo_campos').style.display = this.checked ? 'grid' : 'none';" style="width: 16px; height: 16px; margin: 0; cursor: pointer;"> 
@@ -930,9 +939,16 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
                         return false;
                     }
                 }
-                
                 return confirm('Deseja DEVOLVER este projeto para o professor fazer correções?');
             } else {
+                <?php if ($funcao_logada == 'Diretor'): ?>
+                let dataInicio = document.querySelector('input[name="data_inicio_relatorios"]');
+                if (dataInicio && dataInicio.value === '') {
+                    alert('Por favor, informe a Data de Início dos Relatórios antes de aprovar o projeto.');
+                    dataInicio.focus();
+                    return false;
+                }
+                <?php endif; ?>
                 return confirm('Confirmar o seu parecer FAVORÁVEL para este projeto?');
             }
         }

@@ -121,10 +121,30 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
             border-bottom: 1px solid #eee;
             font-size: 14px;
             color: #444;
+            vertical-align: middle;
         }
 
         .tabela-inadimplentes tr:last-child td {
             border-bottom: none;
+        }
+
+        /* Estilo do Botão do WhatsApp */
+        .btn-wa-cobranca {
+            background: #25D366;
+            color: #fff;
+            padding: 8px 12px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-size: 12px;
+            font-weight: bold;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: 0.3s;
+        }
+
+        .btn-wa-cobranca:hover {
+            background: #128C7E;
         }
 
         .assinatura-box {
@@ -157,8 +177,9 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
             .header-top,
             .user-info,
             .btn-imprimir,
-            .menu {
-                display: none !important;
+            .menu,
+            .col-acao-print {
+                display: none !important; /* Esconde a coluna do botão do WhatsApp na impressão */
             }
 
             .main-content {
@@ -316,9 +337,10 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
                 <table class="tabela-inadimplentes">
                     <thead>
                         <tr>
-                            <th style="width: 35%;">Professor(a)</th>
-                            <th style="width: 45%;">Projeto Vinculado</th>
-                            <th style="width: 20%;">Telefone (Sistema)</th>
+                            <th style="width: 30%;">Professor(a)</th>
+                            <th style="width: 40%;">Projeto Vinculado</th>
+                            <th style="width: 15%;">Telefone (Sistema)</th>
+                            <th class="col-acao-print" style="width: 15%; text-align: center;">Cobrança Rápida</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -332,6 +354,22 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
                                 </td>
                                 <td>
                                     <?php echo !empty($ind['telefone_whatsapp']) ? htmlspecialchars($ind['telefone_whatsapp']) : 'Não informado'; ?>
+                                </td>
+                                <td class="col-acao-print" style="text-align: center;">
+                                    <?php 
+                                    if (!empty($ind['telefone_whatsapp'])) {
+                                        $num_whats = preg_replace('/[^0-9]/', '', $ind['telefone_whatsapp']);
+                                        $msg = urlencode("Olá professor(a) " . $ind['professor_nome'] . "! Consta em nosso sistema que o seu relatório HAE referente ao mês de " . $meses[$mes_alvo] . " / $ano_alvo para o projeto '" . $ind['titulo_projeto'] . "' encontra-se em atraso. Por favor, acesse o portal HAE para regularizar a situação o mais rápido possível.");
+                                        
+                                        if (strlen($num_whats) >= 10) {
+                                            echo "<a href='https://wa.me/55{$num_whats}?text={$msg}' target='_blank' class='btn-wa-cobranca'><i class='fa-brands fa-whatsapp'></i> Notificar</a>";
+                                        } else {
+                                            echo "<span style='color: #999; font-size: 12px;'>Inválido</span>";
+                                        }
+                                    } else {
+                                        echo "<span style='color: #999; font-size: 12px;'>Sem contato</span>";
+                                    }
+                                    ?>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
