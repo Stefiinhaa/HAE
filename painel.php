@@ -776,6 +776,18 @@ else {
         <?php endif; ?>
     </main>
     <script src="assets/js/painel.js"></script>
+
+    <!-- GATILHO FANTASMA DO CRON JOB (INFINITYFREE) -->
+    <script>
+        window.addEventListener('load', function() {
+            fetch('cron_notificacoes.php?token=HaeFatec2026')
+                .then(response => response.text())
+                .then(data => console.log('Robô Diário HAE:', data))
+                .catch(err => console.error('Falha no robô:', err));
+        });
+    </script>
+</body>
+</html>
 </body>
 
 </html>

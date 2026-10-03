@@ -1,31 +1,41 @@
 <?php
 // ==============================================================================
-// NOVA TRAVA DE SEGURANÇA: Token Secreto via URL
+// TRAVA DE SEGURANÇA: Token Secreto via URL
 // Só roda se acessar: sistemahae.page.gd/cron_notificacoes.php?token=HaeFatec2026
 // ==============================================================================
-$token_secreto = 'HaeFatec2026'; // Você pode mudar essa senha se quiser
+$token_secreto = 'HaeFatec2026'; 
 
 if (!isset($_GET['token']) || $_GET['token'] !== $token_secreto) {
-    // Se tentarem acessar sem o token, o sistema bloqueia
     http_response_code(403);
     exit('Acesso restrito.');
 }
 
-// Define o fuso horário para garantir que o dia mude na hora certa
 date_default_timezone_set('America/Sao_Paulo');
-
-require __DIR__ . '/config/conexao.php';
-require_once __DIR__ . '/enviar_email.php';
-require_once __DIR__ . '/enviar_push.php'; // ADICIONADO: Motor de notificações Push
-
 $dia_hoje = (int)date('d');
+$hoje_str = date('Y-m-d');
 
 // Se passou do dia 11, o robô não precisa fazer nada o resto do mês
 if ($dia_hoje > 11) {
     exit('Fora do periodo de cobranca.');
 }
 
-// Descobre qual é o mês e o ano passado (o mês que está sendo cobrado)
+// ==============================================================================
+// SISTEMA ANTI-SPAM (TRAVA DIÁRIA)
+// Impede que o sistema mande vários e-mails se a página for acessada 2x no mesmo dia
+// ==============================================================================
+$arquivo_log = __DIR__ . '/ultimo_cron.txt';
+
+if (file_exists($arquivo_log)) {
+    $ultimo_disparo = trim(file_get_contents($arquivo_log));
+    if ($ultimo_disparo === $hoje_str) {
+        exit('OK: As notificações de hoje já foram enviadas mais cedo.');
+    }
+}
+
+require __DIR__ . '/config/conexao.php';
+require_once __DIR__ . '/enviar_email.php';
+require_once __DIR__ . '/enviar_push.php'; 
+
 $mes_passado = date('m', strtotime('first day of last month'));
 $ano_passado = date('Y', strtotime('first day of last month'));
 
@@ -37,7 +47,6 @@ $meses_ptbr = [
 $nome_mes_passado = $meses_ptbr[$mes_passado];
 
 try {
-    // ADICIONADO: 's.professor_id' na query para sabermos para quem enviar o Push
     $sql_pendentes = "
         SELECT s.id as projeto_id, s.professor_id, s.titulo_projeto, u.nome as professor_nome, u.email as professor_email
         FROM solicitacoes_hae s
@@ -56,12 +65,13 @@ try {
     $projetos_atrasados = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     if (empty($projetos_atrasados)) {
+        // Salva a memória para o robô não procurar mais no banco hoje
+        file_put_contents($arquivo_log, $hoje_str);
         exit('Nenhum relatorio pendente.');
     }
 
     // REGRA 1: Do dia 1 ao 10 - Cobrar os Professores diariamente
     if ($dia_hoje >= 1 && $dia_hoje <= 10) {
-        
         $assunto = "Aviso Automático: Relatório HAE de $nome_mes_passado Pendente";
         
         foreach ($projetos_atrasados as $proj) {
@@ -70,49 +80,39 @@ try {
             $titulo = $proj['titulo_projeto'];
 
             $corpo_email = "
-                <div style='font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px;'>
-                    <div style='background-color: #f39c12; padding: 20px; text-align: center; color: white;'>
-                        <h2 style='margin: 0;'>Aviso de Pendência HAE</h2>
+                <div style='font-family: Arial, sans-serif; color: #2c3e50; padding: 20px; border: 1px solid #ddd; border-radius: 8px;'>
+                    <h2 style='color: #f39c12; margin-top: 0;'>Aviso de Pendência HAE</h2>
+                    <p>Olá, Prof(a). <strong>" . htmlspecialchars($nome) . "</strong>,</p>
+                    <p>Consta em nosso sistema que o relatório mensal HAE referente a <strong>$nome_mes_passado/$ano_passado</strong> ainda não foi enviado.</p>
+                    
+                    <div style='background-color: #f8f9fa; padding: 15px; border-left: 4px solid #f39c12; margin: 15px 0;'>
+                        <strong>Projeto:</strong> $titulo<br>
+                        <strong>Prazo limite:</strong> Dia 10 do mês atual.
                     </div>
-                    <div style='padding: 20px;'>
-                        <h3 style='color: #f39c12; margin-top: 0;'>Olá, Prof(a). $nome.</h3>
-                        <p>Consta em nosso sistema que o relatório mensal HAE referente a <strong>$nome_mes_passado/$ano_passado</strong> ainda não foi enviado.</p>
-                        
-                        <div style='background: #fffdf5; padding: 15px; border-left: 4px solid #f39c12; margin: 15px 0;'>
-                            <strong>Projeto:</strong> $titulo<br>
-                            <strong>Prazo limite:</strong> Dia 10 do mês atual.
-                        </div>
-                        
-                        <p>Por favor, acesse o portal e regularize sua situação o mais rápido possível para evitar o bloqueio de horas.</p>
-                        
-                        <div style='text-align: center; margin: 20px 0;'>
-                            <img src='cid:img_link_portal' alt='Link de Acesso' style='max-width: 250px; border: 1px solid #ccc;'>
-                        </div>
-                        <p style='font-size: 12px; color: #777; text-align: center;'>Este é um aviso automático ($dia_hojeº aviso).</p>
+                    
+                    <p>Por favor, acesse o portal e regularize sua situação o mais rápido possível para evitar o bloqueio de horas.</p>
+                    
+                    <div style='text-align: center; margin: 30px 0;'>
+                        <a href='https://sistemahae.page.gd/enviar_relatorio.php' style='background-color: #f39c12; color: #ffffff; padding: 14px 25px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block; font-size: 16px;'>Acessar Portal HAE</a>
                     </div>
+                    <p style='margin-top: 20px; font-size: 12px; color: #7f8c8d; text-align: center;'>Este é um aviso automático ($dia_hojeº aviso).</p>
                 </div>
             ";
             
-            $lista_imagens = [['path' => __DIR__ . '/img/link_acesso.jpeg', 'cid' => 'img_link_portal']];
-            dispararEmailSistema($email, $nome, $assunto, $corpo_email, $lista_imagens);
+            try { dispararEmailSistema($email, $nome, $assunto, $corpo_email); } catch (Exception $e) {}
             
-            // =========================================================================
-            // NOVO: DISPARO DA NOTIFICAÇÃO PUSH DIRETO PRO CELULAR/NAVEGADOR DO PROFESSOR
-            // =========================================================================
             $titulo_push = "Relatório Atrasado ⚠️";
             $msg_push = "O relatório de $nome_mes_passado do projeto HAE está pendente. Envie até o dia 10!";
             $link_destino = "https://sistemahae.page.gd/enviar_relatorio.php";
-            
-            dispararPush($proj['professor_id'], $titulo_push, $msg_push, $link_destino);
-            // =========================================================================
+            try { dispararPush($proj['professor_id'], $titulo_push, $msg_push, $link_destino); } catch (Exception $e) {}
         }
         
+        file_put_contents($arquivo_log, $hoje_str); // Salva o dia para não repetir hoje
         echo "Cobrancas enviadas para os professores com sucesso.";
     }
 
     // REGRA 2: Dia 11 - Enviar o relatório de inadimplentes para Direção/Coordenação
     if ($dia_hoje == 11) {
-        
         $stmt_gestores = $pdo->query("SELECT nome, email FROM usuarios WHERE funcao IN ('Diretor', 'Coordenador')");
         $gestores = $stmt_gestores->fetchAll(PDO::FETCH_ASSOC);
 
@@ -126,28 +126,27 @@ try {
 
         foreach ($gestores as $gestor) {
             $corpo_direcao = "
-                <div style='font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px;'>
-                    <div style='background-color: #c0392b; padding: 20px; text-align: center; color: white;'>
-                        <h2 style='margin: 0;'>Relatório de Pendências HAE</h2>
+                <div style='font-family: Arial, sans-serif; color: #2c3e50; padding: 20px; border: 1px solid #ddd; border-radius: 8px;'>
+                    <h2 style='color: #c0392b; margin-top: 0;'>Relatório de Pendências HAE</h2>
+                    <p>Olá, <strong>" . htmlspecialchars($gestor['nome']) . "</strong>,</p>
+                    <p>O prazo para envio dos relatórios mensais referentes a <strong>$nome_mes_passado/$ano_passado</strong> foi encerrado no dia 10.</p>
+                    
+                    <p>Abaixo está a lista dos professores que <strong>NÃO</strong> enviaram seus relatórios, mesmo após as notificações automáticas diárias:</p>
+                    
+                    <div style='background-color: #f8f9fa; padding: 15px; border-left: 4px solid #c0392b; margin: 15px 0;'>
+                        $lista_html
                     </div>
-                    <div style='padding: 20px;'>
-                        <h3 style='color: #c0392b; margin-top: 0;'>Olá, " . $gestor['nome'] . ".</h3>
-                        <p>O prazo para envio dos relatórios mensais referentes a <strong>$nome_mes_passado/$ano_passado</strong> foi encerrado no dia 10.</p>
-                        
-                        <p>Abaixo está a lista dos professores que <strong>NÃO</strong> enviaram seus relatórios, mesmo após as notificações automáticas diárias:</p>
-                        
-                        <div style='background: #f9f9f9; padding: 15px; border-left: 4px solid #c0392b; margin: 15px 0;'>
-                            $lista_html
-                        </div>
-                        
-                        <p>Para visualizar no sistema, acesse a aba 'Relatórios Atrasados'.</p>
+                    
+                    <div style='text-align: center; margin: 30px 0;'>
+                        <a href='https://sistemahae.page.gd/relatorios_atrasados.php' style='background-color: #c0392b; color: #ffffff; padding: 14px 25px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block; font-size: 16px;'>Ver Painel de Atrasos</a>
                     </div>
                 </div>
             ";
             
-            dispararEmailSistema($gestor['email'], $gestor['nome'], $assunto_direcao, $corpo_direcao);
+            try { dispararEmailSistema($gestor['email'], $gestor['nome'], $assunto_direcao, $corpo_direcao); } catch (Exception $e) {}
         }
         
+        file_put_contents($arquivo_log, $hoje_str);
         echo "Relatorio de inadimplencia enviado a direcao.";
     }
 
