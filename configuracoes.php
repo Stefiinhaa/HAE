@@ -106,7 +106,8 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
 
         .btn-save { background: var(--fatec-red); color: white; padding: 12px 25px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 14px; transition: 0.3s; display: inline-flex; align-items: center; gap: 8px; }
         .btn-save:hover { background: #8a0000; }
-        .alert-success { background: #d1e7dd; color: #0f5132; padding: 15px; border-radius: 6px; border-left: 4px solid #198754; margin-bottom: 20px; font-size: 14px; }
+        .card-body { padding: 30px; }
+        .form-group { margin-bottom: 25px; }
         .alert-error { background: #fee2e2; color: #b91c1c; padding: 15px; border-radius: 6px; border-left: 4px solid #b91c1c; margin-bottom: 20px; font-size: 14px; }
     </style>
 <!-- FIREBASE PUSH NOTIFICATIONS -->

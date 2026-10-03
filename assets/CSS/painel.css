@@ -184,50 +184,53 @@ body {
     .header-top h1 { font-size: 18px; }
 }
 
-/* ================= ALERTS GERAIS ================= */
-.alert-success {
-    background-color: #f4fbf7; 
-    color: #1e824c; 
-    padding: 16px 20px;
-    border-radius: 8px;
-    border: 1px solid #d1f0df;
-    border-left: 5px solid #2ecc71;
-    margin-bottom: 25px;
-    font-size: 14.5px;
-    font-weight: 500;
-    box-shadow: 0 4px 15px rgba(46, 204, 113, 0.12);
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    animation: slideDownAlert 0.4s ease-out forwards;
+/* ================= ALERTS GERAIS (TOAST NOTIFICATIONS) ================= */
+.alert-success, .alert-error {
+    position: fixed !important;
+    top: 25px !important;
+    right: 25px !important;
+    z-index: 9999 !important;
+    background-color: #f4fbf7 !important; 
+    color: #1e824c !important; 
+    padding: 16px 20px !important;
+    border-radius: 8px !important;
+    border: 1px solid #d1f0df !important;
+    border-left: 5px solid #2ecc71 !important;
+    font-size: 14.5px !important;
+    font-weight: 600 !important;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15) !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 12px !important;
+    animation: toastSlideIn 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards, toastFadeOut 0.5s ease-out 4s forwards !important;
+    max-width: 380px !important;
+    pointer-events: none !important;
+    margin: 0 !important;
 }
 
 /* Truque inteligente: O sistema identifica quando é um aviso de erro e converte para o design Premium vermelho */
-.alert-success[style*="#fee2e2"] {
+.alert-success[style*="#fee2e2"], .alert-error {
     background-color: #fff9f9 !important;
     color: #c0392b !important;
     border: 1px solid #fad2d6 !important;
     border-left: 5px solid #e74c3c !important;
-    box-shadow: 0 4px 15px rgba(231, 76, 60, 0.12) !important;
+    box-shadow: 0 8px 25px rgba(231, 76, 60, 0.15) !important;
+    animation: toastSlideIn 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards, toastFadeOut 0.5s ease-out 6s forwards !important;
 }
 
-
 @media print {
-    .sidebar, .filter-bar, .header, .acoes-flex, .btn-filtrar { display: none !important; }
+    .sidebar, .filter-bar, .header, .acoes-flex, .btn-filtrar, .alert-success, .alert-error { display: none !important; }
     .main-content { width: 100% !important; margin: 0 !important; padding: 0 !important; }
     .card-table { border: none; box-shadow: none; }
 }
 
+/* Animação de entrada e saída do toast */
+@keyframes toastSlideIn {
+    0% { opacity: 0; transform: translateX(120%); }
+    100% { opacity: 1; transform: translateX(0); }
+}
 
-
-/* Animação de entrada suave do alerta */
-@keyframes slideDownAlert {
-    0% { 
-        opacity: 0; 
-        transform: translateY(-15px); 
-    }
-    100% { 
-        opacity: 1; 
-        transform: translateY(0); 
-    }
+@keyframes toastFadeOut {
+    0% { opacity: 1; transform: translateX(0); }
+    100% { opacity: 0; transform: translateX(120%); visibility: hidden; }
 }

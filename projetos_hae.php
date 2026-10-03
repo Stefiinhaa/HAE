@@ -8,9 +8,35 @@ if (!isset($_SESSION['usuario_id']) || $_SESSION['usuario_funcao'] !== 'Diretor'
     exit;
 }
 
+// Lógica de exclusão do projeto pelo Diretor
+if (isset($_GET['excluir_id'])) {
+    $excluir_id = (int)$_GET['excluir_id'];
+    
+    try {
+        $pdo->beginTransaction();
+        
+        $stmt_del_rel = $pdo->prepare("DELETE FROM relatorios_hae WHERE solicitacao_id = ?");
+        $stmt_del_rel->execute([$excluir_id]);
+        
+        $stmt_del_sol = $pdo->prepare("DELETE FROM solicitacoes_hae WHERE id = ?");
+        $stmt_del_sol->execute([$excluir_id]);
+        
+        $pdo->commit();
+        
+        $url = "projetos_hae.php?msg=excluido";
+        if (isset($_GET['semestre'])) {
+            $url .= "&semestre=" . urlencode($_GET['semestre']) . "&status=" . urlencode($_GET['status']);
+        }
+        header("Location: " . $url);
+        exit;
+    } catch (Exception $e) {
+        $pdo->rollBack();
+        die("Erro ao excluir o projeto: " . $e->getMessage());
+    }
+}
+
 $pagina_atual = basename($_SERVER['PHP_SELF']);
 
-// Definição do semestre atual (Inteligência Temporal)
 $mes_atual_calc = (int)date('m');
 $ano_atual_calc = (int)date('Y');
 $semestre_padrao = ($mes_atual_calc <= 6) ? "1/$ano_atual_calc" : "2/$ano_atual_calc";
@@ -18,14 +44,12 @@ $semestre_padrao = ($mes_atual_calc <= 6) ? "1/$ano_atual_calc" : "2/$ano_atual_
 $filtro_semestre = isset($_GET['semestre']) ? trim($_GET['semestre']) : $semestre_padrao;
 $filtro_status = isset($_GET['status']) ? trim($_GET['status']) : 'Todos'; 
 
-// Busca os semestres disponíveis no banco
 $stmt_sem = $pdo->query("SELECT DISTINCT semestre FROM solicitacoes_hae ORDER BY semestre DESC");
 $semestres_disponiveis = $stmt_sem->fetchAll(PDO::FETCH_COLUMN);
 if (!in_array($semestre_padrao, $semestres_disponiveis)) {
     array_unshift($semestres_disponiveis, $semestre_padrao);
 }
 
-// Monta a consulta SQL
 $where = ["1=1"];
 $params = [];
 
@@ -39,7 +63,8 @@ if ($filtro_status != 'Todos') {
     $params[] = $filtro_status;
 }
 
-$sql = "SELECT s.id, s.titulo_projeto, s.quantidade_horas, s.status_aprovacao, u.nome AS professor_nome 
+// CORREÇÃO: Buscando horas_aprovadas e horas_especificas do banco
+$sql = "SELECT s.id, s.titulo_projeto, s.quantidade_horas, s.horas_aprovadas, s.horas_especificas, s.status_aprovacao, u.nome AS professor_nome 
         FROM solicitacoes_hae s 
         JOIN usuarios u ON s.professor_id = u.id 
         WHERE " . implode(" AND ", $where) . " 
@@ -49,18 +74,32 @@ $stmt = $pdo->prepare($sql);
 $stmt->execute($params);
 $solicitacoes = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// Agrupa os projetos por Professor
 $projetos_agrupados = [];
 $total_concedido = 0;
 $total_solicitado = 0;
 
 foreach ($solicitacoes as $proj) {
+    $solicitado_valor = (int)$proj['quantidade_horas'];
+    $concedido_valor = $proj['horas_aprovadas'] !== null ? (int)$proj['horas_aprovadas'] : null;
+
+    // HIGIENE DE DADOS: Recupera o valor original dos projetos antigos do banco que foram sobrescritos
+    if ($proj['status_aprovacao'] == 'Aprovado' && $concedido_valor === null) {
+        $concedido_valor = $solicitado_valor; // O diretor aprovou esse valor (que está salvo no lugar errado)
+        $solicitado_valor = (int)$proj['horas_especificas']; // Backup da solicitação original do professor 
+    }
+
+    if ($concedido_valor === null) {
+        $concedido_valor = 0;
+    }
+
+    $proj['solicitado_real'] = $solicitado_valor;
+    $proj['concedido_real'] = $concedido_valor;
+
     $projetos_agrupados[$proj['professor_nome']][] = $proj;
     
-    // Cálculos de Totalizadores
-    $total_solicitado += $proj['quantidade_horas'];
+    $total_solicitado += $solicitado_valor;
     if ($proj['status_aprovacao'] == 'Aprovado') {
-        $total_concedido += $proj['quantidade_horas'];
+        $total_concedido += $concedido_valor;
     }
 }
 ?>
@@ -99,7 +138,6 @@ foreach ($solicitacoes as $proj) {
         .col-num { text-align: center !important; width: 15%; font-size: 15px; }
         .col-destaque { font-weight: bold; color: var(--fatec-red); }
         
-        /* LINHA DE SEPARAÇÃO NÍTIDA ENTRE PROFESSORES */
         .linha-separadora td {
             padding: 0 !important;
             border-top: 2px solid #bdc3c7 !important;
@@ -109,19 +147,32 @@ foreach ($solicitacoes as $proj) {
         .row-total { background-color: #f8f9fa; font-weight: bold; }
         .row-total td { border-top: 2px solid #333; border-bottom: none; font-size: 15px; color: #000; padding: 15px; }
 
-        /* ESTILOS PARA QUANDO O DIRETOR CLICAR EM IMPRIMIR/SALVAR PDF */
+        .col-acao { text-align: center; width: 80px; }
+        .btn-excluir { color: #c0392b; background: transparent; border: 1px solid transparent; padding: 6px 10px; border-radius: 4px; font-weight: 500; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 5px; font-size: 12px; transition: 0.2s; }
+        .btn-excluir:hover { background: rgba(231, 76, 60, 0.1); border-color: rgba(231, 76, 60, 0.3); }
+
         @media print {
-            body { background: #fff; margin: 0; padding: 0; }
-            .sidebar, .header-top, .filter-bar, .btn-imprimir { display: none !important; }
+            body { background: #fff; margin: 0; padding: 0; font-family: Arial, sans-serif; }
+            .sidebar, .header-top, .filter-bar, .btn-imprimir, .col-acao, .btn-excluir, .alert-success { display: none !important; }
             .main-content { margin: 0 !important; padding: 0 !important; width: 100% !important; }
-            .relatorio-container { box-shadow: none; border: none; padding: 0; }
-            .header-relatorio { display: block; }
-            .tabela-relatorio th { border-bottom: 2px solid #000; background-color: #eee !important; -webkit-print-color-adjust: exact; }
-            .tabela-relatorio td { border-bottom: 1px solid #ccc; color: #000; }
-            .col-prof { border-right: 1px solid #999; }
-            .col-destaque { color: #000 !important; }
-            .linha-separadora td { border-top: 2px solid #666 !important; } /* Mais forte no papel */
-            .row-total td { border-top: 2px solid #000; background-color: #eee !important; -webkit-print-color-adjust: exact; }
+            .relatorio-container { box-shadow: none; border: none; padding: 0; border-top: none; }
+            
+            .header-relatorio { display: block; text-align: center; margin-bottom: 25px; border-bottom: 2px solid #333; padding-bottom: 15px; }
+            .header-relatorio h2 { margin: 0; font-size: 22px; text-transform: uppercase; color: #000; letter-spacing: 1px; }
+            .header-relatorio p { font-size: 12px; color: #555; margin-top: 5px; }
+            
+            .tabela-relatorio { width: 100%; border-collapse: collapse; min-width: auto; }
+            .tabela-relatorio th { border-bottom: 2px solid #000; background-color: #f2f2f2 !important; -webkit-print-color-adjust: exact; color: #000; font-size: 11px; padding: 10px; text-transform: uppercase; }
+            .tabela-relatorio td { border-bottom: 1px solid #ddd; color: #000; font-size: 12px; padding: 8px 10px; }
+            
+            .col-prof { border-right: 1px solid #888; font-weight: bold; color: #000; width: 25%; }
+            .col-titulo { width: 45%; }
+            .col-num { width: 15%; text-align: center !important; }
+            .col-destaque { color: #000 !important; font-weight: bold; }
+            
+            .linha-separadora td { border-top: 1px solid #000 !important; border-bottom: none !important; padding: 0 !important; height: 1px; } 
+            
+            .row-total td { border-top: 2px solid #000; border-bottom: 2px solid #000; background-color: #f2f2f2 !important; -webkit-print-color-adjust: exact; color: #000; font-size: 13px; font-weight: bold; padding: 12px 10px; }
         }
     </style>
 <!-- FIREBASE PUSH NOTIFICATIONS -->
@@ -180,7 +231,6 @@ foreach ($solicitacoes as $proj) {
                 <li><a href="acompanhar_relatorios.php"><i class="fa-solid fa-chart-line"></i> <span class="menu-text">Acompanhar Relatórios</span></a></li>
                 <li><a href="relatorios_atrasados.php"><i class="fa-solid fa-file-invoice"></i> <span class="menu-text">Relatórios Atrasados</span></a></li>
                 
-                <!-- MENU EXCLUSIVO DO DIRETOR -->
                 <li><a href="projetos_hae.php" class="active"><i class="fa-solid fa-list-check"></i> <span class="menu-text">Projetos HAE</span></a></li>
                 <li><a href="cadastrar_professor.php"><i class="fa-solid fa-user-plus"></i> <span class="menu-text">Cadastrar Usuário</span></a></li>
                 <li><a href="listar_usuarios.php"><i class="fa-solid fa-users"></i> <span class="menu-text">Lista de Usuários</span></a></li>
@@ -200,6 +250,10 @@ foreach ($solicitacoes as $proj) {
             </div>
             <div class="user-info">Olá, <strong><?php echo htmlspecialchars($_SESSION['usuario_nome']); ?></strong></div>
         </header>
+
+        <?php if (isset($_GET['msg']) && $_GET['msg'] == 'excluido'): ?>
+            <div class="alert-success"><i class="fa-solid fa-check-circle"></i> Projeto e seus relatórios excluídos com sucesso!</div>
+        <?php endif; ?>
 
         <form method="GET" class="filter-bar">
             <div class="filter-group">
@@ -243,6 +297,7 @@ foreach ($solicitacoes as $proj) {
                         <th class="col-titulo">Título do Projeto</th>
                         <th class="col-num">Nº HAEs SOLICITADOS</th>
                         <th class="col-num">Nº HAEs CONCEDIDOS</th>
+                        <th class="col-acao">Ações</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -253,14 +308,12 @@ foreach ($solicitacoes as $proj) {
                                 $is_first = true;
                                 
                                 foreach ($projetos as $p):
-                                    // Limpa a versão do nome do projeto para o relatório final
                                     $titulo_limpo = preg_replace('/\s*-\s*v\d+\.\d+\s*$/i', '', $p['titulo_projeto']);
                                     
-                                    // Regra de exibição: Solicitado sempre aparece. Concedido só aparece se foi aprovado.
-                                    $solicitado = str_pad($p['quantidade_horas'], 2, '0', STR_PAD_LEFT);
-                                    $concedido = ($p['status_aprovacao'] == 'Aprovado') ? str_pad($p['quantidade_horas'], 2, '0', STR_PAD_LEFT) : '-';
+                                    // CORREÇÃO: Utiliza os valores que separamos na Lógica de Higiene de Dados
+                                    $solicitado = str_pad($p['solicitado_real'], 2, '0', STR_PAD_LEFT);
+                                    $concedido = ($p['status_aprovacao'] == 'Aprovado') ? str_pad($p['concedido_real'], 2, '0', STR_PAD_LEFT) : '-';
                                     
-                                    // Adiciona um aviso visual discreto se o projeto não estiver aprovado
                                     $aviso_status = "";
                                     if ($p['status_aprovacao'] != 'Aprovado') {
                                         $cor = ($p['status_aprovacao'] == 'Pendente') ? '#3498db' : (($p['status_aprovacao'] == 'Devolvido') ? '#f39c12' : '#e74c3c');
@@ -276,15 +329,19 @@ foreach ($solicitacoes as $proj) {
                                 <td class="col-titulo"><?php echo htmlspecialchars($titulo_limpo) . $aviso_status; ?></td>
                                 <td class="col-num"><?php echo $solicitado; ?></td>
                                 <td class="col-num col-destaque"><?php echo $concedido; ?></td>
+                                <td class="col-acao">
+                                    <a href="projetos_hae.php?excluir_id=<?php echo $p['id']; ?><?php echo isset($_GET['semestre']) ? '&semestre=' . urlencode($_GET['semestre']) . '&status=' . urlencode($_GET['status']) : ''; ?>" class="btn-excluir" onclick="return confirm('Tem certeza que deseja excluir permanentemente este projeto e todos os seus relatórios? Esta ação não pode ser desfeita.');">
+                                        <i class="fa-solid fa-trash"></i> Excluir
+                                    </a>
+                                </td>
                             </tr>
                             <?php endforeach; ?>
                             
-                            <!-- Linha divisória nítida entre professores -->
-                            <tr class="linha-separadora"><td colspan="4"></td></tr>
+                            <tr class="linha-separadora"><td colspan="5"></td></tr>
                             
                         <?php endforeach; ?>
                     <?php else: ?>
-                        <tr><td colspan="4" style="text-align: center; padding: 40px; color: #888;">Nenhum projeto encontrado para este período com o status selecionado.</td></tr>
+                        <tr><td colspan="5" style="text-align: center; padding: 40px; color: #888;">Nenhum projeto encontrado para este período com o status selecionado.</td></tr>
                     <?php endif; ?>
                 </tbody>
                 <?php if (count($projetos_agrupados) > 0): ?>
@@ -293,6 +350,7 @@ foreach ($solicitacoes as $proj) {
                         <td colspan="2" style="text-align: right;">TOTAL DE HAEs:</td>
                         <td class="col-num"><?php echo str_pad($total_solicitado, 2, '0', STR_PAD_LEFT); ?></td>
                         <td class="col-num" style="color: var(--fatec-red);"><?php echo str_pad($total_concedido, 2, '0', STR_PAD_LEFT); ?></td>
+                        <td class="col-acao"></td>
                     </tr>
                 </tfoot>
                 <?php endif; ?>
