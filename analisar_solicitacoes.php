@@ -35,7 +35,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao'])) {
     $prazo_data = "";
     $prazo_hora = "";
     
-    // NOVA VARIÁVEL DA DATA DE INÍCIO DOS RELATÓRIOS
+    // DATA DE INÍCIO DOS RELATÓRIOS (DIRETOR)
     $data_inicio_relatorios = null;
     if ($acao_post == 'aprovar' && $funcao_logada == 'Diretor') {
         $data_inicio_relatorios = !empty($_POST['data_inicio_relatorios']) ? $_POST['data_inicio_relatorios'] : null;
@@ -59,7 +59,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao'])) {
         $status_coord = $current['status_coordenador'];
         $status_dir = $current['status_diretor'];
 
-        // ATUALIZANDO O BANCO DE DADOS
         if ($funcao_logada == 'Coordenador') {
             $status_coord = $novo_status_individual;
             $sql = "UPDATE solicitacoes_hae SET status_coordenador = ?, parecer_coordenador = ?, data_aprovacao_coordenador = ?, coordenador_id = ?, horas_aprovadas = ? WHERE id = ?";
@@ -67,7 +66,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao'])) {
             $stmt->execute([$status_coord, $parecer, $data_hoje, $usuario_id, $horas_aprovadas, $solicitacao_id]);
         } else if ($funcao_logada == 'Diretor') {
             $status_dir = $novo_status_individual;
-            // O Diretor agora salva a data_inicio_relatorios
             $sql = "UPDATE solicitacoes_hae SET status_diretor = ?, parecer_diretor = ?, data_aprovacao_diretor = ?, diretor_id = ?, horas_aprovadas = ?, data_inicio_relatorios = ? WHERE id = ?";
             $stmt = $pdo->prepare($sql);
             $stmt->execute([$status_dir, $parecer, $data_hoje, $usuario_id, $horas_aprovadas, $data_inicio_relatorios, $solicitacao_id]);
@@ -348,27 +346,27 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
     const messaging = firebase.messaging();
 
     function solicitarPermissaoPush() {
-    Notification.requestPermission().then((permission) => {
-        if (permission === 'granted') {
-            navigator.serviceWorker.register('./firebase-messaging-sw.js')
-            .then(function(registration) {
-                return messaging.getToken({ 
-                    vapidKey: "BEgkKtj6Eq-ttKtvBL3xOoIoyAAdwiWxOLLygWTlwBSEqWx8AY5oZsvFRY033g71NhAhDKg_kcYEErTiE0cbmoE",
-                    serviceWorkerRegistration: registration
-                });
-            })
-            .then((currentToken) => {
-                if (currentToken) {
-                    fetch('salvar_token.php', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ token: currentToken })
+        Notification.requestPermission().then((permission) => {
+            if (permission === 'granted') {
+                navigator.serviceWorker.register('./firebase-messaging-sw.js')
+                .then(function(registration) {
+                    return messaging.getToken({ 
+                        vapidKey: "BEgkKtj6Eq-ttKtvBL3xOoIoyAAdwiWxOLLygWTlwBSEqWx8AY5oZsvFRY033g71NhAhDKg_kcYEErTiE0cbmoE",
+                        serviceWorkerRegistration: registration
                     });
-                }
-            }).catch((err) => console.log('Erro ao pegar token:', err));
-        }
-    });
-}
+                })
+                .then((currentToken) => {
+                    if (currentToken) {
+                        fetch('salvar_token.php', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ token: currentToken })
+                        });
+                    }
+                }).catch((err) => console.log('Erro ao pegar token:', err));
+            }
+        });
+    }
 
     document.addEventListener("DOMContentLoaded", function() {
         solicitarPermissaoPush();
@@ -414,7 +412,7 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
 
         .btn-action { background: #1e1e2d; color: #fff; padding: 8px 12px; border-radius: 4px; text-decoration: none; font-size: 12px; transition: 0.3s; display: inline-flex; align-items: center; gap: 5px; font-weight: bold;}
         .btn-action:hover { background: var(--fatec-red); }
-        .btn-voltar { display: inline-flex; align-items: center; gap: 8px; margin-bottom: 20px; color: #666; text-decoration: none; font-weight: bold; font-size: 14px; }
+        .btn-voltar { display: inline-flex; align-items: center; gap: 8px; margin-bottom: 15px; color: #666; text-decoration: none; font-weight: bold; font-size: 13px; }
         
         .btn-motivo { background: #e74c3c; color: #fff; border: none; cursor: pointer; }
         .btn-motivo:hover { background: #c0392b; }
@@ -426,24 +424,56 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
         .paginacao a:hover { background: #f8f9fa; border-color: #ccc; transform: translateY(-1px); }
         .paginacao a.active { background: var(--fatec-red); color: #fff; border-color: var(--fatec-red); }
 
-        .split-view { display: flex; gap: 25px; align-items: flex-start; }
-        .doc-preview { flex: 6.5; height: 85vh; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.1); border: 2px solid #ddd; background: #525659; }
+        /* PAINEL DIVIDIDO E ESTILOS EXECUTIVOS DO FORMULÁRIO */
+        .split-view { display: flex; gap: 20px; align-items: flex-start; }
+        .doc-preview { flex: 6.8; height: 86vh; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.1); border: 2px solid #ddd; background: #525659; }
         .doc-preview iframe { width: 100%; height: 100%; border: none; }
-        .form-parecer { flex: 3.5; background: #fff; padding: 30px; border-radius: 10px; border-top: 4px solid var(--fatec-red); box-shadow: 0 4px 10px rgba(0,0,0,0.05); position: sticky; top: 20px; }
-        .form-parecer label { display: block; font-weight: bold; margin-bottom: 8px; font-size: 13px; color: #444; }
-        .form-parecer input, .form-parecer textarea { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 6px; margin-bottom: 20px; font-size: 14px; outline: none;}
-        .form-parecer input:focus, .form-parecer textarea:focus { border-color: var(--fatec-red); }
-        .botoes-acao { display: flex; flex-direction: column; gap: 10px; }
         
-        .btn-aprovar { background: #2ecc71; color: white; border: none; padding: 15px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 15px; transition: 0.3s;}
-        .btn-aprovar:hover { background: #27ae60; }
-        .btn-devolver { background: #f39c12; color: white; border: none; padding: 15px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 15px; transition: 0.3s;}
-        .btn-devolver:hover { background: #d68910; }
-        .btn-rejeitar { background: #e74c3c; color: white; border: none; padding: 15px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 15px; transition: 0.3s;}
-        .btn-rejeitar:hover { background: #c0392b; }
+        .form-parecer { flex: 3.2; background: #fff; padding: 22px; border-radius: 10px; border-top: 4px solid var(--fatec-red); box-shadow: 0 4px 15px rgba(0,0,0,0.05); position: sticky; top: 15px; }
+        .form-parecer-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid #f0f0f0; }
+        .form-parecer-header h3 { margin: 0; color: var(--fatec-red); font-size: 16px; display: flex; align-items: center; gap: 8px; }
+        .badge-cargo { background: #f1f3f5; color: #495057; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; text-transform: uppercase; }
+
+        /* Card Compacto de Contexto (Coordenação) */
+        .context-card { background: #f8f9fa; border: 1px solid #e9ecef; border-left: 3px solid #3498db; border-radius: 6px; padding: 10px 12px; margin-bottom: 15px; font-size: 12.5px; color: #495057; }
+        .context-card-row { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+        .context-card-row:last-child { margin-bottom: 0; }
+        .context-quote { background: #fff; border: 1px solid #e2e8f0; border-radius: 4px; padding: 7px 10px; margin-top: 5px; font-style: italic; color: #333; font-size: 12.5px; }
+
+        .form-grid-2 { display: grid; grid-template-columns: 1fr 1.35fr; gap: 12px; margin-bottom: 14px; }
+        .form-group { margin-bottom: 14px; }
+        .form-parecer label { display: flex; align-items: center; justify-content: space-between; font-weight: 700; margin-bottom: 6px; font-size: 12px; color: #444; text-transform: uppercase; letter-spacing: 0.3px; }
+        .form-parecer input[type="number"], 
+        .form-parecer input[type="date"], 
+        .form-parecer input[type="time"], 
+        .form-parecer textarea { width: 100%; padding: 9px 11px; border: 1px solid #ced4da; border-radius: 6px; font-size: 13.5px; outline: none; box-sizing: border-box; transition: 0.2s; font-family: inherit; }
+        .form-parecer input:focus, .form-parecer textarea:focus { border-color: var(--fatec-red); box-shadow: 0 0 0 2px rgba(178,0,0,0.08); }
+        .form-parecer textarea { resize: vertical; min-height: 85px; }
+
+        .tooltip-icon { color: #888; cursor: help; font-size: 13px; }
+        .tooltip-icon:hover { color: #333; }
+
+        /* Caixa Compacta de Prazo de Devolução */
+        .prazo-toggle-box { border: 1px solid #e2e8f0; background: #fafbfc; border-radius: 6px; padding: 10px 12px; margin-bottom: 16px; transition: 0.2s; }
+        .prazo-toggle-box:hover { border-color: #cbd5e1; }
+        .prazo-label { cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 12.5px !important; color: #475569 !important; margin: 0 !important; text-transform: none !important; font-weight: 600 !important; justify-content: flex-start !important; }
+        .prazo-fields { display: none; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; padding-top: 10px; border-top: 1px dashed #cbd5e1; }
+
+        /* Hierarquia de Botões de Decisão */
+        .botoes-acao { display: flex; flex-direction: column; gap: 8px; }
+        .botoes-secundarios { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
         
-        .historico-box { background: #f8f9fa; border-left: 3px solid #3498db; padding: 15px; border-radius: 4px; margin-bottom: 20px; font-size: 13px; color: #444; }
-        .btn-ver-pdf-mobile { display: none; background: #3498db; color: white; padding: 15px; text-align: center; border-radius: 6px; text-decoration: none; font-weight: bold; margin-bottom: 20px; }
+        .btn-aprovar { background: #2ecc71; color: white; border: none; padding: 12px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 14px; transition: 0.2s; display: flex; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 2px 6px rgba(46, 204, 113, 0.25); }
+        .btn-aprovar:hover { background: #27ae60; transform: translateY(-1px); }
+        
+        .btn-devolver { background: #fff8eb; color: #d68910; border: 1px solid #f5cba7; padding: 10px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 13px; transition: 0.2s; display: flex; align-items: center; justify-content: center; gap: 5px; }
+        .btn-devolver:hover { background: #f39c12; color: #fff; border-color: #f39c12; }
+        
+        .btn-rejeitar { background: #fdf2f2; color: #c0392b; border: 1px solid #f5b7b1; padding: 10px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 13px; transition: 0.2s; display: flex; align-items: center; justify-content: center; gap: 5px; }
+        .btn-rejeitar:hover { background: #e74c3c; color: #fff; border-color: #e74c3c; }
+        
+        .historico-box { background: #f8f9fa; border-left: 3px solid #3498db; padding: 12px 15px; border-radius: 4px; margin-bottom: 15px; font-size: 13px; color: #444; }
+        .btn-ver-pdf-mobile { display: none; background: #3498db; color: white; padding: 12px; text-align: center; border-radius: 6px; text-decoration: none; font-weight: bold; margin-bottom: 15px; font-size: 13px; }
         
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 2000; align-items: center; justify-content: center; backdrop-filter: blur(3px); }
         .modal-box { background: #fff; padding: 25px; border-radius: 10px; width: 90%; max-width: 500px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); border-top: 4px solid #3498db; position: relative; animation: slideDown 0.3s ease-out; }
@@ -458,7 +488,7 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
         @media (max-width: 1024px) {
             .split-view { flex-direction: column; }
             .doc-preview { display: none; }
-            .form-parecer { flex: 1; width: 100%; position: relative; top: 0; }
+            .form-parecer { flex: 1; width: 100%; position: relative; top: 0; box-sizing: border-box; }
             .btn-ver-pdf-mobile { display: block; }
         }
     </style>
@@ -529,28 +559,43 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
                 <div class="doc-preview">
                     <iframe src="documento_hae.php?id=<?php echo $visualizando_id; ?>"></iframe>
                 </div>
+                
                 <div class="form-parecer">
-                    <h3 style="margin-bottom: 20px; color: var(--fatec-red); font-size: 18px;">Emitir Parecer (<?php echo $funcao_logada; ?>)</h3>
+                    <div class="form-parecer-header">
+                        <h3><i class="fa-solid fa-clipboard-check"></i> Emitir Parecer</h3>
+                        <span class="badge-cargo"><?php echo $funcao_logada; ?></span>
+                    </div>
+                    
                     <a href="documento_hae.php?id=<?php echo $visualizando_id; ?>" target="_blank" class="btn-ver-pdf-mobile">📄 Abrir Documento em Tela Cheia</a>
                     
-                    <?php if (!empty($detalhes['nome_coordenador_alvo'])): ?>
-                        <div style="background: #f8f9fa; border: 1px solid #e9ecef; padding: 12px 15px; border-radius: 6px; margin-bottom: 20px; font-size: 13px; color: #495057; display: flex; align-items: center; gap: 12px; border-left: 4px solid #3498db;">
-                            <i class="fa-solid fa-bullseye" style="color: #3498db; font-size: 18px;"></i>
-                            <div>
-                                <strong>Análise Direcionada:</strong><br>
-                                O professor solicitou que este projeto seja avaliado prioritariamente por: <strong><?php echo htmlspecialchars($detalhes['nome_coordenador_alvo']); ?></strong>
-                            </div>
+                    <?php 
+                        $tem_alvo = !empty($detalhes['nome_coordenador_alvo']);
+                        $tem_parecer_previo = ($funcao_logada == 'Diretor' && !empty($detalhes['parecer_coordenador'])) || ($funcao_logada == 'Coordenador' && !empty($detalhes['parecer_diretor']));
+                    ?>
+
+                    <!-- CARD UNIFICADO DE CONTEXTO (COORDENAÇÃO / DIREÇÃO) -->
+                    <?php if ($tem_alvo || $tem_parecer_previo): ?>
+                        <div class="context-card">
+                            <?php if ($tem_alvo): ?>
+                                <div class="context-card-row">
+                                    <i class="fa-solid fa-bullseye" style="color: #3498db;"></i>
+                                    <span><strong>Coord. Indicado:</strong> <?php echo htmlspecialchars($detalhes['nome_coordenador_alvo']); ?></span>
+                                </div>
+                            <?php endif; ?>
+
+                            <?php if ($funcao_logada == 'Diretor' && !empty($detalhes['parecer_coordenador'])): ?>
+                                <div class="context-card-row" style="align-items: flex-start; flex-direction: column; gap: 2px;">
+                                    <span><i class="fa-solid fa-comment-dots" style="color: #27ae60;"></i> <strong>Parecer da Coordenação:</strong></span>
+                                    <div class="context-quote"><?php echo nl2br(htmlspecialchars($detalhes['parecer_coordenador'])); ?></div>
+                                </div>
+                            <?php elseif ($funcao_logada == 'Coordenador' && !empty($detalhes['parecer_diretor'])): ?>
+                                <div class="context-card-row" style="align-items: flex-start; flex-direction: column; gap: 2px;">
+                                    <span><i class="fa-solid fa-comment-dots" style="color: #27ae60;"></i> <strong>Parecer da Direção:</strong></span>
+                                    <div class="context-quote"><?php echo nl2br(htmlspecialchars($detalhes['parecer_diretor'])); ?></div>
+                                </div>
+                            <?php endif; ?>
                         </div>
                     <?php endif; ?>
-
-                    <?php 
-                        if ($funcao_logada == 'Diretor' && !empty($detalhes['parecer_coordenador'])) {
-                            echo "<div class='historico-box'><strong>Parecer Prévio do Coordenador:</strong><br>".nl2br(htmlspecialchars($detalhes['parecer_coordenador']))."</div>";
-                        }
-                        if ($funcao_logada == 'Coordenador' && !empty($detalhes['parecer_diretor'])) {
-                            echo "<div class='historico-box'><strong>Parecer Prévio do Diretor:</strong><br>".nl2br(htmlspecialchars($detalhes['parecer_diretor']))."</div>";
-                        }
-                    ?>
 
                     <?php if ($detalhes['status_aprovacao'] == 'Rejeitado'): ?>
                         <div class="historico-box" style="border-left-color: #e74c3c; background: #fff9f9;">
@@ -570,61 +615,83 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
                     <?php elseif (($funcao_logada == 'Coordenador' && $detalhes['status_coordenador'] != 'Pendente') || ($funcao_logada == 'Diretor' && $detalhes['status_diretor'] != 'Pendente')): ?>
                         <div class="historico-box" style="border-left-color: #2ecc71; background: #f4fbf7;">
                             <strong style="color: #27ae60;"><i class="fa-solid fa-check"></i> Parecer Concluído</strong><br>
-                            Você já emitiu e salvou o seu parecer favorável para este projeto. Agora estamos aguardando apenas a avaliação da outra instância.
+                            Você já emitiu e salvou o seu parecer favorável para este projeto. Aguardando a outra instância.
                         </div>
                     <?php else: ?>
                         <form method="POST" action="analisar_solicitacoes.php?id=<?php echo $visualizando_id; ?>" id="formAnalise">
                             <input type="hidden" name="solicitacao_id" value="<?php echo $visualizando_id; ?>">
                             <input type="hidden" name="return_url" value="<?php echo htmlspecialchars($back_query); ?>">
                             
-                            <label>Horas HAE Recomendadas/Aprovadas</label>
                             <?php 
-                                // Sugere o valor preenchido pelo diretor se existir, senão mostra o do professor
                                 $valor_sugerido = ($detalhes['horas_aprovadas'] !== null) ? $detalhes['horas_aprovadas'] : $detalhes['quantidade_horas'];
+                                $data_inicio_sugerida = !empty($detalhes['data_inicio_relatorios']) ? $detalhes['data_inicio_relatorios'] : date('Y-m-d');
                             ?>
-                            <input type="number" name="horas_aprovadas" value="<?php echo htmlspecialchars($valor_sugerido); ?>" required min="0">
-                            
-                            <label>Seu Parecer Oficial</label>
-                            <textarea name="parecer" id="campo_parecer" rows="5" placeholder="Digite sua avaliação sobre o projeto..." required><?php echo ($funcao_logada == 'Coordenador') ? htmlspecialchars($detalhes['parecer_coordenador']) : htmlspecialchars($detalhes['parecer_diretor']); ?></textarea>
-                            
-                            <!-- NOVA ÁREA DE DATA DE INÍCIO APENAS PARA O DIRETOR -->
+
+                            <!-- LINHA DUPLA COMPACTA (HORAS + DATA DE INÍCIO PARA O DIRETOR) -->
                             <?php if ($funcao_logada == 'Diretor'): ?>
-                                <div style="border: 1px solid #e0e0e0; padding: 15px; border-radius: 6px; margin-bottom: 20px; background: #f4fbf7;">
-                                    <label style="color: #27ae60; margin-bottom: 5px;">
-                                        <i class="fa-solid fa-calendar-check"></i> Mês de Início dos Relatórios (Em caso de Aprovação)
+                                <div class="form-grid-2">
+                                    <div>
+                                        <label>
+                                            <span>Horas HAE</span>
+                                            <span style="font-size: 10px; color: #888; font-weight: normal;">(Pedidas: <?php echo (int)$detalhes['quantidade_horas']; ?>h)</span>
+                                        </label>
+                                        <input type="number" name="horas_aprovadas" value="<?php echo htmlspecialchars($valor_sugerido); ?>" required min="0">
+                                    </div>
+                                    <div>
+                                        <label>
+                                            <span style="color: #27ae60;"><i class="fa-solid fa-calendar-check"></i> Início Relatórios</span>
+                                            <i class="fa-solid fa-circle-question tooltip-icon" title="Define a partir de qual data o sistema cobrará os relatórios mensais caso o projeto seja aprovado."></i>
+                                        </label>
+                                        <input type="date" name="data_inicio_relatorios" id="data_inicio_relatorios" value="<?php echo htmlspecialchars($data_inicio_sugerida); ?>">
+                                    </div>
+                                </div>
+                            <?php else: ?>
+                                <div class="form-group">
+                                    <label>
+                                        <span>Horas HAE Recomendadas</span>
+                                        <span style="font-size: 11px; color: #888; font-weight: normal;">(Solicitadas pelo Prof.: <?php echo (int)$detalhes['quantidade_horas']; ?>h)</span>
                                     </label>
-                                    <input type="date" name="data_inicio_relatorios" id="data_inicio_relatorios" style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
-                                    <p style="font-size: 12px; color: #666; margin-top: 5px; margin-bottom: 0;">
-                                        <i class="fa-solid fa-info-circle"></i> Defina a partir de qual data o sistema vai considerar o projeto como "ativo" para gerar as pendências de relatório.
-                                    </p>
+                                    <input type="number" name="horas_aprovadas" value="<?php echo htmlspecialchars($valor_sugerido); ?>" required min="0">
                                 </div>
                             <?php endif; ?>
-
-                            <div style="border: 1px solid #e0e0e0; padding: 15px; border-radius: 6px; margin-bottom: 20px; background: #fafbfc;">
-                                <label style="cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 14px; color: #333; margin: 0;">
-                                    <input type="checkbox" id="check_prazo" onchange="document.getElementById('box_prazo_campos').style.display = this.checked ? 'grid' : 'none';" style="width: 16px; height: 16px; margin: 0; cursor: pointer;"> 
-                                    <span style="font-weight: 600;"><i class="fa-solid fa-stopwatch" style="color: #e74c3c;"></i> Estabelecer prazo limite para correção</span>
+                            
+                            <div class="form-group">
+                                <label>Seu Parecer Oficial</label>
+                                <textarea name="parecer" id="campo_parecer" rows="4" placeholder="Digite sua avaliação sobre o projeto..." required><?php echo ($funcao_logada == 'Coordenador') ? htmlspecialchars($detalhes['parecer_coordenador']) : htmlspecialchars($detalhes['parecer_diretor']); ?></textarea>
+                            </div>
+                            
+                            <!-- CAIXA ENXUTA DE PRAZO PARA DEVOLUÇÃO -->
+                            <div class="prazo-toggle-box">
+                                <label class="prazo-label">
+                                    <input type="checkbox" id="check_prazo" onchange="document.getElementById('box_prazo_campos').style.display = this.checked ? 'grid' : 'none';" style="width: 15px; height: 15px; margin: 0; cursor: pointer;"> 
+                                    <span><i class="fa-solid fa-stopwatch" style="color: #f39c12;"></i> Estabelecer prazo limite (em caso de devolução)</span>
                                 </label>
                                 
-                                <div id="box_prazo_campos" style="display: none; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 15px; padding-top: 15px; border-top: 1px dashed #ccc;">
+                                <div id="box_prazo_campos" class="prazo-fields">
                                     <div>
-                                        <span style="display: block; font-size: 12px; color: #555; font-weight: bold; margin-bottom: 5px;">Data Limite</span>
-                                        <input type="date" name="prazo_data" style="margin-bottom: 0; padding: 10px; border-radius: 4px; border: 1px solid #ccc; width: 100%; box-sizing: border-box;">
+                                        <span style="display: block; font-size: 11px; color: #555; font-weight: bold; margin-bottom: 4px;">Data Limite</span>
+                                        <input type="date" name="prazo_data">
                                     </div>
                                     <div>
-                                        <span style="display: block; font-size: 12px; color: #555; font-weight: bold; margin-bottom: 5px;">Horário Limite</span>
-                                        <input type="time" name="prazo_hora" style="margin-bottom: 0; padding: 10px; border-radius: 4px; border: 1px solid #ccc; width: 100%; box-sizing: border-box;">
-                                    </div>
-                                    <div style="grid-column: 1 / -1;">
-                                        <p style="font-size: 12px; color: #777; margin: 0;"><i class="fa-solid fa-circle-info"></i> O professor será notificado no sistema, por e-mail e Push/WhatsApp sobre este prazo.</p>
+                                        <span style="display: block; font-size: 11px; color: #555; font-weight: bold; margin-bottom: 4px;">Horário</span>
+                                        <input type="time" name="prazo_hora">
                                     </div>
                                 </div>
                             </div>
                             
+                            <!-- BOTÕES DE AÇÃO EM HIERARQUIA -->
                             <div class="botoes-acao">
-                                <button type="submit" name="acao" value="aprovar" class="btn-aprovar" onclick="return validarParecer('aprovar');">✓ Aprovar Projeto HAE</button>
-                                <button type="submit" name="acao" value="devolver" class="btn-devolver" onclick="return validarParecer('devolver');">⟲ Devolver p/ Correções</button>
-                                <button type="submit" name="acao" value="rejeitar" class="btn-rejeitar" onclick="return validarParecer('rejeitar');">✕ Rejeitar (Bloquear)</button>
+                                <button type="submit" name="acao" value="aprovar" class="btn-aprovar" onclick="return validarParecer('aprovar');">
+                                    <i class="fa-solid fa-check"></i> Aprovar Projeto HAE
+                                </button>
+                                <div class="botoes-secundarios">
+                                    <button type="submit" name="acao" value="devolver" class="btn-devolver" onclick="return validarParecer('devolver');">
+                                        <i class="fa-solid fa-rotate-left"></i> Devolver
+                                    </button>
+                                    <button type="submit" name="acao" value="rejeitar" class="btn-rejeitar" onclick="return validarParecer('rejeitar');">
+                                        <i class="fa-solid fa-xmark"></i> Rejeitar
+                                    </button>
+                                </div>
                             </div>
                         </form>
                     <?php endif; ?>

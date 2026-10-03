@@ -13,9 +13,6 @@ $meses = [1 => 'Janeiro', 2 => 'Fevereiro', 3 => 'Março', 4 => 'Abril', 5 => 'M
 $visualizando_projeto_id = isset($_GET['projeto_id']) ? (int) $_GET['projeto_id'] : 0;
 
 if ($visualizando_projeto_id > 0) {
-    // ==============================================================================
-    // TELA 2: HISTÓRICO COMPLETO DE UM PROJETO ESPECÍFICO
-    // ==============================================================================
     $sql_proj = "SELECT s.*, u.nome AS professor_nome FROM solicitacoes_hae s JOIN usuarios u ON s.professor_id = u.id WHERE s.id = ?";
     $stmt_proj = $pdo->prepare($sql_proj);
     $stmt_proj->execute([$visualizando_projeto_id]);
@@ -30,14 +27,10 @@ if ($visualizando_projeto_id > 0) {
     $historico_relatorios = $stmt_hist->fetchAll(PDO::FETCH_ASSOC);
 
 } else {
-    // ==============================================================================
-    // TELA 1: GRID GERAL COM ACORDEÃO E PAGINAÇÃO
-    // ==============================================================================
-
-    // MUNDO REAL ATIVADO (Filtro inteligente: padrão é o mês de cobrança, ou seja, o mês passado)
+    // MUNDO REAL ATIVADO
     $hoje_obj = new DateTime();
     $primeiro_dia_mes = new DateTime($hoje_obj->format('Y-m-01'));
-    $primeiro_dia_mes->modify('-1 month'); // Volta 1 mês automaticamente
+    $primeiro_dia_mes->modify('-1 month'); 
 
     $mes_padrao = (int) $primeiro_dia_mes->format('n');
     $ano_padrao = (int) $primeiro_dia_mes->format('Y');
@@ -51,7 +44,9 @@ if ($visualizando_projeto_id > 0) {
     $where = ["s.status_aprovacao = 'Aprovado'"];
 
     $ultimo_dia_mes_filtro = date('Y-m-t 23:59:59', strtotime(sprintf('%04d-%02d-01', $filtro_ano, $filtro_mes)));
-    $where[] = "(COALESCE(s.data_aprovacao_diretor, s.data_aprovacao_coordenador, s.data_criacao) <= ? OR r.id IS NOT NULL)";
+    
+    // INSERIDA A PRIORIDADE PARA A NOVA COLUNA: data_inicio_relatorios
+    $where[] = "(COALESCE(s.data_inicio_relatorios, s.data_aprovacao_diretor, s.data_aprovacao_coordenador, s.data_criacao) <= ? OR r.id IS NOT NULL)";
     $params[] = $ultimo_dia_mes_filtro;
 
     if (!empty($filtro_busca)) {
@@ -163,7 +158,6 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
         .paginacao a:hover { background: #f8f9fa; border-color: #ccc; transform: translateY(-1px); }
         .paginacao a.active { background: var(--fatec-red); color: #fff; border-color: var(--fatec-red); }
     </style>
-<!-- FIREBASE PUSH NOTIFICATIONS -->
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-messaging-compat.js"></script>
 <script>
@@ -181,7 +175,13 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
   function solicitarPermissaoPush() {
       Notification.requestPermission().then((permission) => {
           if (permission === 'granted') {
-              messaging.getToken({ vapidKey: "BEgkKtj6Eq-ttKtvBL3xOoIoyAAdwiWxOLLygWTlwBSEqWx8AY5oZsvFRY033g71NhAhDKg_kcYEErTiE0cbmoE" })
+              navigator.serviceWorker.register('./firebase-messaging-sw.js')
+            .then(function(registration) {
+                return messaging.getToken({ 
+                    vapidKey: "BEgkKtj6Eq-ttKtvBL3xOoIoyAAdwiWxOLLygWTlwBSEqWx8AY5oZsvFRY033g71NhAhDKg_kcYEErTiE0cbmoE",
+                    serviceWorkerRegistration: registration
+                });
+            })
                 .then((currentToken) => {
                   if (currentToken) {
                       fetch('salvar_token.php', {

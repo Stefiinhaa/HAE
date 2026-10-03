@@ -3,7 +3,7 @@
 // TRAVA DE SEGURANÇA: Token Secreto via URL
 // Só roda se acessar: sistemahae.page.gd/cron_notificacoes.php?token=HaeFatec2026
 // ==============================================================================
-$token_secreto = 'HaeFatec2026'; 
+$token_secreto = 'HaeFatec2026'; // Você pode mudar essa senha se quiser
 
 if (!isset($_GET['token']) || $_GET['token'] !== $token_secreto) {
     http_response_code(403);
@@ -14,21 +14,16 @@ date_default_timezone_set('America/Sao_Paulo');
 $dia_hoje = (int)date('d');
 $hoje_str = date('Y-m-d');
 
-// Se passou do dia 11, o robô não precisa fazer nada o resto do mês
 if ($dia_hoje > 11) {
     exit('Fora do periodo de cobranca.');
 }
 
-// ==============================================================================
-// SISTEMA ANTI-SPAM (TRAVA DIÁRIA)
-// Impede que o sistema mande vários e-mails se a página for acessada 2x no mesmo dia
-// ==============================================================================
 $arquivo_log = __DIR__ . '/ultimo_cron.txt';
 
 if (file_exists($arquivo_log)) {
     $ultimo_disparo = trim(file_get_contents($arquivo_log));
     if ($ultimo_disparo === $hoje_str) {
-        exit('OK: As notificações de hoje já foram enviadas mais cedo.');
+        exit('OK: As notificacoes de hoje ja foram enviadas mais cedo.');
     }
 }
 
@@ -39,6 +34,9 @@ require_once __DIR__ . '/enviar_push.php';
 $mes_passado = date('m', strtotime('first day of last month'));
 $ano_passado = date('Y', strtotime('first day of last month'));
 
+// Descobre o último dia do mês que está sendo cobrado para a trava de data
+$ultimo_dia_mes_passado = date('Y-m-t 23:59:59', strtotime("$ano_passado-$mes_passado-01"));
+
 $meses_ptbr = [
     '01' => 'Janeiro', '02' => 'Fevereiro', '03' => 'Março', '04' => 'Abril',
     '05' => 'Maio', '06' => 'Junho', '07' => 'Julho', '08' => 'Agosto',
@@ -47,11 +45,13 @@ $meses_ptbr = [
 $nome_mes_passado = $meses_ptbr[$mes_passado];
 
 try {
+    // INSERIDA A PRIORIDADE PARA A NOVA COLUNA: data_inicio_relatorios
     $sql_pendentes = "
         SELECT s.id as projeto_id, s.professor_id, s.titulo_projeto, u.nome as professor_nome, u.email as professor_email
         FROM solicitacoes_hae s
         JOIN usuarios u ON s.professor_id = u.id
         WHERE s.status_aprovacao = 'Aprovado'
+        AND COALESCE(s.data_inicio_relatorios, s.data_aprovacao_diretor, s.data_aprovacao_coordenador, s.data_criacao) <= ?
         AND NOT EXISTS (
             SELECT 1 FROM relatorios_hae r 
             WHERE r.solicitacao_id = s.id 
@@ -61,16 +61,15 @@ try {
     ";
     
     $stmt = $pdo->prepare($sql_pendentes);
-    $stmt->execute([$mes_passado, $ano_passado]);
+    // Executa passando a data limite
+    $stmt->execute([$ultimo_dia_mes_passado, $mes_passado, $ano_passado]);
     $projetos_atrasados = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     if (empty($projetos_atrasados)) {
-        // Salva a memória para o robô não procurar mais no banco hoje
         file_put_contents($arquivo_log, $hoje_str);
         exit('Nenhum relatorio pendente.');
     }
 
-    // REGRA 1: Do dia 1 ao 10 - Cobrar os Professores diariamente
     if ($dia_hoje >= 1 && $dia_hoje <= 10) {
         $assunto = "Aviso Automático: Relatório HAE de $nome_mes_passado Pendente";
         
@@ -107,11 +106,10 @@ try {
             try { dispararPush($proj['professor_id'], $titulo_push, $msg_push, $link_destino); } catch (Exception $e) {}
         }
         
-        file_put_contents($arquivo_log, $hoje_str); // Salva o dia para não repetir hoje
+        file_put_contents($arquivo_log, $hoje_str); 
         echo "Cobrancas enviadas para os professores com sucesso.";
     }
 
-    // REGRA 2: Dia 11 - Enviar o relatório de inadimplentes para Direção/Coordenação
     if ($dia_hoje == 11) {
         $stmt_gestores = $pdo->query("SELECT nome, email FROM usuarios WHERE funcao IN ('Diretor', 'Coordenador')");
         $gestores = $stmt_gestores->fetchAll(PDO::FETCH_ASSOC);

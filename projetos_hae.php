@@ -63,7 +63,7 @@ if ($filtro_status != 'Todos') {
     $params[] = $filtro_status;
 }
 
-// CORREÇÃO: Buscando horas_aprovadas e horas_especificas do banco
+// Buscando horas_aprovadas e horas_especificas do banco
 $sql = "SELECT s.id, s.titulo_projeto, s.quantidade_horas, s.horas_aprovadas, s.horas_especificas, s.status_aprovacao, u.nome AS professor_nome 
         FROM solicitacoes_hae s 
         JOIN usuarios u ON s.professor_id = u.id 
@@ -75,6 +75,7 @@ $stmt->execute($params);
 $solicitacoes = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 $projetos_agrupados = [];
+$total_projetos = count($solicitacoes);
 $total_concedido = 0;
 $total_solicitado = 0;
 
@@ -193,8 +194,14 @@ foreach ($solicitacoes as $proj) {
   function solicitarPermissaoPush() {
       Notification.requestPermission().then((permission) => {
           if (permission === 'granted') {
-              messaging.getToken({ vapidKey: "BEgkKtj6Eq-ttKtvBL3xOoIoyAAdwiWxOLLygWTlwBSEqWx8AY5oZsvFRY033g71NhAhDKg_kcYEErTiE0cbmoE" })
-                .then((currentToken) => {
+              navigator.serviceWorker.register('./firebase-messaging-sw.js')
+              .then(function(registration) {
+                  return messaging.getToken({ 
+                      vapidKey: "BEgkKtj6Eq-ttKtvBL3xOoIoyAAdwiWxOLLygWTlwBSEqWx8AY5oZsvFRY033g71NhAhDKg_kcYEErTiE0cbmoE",
+                      serviceWorkerRegistration: registration
+                  });
+              })
+              .then((currentToken) => {
                   if (currentToken) {
                       fetch('salvar_token.php', {
                           method: 'POST',
@@ -310,7 +317,6 @@ foreach ($solicitacoes as $proj) {
                                 foreach ($projetos as $p):
                                     $titulo_limpo = preg_replace('/\s*-\s*v\d+\.\d+\s*$/i', '', $p['titulo_projeto']);
                                     
-                                    // CORREÇÃO: Utiliza os valores que separamos na Lógica de Higiene de Dados
                                     $solicitado = str_pad($p['solicitado_real'], 2, '0', STR_PAD_LEFT);
                                     $concedido = ($p['status_aprovacao'] == 'Aprovado') ? str_pad($p['concedido_real'], 2, '0', STR_PAD_LEFT) : '-';
                                     
@@ -347,9 +353,12 @@ foreach ($solicitacoes as $proj) {
                 <?php if (count($projetos_agrupados) > 0): ?>
                 <tfoot>
                     <tr class="row-total">
-                        <td colspan="2" style="text-align: right;">TOTAL DE HAEs:</td>
+                        <td class="col-prof" style="text-align: left;">
+                            TOTAL DE PROJETOS: <span class="col-destaque" style="margin-left: 5px;"><?php echo str_pad($total_projetos, 2, '0', STR_PAD_LEFT); ?></span>
+                        </td>
+                        <td style="text-align: right;">TOTAL DE HAEs:</td>
                         <td class="col-num"><?php echo str_pad($total_solicitado, 2, '0', STR_PAD_LEFT); ?></td>
-                        <td class="col-num" style="color: var(--fatec-red);"><?php echo str_pad($total_concedido, 2, '0', STR_PAD_LEFT); ?></td>
+                        <td class="col-num col-destaque"><?php echo str_pad($total_concedido, 2, '0', STR_PAD_LEFT); ?></td>
                         <td class="col-acao"></td>
                     </tr>
                 </tfoot>
