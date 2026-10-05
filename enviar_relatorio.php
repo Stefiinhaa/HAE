@@ -40,8 +40,6 @@ if ($relatorio_id > 0) {
 $r_solicitacao_id = $rascunho['solicitacao_id'] ?? '';
 $r_mes = $rascunho['mes_referencia'] ?? date('n');
 $r_ano = $rascunho['ano_referencia'] ?? date('Y');
-
-// CORREÇÃO: Puxando da coluna exata do banco de dados (acoes_realizadas)
 $r_acoes = $rascunho['acoes_realizadas'] ?? '';
 
 // ==============================================================================
@@ -49,51 +47,67 @@ $r_acoes = $rascunho['acoes_realizadas'] ?? '';
 // ==============================================================================
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao'])) {
     $solicitacao_id = $_POST['solicitacao_id'];
-    $mes_referencia = $_POST['mes_referencia'];
-    $ano_referencia = $_POST['ano_referencia'];
-    
-    // CORREÇÃO: Pegando o valor do textarea correto
+    $mes_referencia = (int)$_POST['mes_referencia'];
+    $ano_referencia = (int)$_POST['ano_referencia'];
     $acoes_realizadas = trim($_POST['acoes_realizadas']);
-    
     $id_edicao = !empty($_POST['relatorio_id']) ? (int)$_POST['relatorio_id'] : 0;
     
+    // Mantém os dados preenchidos na tela caso ocorra aviso de duplicidade
+    $r_solicitacao_id = $solicitacao_id;
+    $r_mes = $mes_referencia;
+    $r_ano = $ano_referencia;
+    $r_acoes = $acoes_realizadas;
+
     // Descobre qual botão o professor clicou
     $status_final = ($_POST['acao'] == 'publicar') ? 'Publicado' : 'Rascunho';
+    $nome_mes_ano = ($meses[$mes_referencia] ?? $mes_referencia) . '/' . $ano_referencia;
 
     try {
-        if ($id_edicao > 0) {
-            // ATUALIZA O RASCUNHO EXISTENTE
-            // CORREÇÃO: Usando a coluna acoes_realizadas
-            $sql = "UPDATE relatorios_hae SET solicitacao_id = ?, mes_referencia = ?, ano_referencia = ?, acoes_realizadas = ?, status = ?, data_envio = NOW() WHERE id = ?";
-            $stmt = $pdo->prepare($sql);
-            $stmt->execute([$solicitacao_id, $mes_referencia, $ano_referencia, $acoes_realizadas, $status_final, $id_edicao]);
-            
-            if ($status_final == 'Publicado') {
-                $sucesso = "Relatório definitivo enviado com sucesso para a coordenação!";
-            } else {
-                $sucesso = "Rascunho atualizado e salvo com sucesso!";
-            }
+        // Verifica se já existe relatório cadastrado para este projeto no mesmo mês e ano
+        $stmt_check = $pdo->prepare("SELECT id, status FROM relatorios_hae WHERE solicitacao_id = ? AND mes_referencia = ? AND ano_referencia = ? AND id != ?");
+        $stmt_check->execute([$solicitacao_id, $mes_referencia, $ano_referencia, $id_edicao]);
+        $relatorio_existente = $stmt_check->fetch(PDO::FETCH_ASSOC);
+
+        if ($relatorio_existente) {
+            $erro = "<strong>Relatório de $nome_mes_ano já enviado!</strong><br>Já consta no sistema um relatório definitivo enviado para este projeto referente ao mês de $nome_mes_ano.";
         } else {
-            // CRIA UM NOVO RELATÓRIO
-            // CORREÇÃO: Usando a coluna acoes_realizadas
-            $sql = "INSERT INTO relatorios_hae (solicitacao_id, mes_referencia, ano_referencia, acoes_realizadas, status, data_envio) VALUES (?, ?, ?, ?, ?, NOW())";
-            $stmt = $pdo->prepare($sql);
-            $stmt->execute([$solicitacao_id, $mes_referencia, $ano_referencia, $acoes_realizadas, $status_final]);
-            
-            if ($status_final == 'Publicado') {
-                $sucesso = "Relatório mensal enviado com sucesso!";
+            if ($id_edicao > 0) {
+                // ATUALIZA O RASCUNHO EXISTENTE
+                $sql = "UPDATE relatorios_hae SET solicitacao_id = ?, mes_referencia = ?, ano_referencia = ?, acoes_realizadas = ?, status = ?, data_envio = NOW() WHERE id = ?";
+                $stmt = $pdo->prepare($sql);
+                $stmt->execute([$solicitacao_id, $mes_referencia, $ano_referencia, $acoes_realizadas, $status_final, $id_edicao]);
+                
+                if ($status_final == 'Publicado') {
+                    $sucesso = "Relatório definitivo enviado com sucesso para a coordenação!";
+                } else {
+                    $sucesso = "Rascunho atualizado e salvo com sucesso!";
+                }
             } else {
-                $sucesso = "Relatório salvo na sua pasta de Rascunhos!";
+                // CRIA UM NOVO RELATÓRIO
+                $sql = "INSERT INTO relatorios_hae (solicitacao_id, mes_referencia, ano_referencia, acoes_realizadas, status, data_envio) VALUES (?, ?, ?, ?, ?, NOW())";
+                $stmt = $pdo->prepare($sql);
+                $stmt->execute([$solicitacao_id, $mes_referencia, $ano_referencia, $acoes_realizadas, $status_final]);
+                
+                if ($status_final == 'Publicado') {
+                    $sucesso = "Relatório mensal enviado com sucesso!";
+                } else {
+                    $sucesso = "Relatório salvo na sua pasta de Rascunhos!";
+                }
             }
-        }
-        
-        // Limpa a tela após o sucesso para não reenviar os dados sem querer
-        if ($status_final == 'Publicado') {
-            $rascunho = null; $r_acoes = ''; $r_solicitacao_id = ''; $relatorio_id = 0;
+            
+            // Limpa a tela após o sucesso para não reenviar os dados sem querer
+            if ($status_final == 'Publicado') {
+                $rascunho = null; $r_acoes = ''; $r_solicitacao_id = ''; $relatorio_id = 0;
+            }
         }
         
     } catch (PDOException $e) {
-        $erro = "Erro ao salvar o relatório: " . $e->getMessage();
+        // Fallback caso o banco dispare erro 1062 (Duplicate entry) diretamente
+        if ($e->getCode() == 23000 || strpos($e->getMessage(), '1062') !== false) {
+            $erro = "<strong>Relatório de $nome_mes_ano já enviado!</strong><br>Já consta no sistema um relatório definitivo enviado para este projeto referente ao mês de $nome_mes_ano.";
+        } else {
+            $erro = "Não foi possível salvar o relatório no momento. Tente novamente.";
+        }
     }
 }
 
@@ -135,14 +149,14 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
            ========================================================= */
         @media (max-width: 768px) {
             .form-card { padding: 20px; }
-            .grid-3 { grid-template-columns: 1fr; gap: 15px; } /* Quebra as colunas para o formulário ficar em pé */
+            .grid-3 { grid-template-columns: 1fr; gap: 15px; }
             
             .botoes-container { 
-                flex-direction: column-reverse; /* Coloca o botão de Enviar em cima e o Rascunho embaixo */
-                align-items: stretch; /* Faz os botões ocuparem 100% da largura */
+                flex-direction: column-reverse;
+                align-items: stretch;
                 gap: 12px; 
             }
-            .btn { justify-content: center; padding: 15px; } /* Aumenta a área de toque no mobile */
+            .btn { justify-content: center; padding: 15px; }
             
             .aviso-rascunho { 
                 flex-direction: column; 
@@ -233,7 +247,10 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
         <?php endif; ?>
         
         <?php if($erro): ?>
-            <div class='alert-success' style='background:#fee2e2; color:#b91c1c; border-color:#b91c1c;'>❌ <?php echo $erro; ?></div>
+            <div class='alert-success' style='background:#fee2e2; color:#b91c1c; border-color:#b91c1c; display:flex; align-items:flex-start; gap:10px;'>
+                <span style="line-height: 1.4;">❌</span>
+                <div style="line-height: 1.5;"><?php echo $erro; ?></div>
+            </div>
         <?php endif; ?>
 
         <?php if($rascunho && !$sucesso): ?>
