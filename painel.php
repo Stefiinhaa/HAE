@@ -42,7 +42,7 @@ $sql_sem_filter_prefix = ($filtro_semestre === 'Todos') ? "" : " AND s.semestre 
 $stmt_sem = $pdo->query("SELECT DISTINCT semestre FROM solicitacoes_hae ORDER BY semestre DESC");
 $semestres_disponiveis = $stmt_sem->fetchAll(PDO::FETCH_COLUMN);
 if (!in_array($semestre_real, $semestres_disponiveis)) {
-    array_unshift($semestres_disponiveis, $semestre_real); // Garante que o atual apareça mesmo sem projetos
+    array_unshift($semestres_disponiveis, $semestre_real); 
 }
 
 $data_limite = new DateTime("$ano_atual-$mes_atual-01");
@@ -56,14 +56,13 @@ $inadimplentes_geral = [];
 $cobrancas_ativas_geral = [];
 
 // ==============================================================================
-// LÓGICA E KPIs DO PROFESSOR (APLICANDO FILTRO DE SEMESTRE E DATA DE INÍCIO)
+// LÓGICA E KPIs DO PROFESSOR 
 // ==============================================================================
 if ($funcao == 'Professor') {
     $kpi_projetos = $pdo->query("SELECT COUNT(*) FROM solicitacoes_hae WHERE professor_id = $usuario_id AND status_aprovacao = 'Aprovado' $sql_sem_filter")->fetchColumn();
     $kpi_projetos_devolvidos = $pdo->query("SELECT COUNT(*) FROM solicitacoes_hae WHERE professor_id = $usuario_id AND status_aprovacao = 'Devolvido' $sql_sem_filter")->fetchColumn();
     $kpi_entregues = $pdo->query("SELECT COUNT(*) FROM relatorios_hae r JOIN solicitacoes_hae s ON r.solicitacao_id = s.id WHERE s.professor_id = $usuario_id AND r.status = 'Publicado' $sql_sem_filter_prefix")->fetchColumn();
 
-    // INSERIDA A PRIORIDADE PARA A NOVA COLUNA: data_inicio_relatorios
     $stmt = $pdo->prepare("SELECT id, titulo_projeto, COALESCE(data_inicio_relatorios, data_aprovacao_diretor, data_aprovacao_coordenador, data_criacao) AS data_base FROM solicitacoes_hae WHERE professor_id = ? AND status_aprovacao = 'Aprovado' $sql_sem_filter");
     $stmt->execute([$usuario_id]);
     $projetos_aprovados = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -125,7 +124,6 @@ else {
     $stmt_kpi3->execute([$mes_passado_num, $ano_passado_num]);
     $kpi_relatorios_mes = $stmt_kpi3->fetchColumn();
 
-    // INSERIDA A PRIORIDADE PARA A NOVA COLUNA: data_inicio_relatorios
     $stmt = $pdo->query("SELECT s.id, s.titulo_projeto, COALESCE(s.data_inicio_relatorios, s.data_aprovacao_diretor, s.data_aprovacao_coordenador, s.data_criacao) AS data_base, u.nome, u.telefone_whatsapp FROM solicitacoes_hae s JOIN usuarios u ON s.professor_id = u.id WHERE s.status_aprovacao = 'Aprovado' $sql_sem_filter_prefix");
     $projetos_aprovados = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
@@ -210,20 +208,24 @@ else {
         .card-info { flex: 1; }
         .card-info h3 { font-size: 12px; color: #888; text-transform: uppercase; margin-bottom: 5px; font-weight: 700; letter-spacing: 0.5px; }
         .card-info p { font-size: 28px; font-weight: 700; color: #333; margin: 0; line-height: 1; }
+        
         .alerta-box { padding: 20px; border-radius: 10px; margin-bottom: 20px; display: flex; align-items: flex-start; gap: 15px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.02); }
         .alerta-box.aviso { background: #fffdf5; border-left: 5px solid #f39c12; color: #856404; border-top: 1px solid #faeccc; border-right: 1px solid #faeccc; border-bottom: 1px solid #faeccc; }
         .alerta-box.atrasado { background: #fff9f9; border-left: 5px solid #e74c3c; color: #b91c1c; border-top: 1px solid #f8d7da; border-right: 1px solid #f8d7da; border-bottom: 1px solid #f8d7da; }
         .alerta-box i { font-size: 24px; margin-top: 2px; }
         .alerta-info h4 { margin-bottom: 5px; font-size: 16px; font-weight: bold; }
         .alerta-info p { font-size: 14px; margin-bottom: 5px; }
+        
         .btn-whatsapp { background: #25D366; color: #fff; padding: 8px 15px; border-radius: 6px; text-decoration: none; font-size: 12px; font-weight: bold; display: inline-flex; align-items: center; gap: 6px; transition: 0.3s; }
         .btn-whatsapp:hover { background: #128C7E; }
+        
         .card-orcamento { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr 1fr; background: #fff; border-radius: 10px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05); border: 1px solid #eee; border-left: 5px solid #8e44ad; overflow: hidden; margin-bottom: 20px; }
         .orcamento-box { padding: 25px; text-align: center; border-right: 1px solid #eee; }
         .orcamento-box:last-child { border-right: none; }
         .orcamento-box h3 { font-size: 12px; color: #888; text-transform: uppercase; margin-bottom: 10px; font-weight: 700; }
         .orcamento-box p { font-size: 32px; font-weight: 700; color: #333; margin: 0; }
         .orcamento-box p span { font-size: 16px; color: #999; }
+        
         @media (max-width: 768px) { .card-orcamento { grid-template-columns: 1fr; } .orcamento-box { border-right: none; border-bottom: 1px solid #eee; } .orcamento-box:last-child { border-bottom: none; } }
     </style>
 </head>
@@ -268,8 +270,11 @@ else {
                 <button class="mobile-toggle" id="mobile-toggle"><i class="fa-solid fa-bars"></i></button>
                 <h1>Visão Geral do Sistema</h1>
             </div>
-            <div class="user-info" style="display:flex; align-items:center; gap: 15px; flex-wrap: wrap; justify-content: flex-end;">
-                <span class="data-hoje">Hoje é <strong><?php echo $hoje->format('d/m/Y'); ?></strong></span>
+            
+            <div class="user-info" style="display:flex; align-items:center; flex-wrap: wrap; justify-content: flex-end;">
+                
+                <span class="data-hoje" style="margin-right: 15px;">Hoje é <strong><?php echo $hoje->format('d/m/Y'); ?></strong></span>
+                
                 <form method="GET" style="margin:0; display:flex; align-items:center; gap:8px; background: #fff; padding: 6px 12px; border-radius: 6px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); border: 1px solid #eee;">
                     <i class="fa-solid fa-calendar-days" style="color: var(--fatec-red);"></i>
                     <select name="semestre" onchange="this.form.submit()" style="border: none; background: transparent; font-weight: bold; color: #444; outline: none; cursor: pointer; font-size: 13px;">
@@ -279,6 +284,10 @@ else {
                         <?php endforeach; ?>
                     </select>
                 </form>
+
+                <!-- INCLUSÃO DO COMPONENTE DE VÍDEOS AQUI -->
+                <?php include 'botao_ajuda.php'; ?>
+
             </div>
         </header>
 

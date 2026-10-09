@@ -324,7 +324,12 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
                 <button class="mobile-toggle" id="mobile-toggle"><i class="fa-solid fa-bars"></i></button>
                 <h1>Usuários do Sistema</h1>
             </div>
-            <div class="user-info">Olá, <strong><?php echo htmlspecialchars($_SESSION['usuario_nome']); ?></strong></div>
+            <div class="user-info" style="display:flex; align-items:center; flex-wrap: wrap; justify-content: flex-end;">
+    <span style="margin-right: 5px;">Olá, <strong><?php echo htmlspecialchars($_SESSION['usuario_nome']); ?></strong></span>
+    
+    <!-- PUXA O BOTÃO E OS VÍDEOS -->
+    <?php include 'botao_ajuda.php'; ?>
+</div>
         </header>
 
         <!-- AVISOS DE SUCESSO OU ERRO -->

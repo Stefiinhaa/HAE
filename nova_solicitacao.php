@@ -445,7 +445,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 <button class="mobile-toggle" id="mobile-toggle"><i class="fa-solid fa-bars"></i></button>
                 <h1><?php echo $modo_edicao ? 'Edição de Projeto' : 'Solicitação de HAE'; ?></h1>
             </div>
-            <div class="user-info">Olá, <strong><?php echo htmlspecialchars($_SESSION['usuario_nome']); ?></strong></div>
+           <div class="user-info" style="display:flex; align-items:center; flex-wrap: wrap; justify-content: flex-end;">
+    <span style="margin-right: 5px;">Olá, <strong><?php echo htmlspecialchars($_SESSION['usuario_nome']); ?></strong></span>
+    
+    <!-- PUXA O BOTÃO E OS VÍDEOS -->
+    <?php include 'botao_ajuda.php'; ?>
+</div>
         </header>
 
         <?php if ($sucesso) echo "<div class='alert-success'>✅ $sucesso</div>"; ?>

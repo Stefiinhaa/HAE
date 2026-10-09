@@ -245,7 +245,12 @@ $pagina_atual = 'meus_projetos.php'; // Mantém o menu "Meus Projetos" ativo
                 <button class="mobile-toggle" id="mobile-toggle"><i class="fa-solid fa-bars"></i></button>
                 <h1>Editar Projeto Rejeitado</h1>
             </div>
-            <div class="user-info">Olá, <strong><?php echo $_SESSION['usuario_nome']; ?></strong></div>
+            <div class="user-info" style="display:flex; align-items:center; flex-wrap: wrap; justify-content: flex-end;">
+    <span style="margin-right: 5px;">Olá, <strong><?php echo htmlspecialchars($_SESSION['usuario_nome']); ?></strong></span>
+    
+    <!-- PUXA O BOTÃO E OS VÍDEOS -->
+    <?php include 'botao_ajuda.php'; ?>
+</div>
         </header>
 
         <a href="meus_projetos.php" class="btn-voltar"><i class="fa-solid fa-arrow-left"></i> Voltar</a>

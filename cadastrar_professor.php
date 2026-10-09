@@ -332,7 +332,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao']) && $_POST['aca
                 <button class="mobile-toggle" id="mobile-toggle"><i class="fa-solid fa-bars"></i></button>
                 <h1>Cadastrar Usuários</h1>
             </div>
-            <div class="user-info">Olá, <strong><?php echo htmlspecialchars($_SESSION['usuario_nome']); ?></strong></div>
+            <div class="user-info" style="display:flex; align-items:center; flex-wrap: wrap; justify-content: flex-end;">
+    <span style="margin-right: 5px;">Olá, <strong><?php echo htmlspecialchars($_SESSION['usuario_nome']); ?></strong></span>
+    
+    <!-- PUXA O BOTÃO E OS VÍDEOS -->
+    <?php include 'botao_ajuda.php'; ?>
+</div>
         </header>
 
         <?php if ($erro) echo "<div class='alert-success' style='background:#fee2e2; color:#b91c1c; border-color:#b91c1c; margin-bottom: 20px;'>❌ $erro</div>"; ?>

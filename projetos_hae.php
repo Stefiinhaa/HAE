@@ -255,7 +255,12 @@ foreach ($solicitacoes as $proj) {
                 <button class="mobile-toggle" id="mobile-toggle"><i class="fa-solid fa-bars"></i></button>
                 <h1>Consolidação de Projetos HAE</h1>
             </div>
-            <div class="user-info">Olá, <strong><?php echo htmlspecialchars($_SESSION['usuario_nome']); ?></strong></div>
+            <div class="user-info" style="display:flex; align-items:center; flex-wrap: wrap; justify-content: flex-end;">
+    <span style="margin-right: 5px;">Olá, <strong><?php echo htmlspecialchars($_SESSION['usuario_nome']); ?></strong></span>
+    
+    <!-- PUXA O BOTÃO E OS VÍDEOS -->
+    <?php include 'botao_ajuda.php'; ?>
+</div>
         </header>
 
         <?php if (isset($_GET['msg']) && $_GET['msg'] == 'excluido'): ?>
