@@ -7,18 +7,18 @@
 $videos_ajuda = [
     [
         'titulo' => 'Primeiros passos no sistema',
-        'thumb'  => 'https://img.youtube.com/vi/dQw4w9WgXcQ/mqdefault.jpg',
-        'url'    => 'a'
+        'thumb'  => 'https://sites.diretasistemas.com.br/wp-content/uploads/sites/5/2019/11/11150435/em-breve-1.png',
+        'url'    => 'https://sites.diretasistemas.com.br/wp-content/uploads/sites/5/2019/11/11150435/em-breve-1.png'
     ],
     [
         'titulo' => 'Como enviar uma Nova Solicitação',
-        'thumb'  => 'https://img.youtube.com/vi/dQw4w9WgXcQ/mqdefault.jpg',
-        'url'    => 'a'
+        'thumb'  => 'https://sites.diretasistemas.com.br/wp-content/uploads/sites/5/2019/11/11150435/em-breve-1.png',
+        'url'    => 'https://sites.diretasistemas.com.br/wp-content/uploads/sites/5/2019/11/11150435/em-breve-1.png'
     ],
     [
         'titulo' => 'Como enviar o Relatório Mensal',
-        'thumb'  => 'https://img.youtube.com/vi/dQw4w9WgXcQ/mqdefault.jpg',
-        'url'    => 'a'
+        'thumb'  => 'https://sites.diretasistemas.com.br/wp-content/uploads/sites/5/2019/11/11150435/em-breve-1.png',
+        'url'    => 'https://sites.diretasistemas.com.br/wp-content/uploads/sites/5/2019/11/11150435/em-breve-1.png'
     ],
 ];
 ?>
