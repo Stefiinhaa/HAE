@@ -1,12 +1,28 @@
 <?php
-session_start();
+require_once __DIR__ . '/config/seguranca.php';
 require 'config/conexao.php';
 
 header('Content-Type: application/json');
 
+// SEGURANÇA: somente usuários autenticados podem usar esta API
+if (!isset($_SESSION['usuario_id'])) {
+    http_response_code(401);
+    echo json_encode(['sucesso' => false, 'msg' => 'Não autenticado.']);
+    exit;
+}
+
+// Freio contra abuso: no máximo 60 chamadas por minuto por usuário
+hae_limitar_requisicoes('api_categoria:' . (int) $_SESSION['usuario_id'], 60, 60, true);
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $acao = $_POST['acao'] ?? 'salvar';
     $categoria = trim($_POST['categoria'] ?? '');
+
+    // A coluna aceita no máximo 100 caracteres
+    if (mb_strlen($categoria, 'UTF-8') > 100) {
+        echo json_encode(['sucesso' => false, 'msg' => 'Nome de categoria muito longo.']);
+        exit;
+    }
     
     if (!empty($categoria)) {
         try {
@@ -37,7 +53,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }
         } catch (Exception $e) {
-            echo json_encode(['sucesso' => false, 'msg' => $e->getMessage()]);
+            echo json_encode(['sucesso' => false, 'msg' => hae_erro_seguro($e, 'api_categoria')]);
             exit;
         }
     }

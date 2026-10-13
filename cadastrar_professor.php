@@ -1,5 +1,5 @@
 <?php
-session_start();
+require_once __DIR__ . '/config/seguranca.php';
 require 'config/conexao.php';
 require_once 'enviar_email.php'; 
 
@@ -24,10 +24,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao']) && $_POST['aca
     $email = trim($_POST['email']);
     $whatsapp = trim($_POST['whatsapp']);
     $data_nascimento = $_POST['data_nascimento'];
-    $funcao = $_POST['funcao'];
+    $funcao = $_POST['funcao'] ?? '';
+    if (!in_array($funcao, ['Professor', 'Coordenador', 'Diretor'], true)) { $funcao = 'Professor'; } // valor inválido vira o menor privilégio
 
     $senha_provisoria = date('dmY', strtotime($data_nascimento));
-    $senha_hash = md5($senha_provisoria);
+    $senha_hash = hae_hash_senha($senha_provisoria);
     $saudacao = ($funcao == 'Professor') ? "Prof(a)." : (($funcao == 'Coordenador') ? "Coordenador(a)" : "Diretor(a)");
 
     try {
@@ -35,12 +36,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao']) && $_POST['aca
         $stmt->execute([$email]);
         if ($stmt->rowCount() > 0) {
             $erro = "Este e-mail já está cadastrado no sistema.";
+        } elseif (hae_nome_reservado($nome) && !hae_nome_reservado($_SESSION['usuario_nome'] ?? '')) {
+            $erro = "Este nome é reservado pelo sistema. Escolha outro.";
         } else {
             $sql = "INSERT INTO usuarios (nome, email, telefone_whatsapp, data_nascimento, funcao, senha, primeiro_acesso) VALUES (?, ?, ?, ?, ?, ?, 1)";
             $stmt = $pdo->prepare($sql);
             $stmt->execute([$nome, $email, $whatsapp, $data_nascimento, $funcao, $senha_hash]);
 
             // DISPARO AUTOMÁTICO DE E-MAIL
+            $nome_h = h($nome); $email_h = h($email); // escapado: o corpo do e-mail é HTML
             $assunto = "Acesso Liberado - Sistema HAE Fatec";
             $corpo_email = "
                 <div style='font-family: Arial, sans-serif; color: #333; line-height: 1.6; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;'>
@@ -48,12 +52,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao']) && $_POST['aca
                         <h2 style='margin: 0; font-size: 20px;'>Sistema HAE - Fatec</h2>
                     </div>
                     <div style='padding: 20px;'>
-                        <h3 style='color: #b20000; margin-top: 0;'>Olá, $saudacao $nome.</h3>
+                        <h3 style='color: #b20000; margin-top: 0;'>Olá, $saudacao $nome_h.</h3>
                         <p>O seu perfil institucional foi ativado com sucesso pela administração.</p>
                         <p>Para efetuar o seu primeiro acesso à plataforma, utilize os dados de autenticação abaixo:</p>
                         <div style='background: #f9f9f9; padding: 15px; border-left: 4px solid #b20000; margin: 15px 0;'>
                             <ul style='margin: 0; padding-left: 20px;'>
-                                <li style='margin-bottom: 10px;'><strong>Usuário:</strong> $email</li>
+                                <li style='margin-bottom: 10px;'><strong>Usuário:</strong> $email_h</li>
                                 <li style='margin-bottom: 10px;'>
                                     <strong><img src='cid:img_texto_senha' alt='Senha Provisória' style='height: 12px; vertical-align: middle;'>:</strong> $senha_provisoria <em>(sua data de nascimento)</em>
                                 </li>
@@ -79,7 +83,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao']) && $_POST['aca
             // GERA O LINK DO WHATSAPP
             $num_limpo = preg_replace('/\D/', '', $whatsapp);
             if (substr($num_limpo, 0, 2) !== '55') $num_limpo = '55' . $num_limpo;
-            $msg = "Olá, $saudacao $nome! Seu acesso ao Portal HAE Fatec foi criado.\n\n*E-mail:* $email\n*Senha provisória:* $senha_provisoria (Sua data de nascimento)\n\nPor favor, acesse o sistema para completar seu perfil, cadastrar sua imagem de assinatura digital e criar uma nova senha definitiva.\nAcesse: http://sistemahae.page.gd/";
+            $msg = "Olá, $saudacao $nome! Seu acesso ao Portal HAE Fatec foi criado.\n\n*E-mail:* $email\n*Senha provisória:* $senha_provisoria (Sua data de nascimento)\n\nPor favor, acesse o sistema para completar seu perfil, cadastrar sua imagem de assinatura digital e criar uma nova senha definitiva.\nAcesse: " . hae_url_base() . "/";
             $link_wa = "https://wa.me/{$num_limpo}?text=" . urlencode($msg);
 
             if ($email_enviado) {
@@ -89,7 +93,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao']) && $_POST['aca
             }
         }
     } catch (PDOException $e) {
-        $erro = "Erro ao cadastrar: " . $e->getMessage();
+        $erro = "Erro ao cadastrar: " . hae_erro_seguro($e, 'cadastrar_professor.php');
     }
 }
 
@@ -115,6 +119,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao']) && $_POST['aca
                 $whatsapp = trim($data[2] ?? '');
                 $data_nascimento_bruta = trim($data[3] ?? '');
                 $funcao = trim($data[4] ?? '');
+                if (!in_array($funcao, ['Professor', 'Coordenador', 'Diretor'], true)) { $funcao = 'Professor'; } // valor inválido vira o menor privilégio
                 
                 if (empty($nome) || empty($email)) continue;
                 
@@ -131,7 +136,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao']) && $_POST['aca
                 }
                 
                 $senha_provisoria = date('dmY', strtotime($data_nascimento));
-                $senha_hash = md5($senha_provisoria);
+                $senha_hash = hae_hash_senha($senha_provisoria);
                 $saudacao = ($funcao == 'Professor') ? "Prof(a)." : (($funcao == 'Coordenador') ? "Coordenador(a)" : "Diretor(a)");
                 
                 $status_linha = "";
@@ -144,6 +149,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao']) && $_POST['aca
                     
                     if ($stmt->rowCount() > 0) {
                         $status_linha = "<span style='color:#e74c3c; font-weight:bold;'>Já Cadastrado</span>";
+                    } elseif (hae_nome_reservado($nome) && !hae_nome_reservado($_SESSION['usuario_nome'] ?? '')) {
+                        $status_linha = "<span style='color:#e74c3c; font-weight:bold;'>Nome reservado</span>";
                     } else {
                         // Cadastra no banco
                         $sql = "INSERT INTO usuarios (nome, email, telefone_whatsapp, data_nascimento, funcao, senha, primeiro_acesso) VALUES (?, ?, ?, ?, ?, ?, 1)";
@@ -151,19 +158,20 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao']) && $_POST['aca
                         $stmt->execute([$nome, $email, $whatsapp, $data_nascimento, $funcao, $senha_hash]);
                         
                         // Envio de E-mail
-                        $assunto = "Acesso Liberado - Sistema HAE Fatec";
+                        $nome_h = h($nome); $email_h = h($email); // escapado: o corpo do e-mail é HTML
+            $assunto = "Acesso Liberado - Sistema HAE Fatec";
                         $corpo_email = "
                             <div style='font-family: Arial, sans-serif; color: #333; line-height: 1.6; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;'>
                                 <div style='background-color: #b20000; padding: 20px; text-align: center; color: white;'>
                                     <h2 style='margin: 0; font-size: 20px;'>Sistema HAE - Fatec</h2>
                                 </div>
                                 <div style='padding: 20px;'>
-                                    <h3 style='color: #b20000; margin-top: 0;'>Olá, $saudacao $nome.</h3>
+                                    <h3 style='color: #b20000; margin-top: 0;'>Olá, $saudacao $nome_h.</h3>
                                     <p>O seu perfil institucional foi ativado com sucesso pela administração.</p>
                                     <p>Para efetuar o seu primeiro acesso à plataforma, utilize os dados de autenticação abaixo:</p>
                                     <div style='background: #f9f9f9; padding: 15px; border-left: 4px solid #b20000; margin: 15px 0;'>
                                         <ul style='margin: 0; padding-left: 20px;'>
-                                            <li style='margin-bottom: 10px;'><strong>Usuário:</strong> $email</li>
+                                            <li style='margin-bottom: 10px;'><strong>Usuário:</strong> $email_h</li>
                                             <li style='margin-bottom: 10px;'>
                                                 <strong><img src='cid:img_texto_senha' alt='Senha Provisória' style='height: 12px; vertical-align: middle;'>:</strong> $senha_provisoria <em>(sua data de nascimento)</em>
                                             </li>
@@ -195,7 +203,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao']) && $_POST['aca
                         // Gera Link WhatsApp
                         $num_limpo = preg_replace('/\D/', '', $whatsapp);
                         if (substr($num_limpo, 0, 2) !== '55' && strlen($num_limpo) >= 10) $num_limpo = '55' . $num_limpo;
-                        $msg = "Olá, $saudacao $nome! Seu acesso ao Portal HAE Fatec foi criado.\n\n*E-mail:* $email\n*Senha provisória:* $senha_provisoria (Sua data de nascimento)\n\nPor favor, acesse o sistema para completar seu perfil, cadastrar sua imagem de assinatura digital e criar uma nova senha definitiva.\nAcesse: http://sistemahae.page.gd/";
+                        $msg = "Olá, $saudacao $nome! Seu acesso ao Portal HAE Fatec foi criado.\n\n*E-mail:* $email\n*Senha provisória:* $senha_provisoria (Sua data de nascimento)\n\nPor favor, acesse o sistema para completar seu perfil, cadastrar sua imagem de assinatura digital e criar uma nova senha definitiva.\nAcesse: " . hae_url_base() . "/";
                         $whatsapp_link_linha = "https://wa.me/{$num_limpo}?text=" . urlencode($msg);
                     }
                     
@@ -532,7 +540,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao']) && $_POST['aca
         function atualizarNomeArquivo(input) {
             const texto = document.getElementById('upload_text');
             if (input.files && input.files.length > 0) {
-                texto.innerHTML = "Arquivo selecionado: <strong style='color:#27ae60;'>" + input.files[0].name + "</strong>";
+                texto.innerHTML = "Arquivo selecionado: <strong style='color:#27ae60;'>" + input.files[0].name.replace(/[&<>"']/g, "") + "</strong>";
             } else {
                 texto.innerHTML = "Clique aqui para selecionar a sua Planilha (Excel ou CSV)";
             }

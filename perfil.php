@@ -1,5 +1,5 @@
 <?php
-session_start();
+require_once __DIR__ . '/config/seguranca.php';
 require 'config/conexao.php';
 
 // Segurança: Apenas logados
@@ -32,6 +32,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $stmt_check->execute([$email, $usuario_id]);
     if ($stmt_check->rowCount() > 0) {
         $erro = "Este e-mail já está sendo utilizado por outro usuário no sistema.";
+    } elseif (hae_nome_reservado($nome) && !hae_nome_reservado($_SESSION['usuario_nome'] ?? '')) {
+        $erro = "Este nome é reservado pelo sistema. Escolha outro.";
     }
 
     // Lógica para Nova Senha (Opcional)
@@ -44,20 +46,19 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $erro = "As senhas não coincidem.";
         } else {
             $sql_senha = ", senha = ?";
-            $params_senha[] = md5($nova_senha);
+            $params_senha[] = hae_hash_senha($nova_senha);
         }
     }
 
-    // Lógica para Nova Assinatura (Opcional)
+    // Lógica para Nova Assinatura (Opcional) - validada pelo conteúdo real da imagem
     $assinatura_path = $user['assinatura_path'];
     if (isset($_FILES['assinatura']) && $_FILES['assinatura']['error'] == 0 && empty($erro)) {
-        $extensao = pathinfo($_FILES['assinatura']['name'], PATHINFO_EXTENSION);
-        $novo_nome = md5(uniqid()) . "." . $extensao;
-        $diretorio = "uploads/assinaturas/";
-        if (!is_dir($diretorio))
-            mkdir($diretorio, 0777, true);
-        move_uploaded_file($_FILES['assinatura']['tmp_name'], $diretorio . $novo_nome);
-        $assinatura_path = $diretorio . $novo_nome;
+        $upload = hae_salvar_upload_imagem($_FILES['assinatura'], "uploads/assinaturas/");
+        if ($upload['ok']) {
+            $assinatura_path = $upload['caminho'];
+        } else {
+            $erro = $upload['erro'];
+        }
     }
 
     if (empty($erro)) {
@@ -85,7 +86,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
         } catch (PDOException $e) {
-            $erro = "Erro ao atualizar: " . $e->getMessage();
+            $erro = "Erro ao atualizar: " . hae_erro_seguro($e, 'perfil.php');
         }
     }
 }
@@ -460,7 +461,7 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
                     <div class="signature-preview">
                         <label style="text-align: left;">Assinatura Atual</label>
                         <?php if ($user['assinatura_path']): ?>
-                            <img src="<?php echo $user['assinatura_path']; ?>" alt="Assinatura">
+                            <img src="<?php echo h($user['assinatura_path']); ?>" alt="Assinatura">
                         <?php else: ?>
                             <p style="font-size: 12px; color: #999; margin: 20px 0;">Nenhuma assinatura cadastrada.</p>
                         <?php endif; ?>

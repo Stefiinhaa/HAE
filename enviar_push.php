@@ -1,17 +1,30 @@
 <?php
+require_once __DIR__ . '/config/seguranca.php';
 require_once __DIR__ . '/config/conexao.php';
 
-function getFCMTokenOAuth() {
-    $chave_json = __DIR__ . '/config/firebase_credentials.json';
-    
-    if (!file_exists($chave_json)) {
-        return "ERRO_ARQUIVO: O arquivo firebase_credentials.json não foi encontrado na pasta config!";
+function carregarCredenciaisFirebase() {
+    $chave_php = __DIR__ . '/config/firebase_credentials.php';
+    if (file_exists($chave_php)) {
+        $dados = require $chave_php;
+        if (is_array($dados) && isset($dados['client_email'])) {
+            return $dados;
+        }
     }
+    $chave_json = __DIR__ . '/config/firebase_credentials.json';
+    if (file_exists($chave_json)) {
+        $dados = json_decode(file_get_contents($chave_json), true);
+        if (is_array($dados) && isset($dados['client_email'])) {
+            return $dados;
+        }
+    }
+    return null;
+}
+
+function getFCMTokenOAuth() {
+    $keyFile = carregarCredenciaisFirebase();
     
-    $keyFile = json_decode(file_get_contents($chave_json), true);
-    
-    if (!isset($keyFile['client_email'])) {
-        return "ERRO_JSON: O arquivo JSON parece inválido.";
+    if (!$keyFile) {
+        return "ERRO_ARQUIVO: As credenciais do Firebase não foram encontradas na pasta config!";
     }
     
     $header = json_encode(['alg' => 'RS256', 'typ' => 'JWT']);
@@ -50,7 +63,8 @@ function getFCMTokenOAuth() {
     curl_setopt($ch, CURLOPT_POST, true);
     curl_setopt($ch, CURLOPT_POSTFIELDS, 'grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=' . $jwt);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 15);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, !hae_ambiente_local()); // valida o certificado SSL em produção
     
     $response = curl_exec($ch);
     $curl_err = curl_error($ch);
@@ -68,8 +82,12 @@ function getFCMTokenOAuth() {
     return "ERRO_GOOGLE: " . $response;
 }
 
-function dispararPush($usuario_alvo_id, $titulo, $mensagem, $url_destino = "https://sistemahae.page.gd/painel.php") {
+function dispararPush($usuario_alvo_id, $titulo, $mensagem, $url_destino = null) {
     global $pdo;
+    
+    if (empty($url_destino)) {
+        $url_destino = hae_url_base() . "/painel.php";
+    }
     
     // 1. Busca os tokens do usuário alvo
     $stmt = $pdo->prepare("SELECT token FROM fcm_tokens WHERE usuario_id = ?");
@@ -85,7 +103,10 @@ function dispararPush($usuario_alvo_id, $titulo, $mensagem, $url_destino = "http
         return $access_token;
     }
 
-    $keyFile = json_decode(file_get_contents(__DIR__ . '/config/firebase_credentials.json'), true);
+    $keyFile = carregarCredenciaisFirebase();
+    if (!$keyFile) {
+        return "ERRO_ARQUIVO: As credenciais do Firebase não puderam ser carregadas.";
+    }
     $project_id = $keyFile['project_id'];
     $url = "https://fcm.googleapis.com/v1/projects/{$project_id}/messages:send";
 
@@ -116,8 +137,9 @@ function dispararPush($usuario_alvo_id, $titulo, $mensagem, $url_destino = "http
             'Content-Type: application/json'
         ]);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 15);
         curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($fields));
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, !hae_ambiente_local()); // valida o certificado SSL em produção
         
         $response = curl_exec($ch);
         curl_close($ch);

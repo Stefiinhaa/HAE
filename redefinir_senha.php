@@ -1,5 +1,5 @@
 <?php
-session_start();
+require_once __DIR__ . '/config/seguranca.php';
 require 'config/conexao.php';
 
 // Se não tiver feito login inicial, manda pro index
@@ -20,7 +20,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $erro = "As senhas não coincidem. Digite com atenção e tente novamente.";
     } else {
         try {
-            $senha_criptografada = md5($nova_senha);
+            $senha_criptografada = hae_hash_senha($nova_senha);
             // Atualiza a senha e retira a trava de redefinição obrigatória
             $stmt = $pdo->prepare("UPDATE usuarios SET senha = ?, primeiro_acesso = 0 WHERE id = ?");
             $stmt->execute([$senha_criptografada, $_SESSION['usuario_id']]);
@@ -29,7 +29,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             header("Location: painel.php");
             exit;
         } catch (PDOException $e) {
-            $erro = "Erro ao atualizar o banco de dados: " . $e->getMessage();
+            $erro = "Erro ao atualizar o banco de dados: " . hae_erro_seguro($e, 'redefinir_senha.php');
         }
     }
 }

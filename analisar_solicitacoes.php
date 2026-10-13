@@ -1,5 +1,5 @@
 <?php
-session_start();
+require_once __DIR__ . '/config/seguranca.php';
 require 'config/conexao.php';
 require_once 'enviar_email.php';
 require_once 'enviar_push.php';
@@ -15,7 +15,7 @@ $usuario_id = $_SESSION['usuario_id'];
 $mensagem = "";
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao'])) {
-    $solicitacao_id = $_POST['solicitacao_id'];
+    $solicitacao_id = (int)($_POST['solicitacao_id'] ?? 0);
     $return_url = isset($_POST['return_url']) ? trim($_POST['return_url']) : '';
     
     $acao_post = $_POST['acao'];
@@ -27,8 +27,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao'])) {
         $novo_status_individual = 'Rejeitado';
     }
     
-    $horas_aprovadas = $_POST['horas_aprovadas'] ?? 0;
-    $parecer = trim($_POST['parecer']);
+    $horas_aprovadas = max(0, (int)($_POST['horas_aprovadas'] ?? 0));
+    $parecer = trim($_POST['parecer'] ?? '');
     $data_hoje = ($novo_status_individual == 'Aprovado') ? date('Y-m-d') : null;
 
     $tem_prazo = false;
@@ -38,14 +38,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao'])) {
     // DATA DE INÍCIO DOS RELATÓRIOS (DIRETOR)
     $data_inicio_relatorios = null;
     if ($acao_post == 'aprovar' && $funcao_logada == 'Diretor') {
-        $data_inicio_relatorios = !empty($_POST['data_inicio_relatorios']) ? $_POST['data_inicio_relatorios'] : null;
+        $data_inicio_relatorios = (!empty($_POST['data_inicio_relatorios']) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $_POST['data_inicio_relatorios'])) ? $_POST['data_inicio_relatorios'] : null;
     }
     
     if ($acao_post == 'devolver') {
         if (!empty($_POST['prazo_data']) && !empty($_POST['prazo_hora'])) {
             $tem_prazo = true;
             $prazo_data = date('d/m/Y', strtotime($_POST['prazo_data']));
-            $prazo_hora = $_POST['prazo_hora'];
+            $prazo_hora = h($_POST['prazo_hora']);
             
             $parecer .= "\n\n[ PRAZO PARA CORREÇÃO ]\nO projeto deverá ser ajustado e submetido novamente no portal até o dia $prazo_data às $prazo_hora.";
         }
@@ -55,6 +55,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao'])) {
         $stmt_current = $pdo->prepare("SELECT status_coordenador, status_diretor FROM solicitacoes_hae WHERE id = ?");
         $stmt_current->execute([$solicitacao_id]);
         $current = $stmt_current->fetch(PDO::FETCH_ASSOC);
+        if (!$current) {
+            throw new Exception('Solicitação não encontrada.');
+        }
 
         $status_coord = $current['status_coordenador'];
         $status_dir = $current['status_diretor'];
@@ -101,7 +104,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao'])) {
                     ";
                     
                     try { dispararEmailSistema($dir['email'], $dir['nome'], $assunto_dir, $corpo_dir); } catch (Exception $e) {}
-                    try { dispararPush($dir['id'], "Projeto Aguardando Análise 📋", "A Coordenação aprovou um projeto HAE. Ele aguarda sua análise final.", "https://sistemahae.page.gd/analisar_solicitacoes.php"); } catch (Exception $e) {}
+                    try { dispararPush($dir['id'], "Projeto Aguardando Análise 📋", "A Coordenação aprovou um projeto HAE. Ele aguarda sua análise final.", hae_url_base() . "/analisar_solicitacoes.php"); } catch (Exception $e) {}
                 }
             }
         }
@@ -160,7 +163,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao'])) {
             if ($prof) {
                 $nome_prof = $prof['nome'];
                 $email_prof = $prof['email'];
-                $titulo_proj = $prof['titulo_projeto'];
+                $titulo_proj = h($prof['titulo_projeto']);
 
                 $corpo_email = "
                     <div style='font-family: Arial, sans-serif; color: #2c3e50; padding: 20px; border: 1px solid #ddd; border-radius: 8px;'>
@@ -180,14 +183,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao'])) {
                 ";
                 
                 try { dispararEmailSistema($email_prof, $nome_prof, $assunto, $corpo_email); } catch (Exception $e) {}
-                try { dispararPush($prof['id'], $push_titulo, $push_mensagem, "https://sistemahae.page.gd/meus_projetos.php"); } catch (Exception $e) {}
+                try { dispararPush($prof['id'], $push_titulo, $push_mensagem, hae_url_base() . "/meus_projetos.php"); } catch (Exception $e) {}
             }
         }
 
         header("Location: analisar_solicitacoes.php?status=sucesso" . (!empty($return_url) ? "&" . $return_url : ""));
         exit;
     } catch (Exception $e) {
-        $mensagem = "Erro ao processar: " . $e->getMessage();
+        $mensagem = "Erro ao processar: " . hae_erro_seguro($e, 'analisar_solicitacoes.php');
     }
 }
 
@@ -978,13 +981,16 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
             }
         }
 
+        // Escapa texto antes de usar innerHTML (evita XSS armazenado)
+        function escaparHtml(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function(c) { return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+
         function abrirModalMotivo(btn, event) {
             event.stopPropagation(); 
             let texto = btn.getAttribute('data-motivo');
             let titulo = btn.getAttribute('data-titulo');
             
-            document.getElementById('modalTitulo').innerHTML = '<i class="fa-solid fa-comment-dots"></i> ' + titulo;
-            document.getElementById('textoMotivo').innerHTML = texto.replace(/\n/g, '<br>');
+            document.getElementById('modalTitulo').innerHTML = '<i class="fa-solid fa-comment-dots"></i> ' + escaparHtml(titulo);
+            document.getElementById('textoMotivo').innerHTML = escaparHtml(texto).replace(/\n/g, '<br>');
             document.getElementById('modalMotivo').style.display = 'flex';
         }
 

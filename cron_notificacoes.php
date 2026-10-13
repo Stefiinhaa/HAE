@@ -1,11 +1,18 @@
 <?php
+require_once __DIR__ . '/config/seguranca.php';
+require_once __DIR__ . '/config/segredos.php';
+
 // ==============================================================================
 // TRAVA DE SEGURANÇA: Token Secreto via URL
-// Só roda se acessar: sistemahae.page.gd/cron_notificacoes.php?token=HaeFatec2026
+// Só roda se acessar: seudominio.com.br/cron_notificacoes.php?token=SEU_TOKEN
+// O token fica em config/segredos.php (CRON_TOKEN), fora do código-fonte.
 // ==============================================================================
-$token_secreto = 'HaeFatec2026'; // Você pode mudar essa senha se quiser
+$token_secreto = CRON_TOKEN;
 
-if (!isset($_GET['token']) || $_GET['token'] !== $token_secreto) {
+$token_enviado = isset($_GET['token']) && is_string($_GET['token']) ? $_GET['token'] : '';
+if ($token_enviado === '' || !hash_equals($token_secreto, $token_enviado)) {
+    // Limita tentativas inválidas por IP (barra adivinhação do token)
+    hae_limitar_requisicoes('cron_token_invalido:' . hae_ip(), 10, 900);
     http_response_code(403);
     exit('Acesso restrito.');
 }
@@ -92,7 +99,7 @@ try {
                     <p>Por favor, acesse o portal e regularize sua situação o mais rápido possível para evitar o bloqueio de horas.</p>
                     
                     <div style='text-align: center; margin: 30px 0;'>
-                        <a href='https://sistemahae.page.gd/enviar_relatorio.php' style='background-color: #f39c12; color: #ffffff; padding: 14px 25px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block; font-size: 16px;'>Acessar Portal HAE</a>
+                        <a href='" . hae_url_base() . "/enviar_relatorio.php' style='background-color: #f39c12; color: #ffffff; padding: 14px 25px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block; font-size: 16px;'>Acessar Portal HAE</a>
                     </div>
                     <p style='margin-top: 20px; font-size: 12px; color: #7f8c8d; text-align: center;'>Este é um aviso automático ($dia_hojeº aviso).</p>
                 </div>
@@ -102,7 +109,7 @@ try {
             
             $titulo_push = "Relatório Atrasado ⚠️";
             $msg_push = "O relatório de $nome_mes_passado do projeto HAE está pendente. Envie até o dia 10!";
-            $link_destino = "https://sistemahae.page.gd/enviar_relatorio.php";
+            $link_destino = hae_url_base() . "/enviar_relatorio.php";
             try { dispararPush($proj['professor_id'], $titulo_push, $msg_push, $link_destino); } catch (Exception $e) {}
         }
         
@@ -136,7 +143,7 @@ try {
                     </div>
                     
                     <div style='text-align: center; margin: 30px 0;'>
-                        <a href='https://sistemahae.page.gd/relatorios_atrasados.php' style='background-color: #c0392b; color: #ffffff; padding: 14px 25px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block; font-size: 16px;'>Ver Painel de Atrasos</a>
+                        <a href='" . hae_url_base() . "/relatorios_atrasados.php' style='background-color: #c0392b; color: #ffffff; padding: 14px 25px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block; font-size: 16px;'>Ver Painel de Atrasos</a>
                     </div>
                 </div>
             ";
@@ -149,6 +156,6 @@ try {
     }
 
 } catch (PDOException $e) {
-    exit("Erro no cron: " . $e->getMessage());
+    exit("Erro no cron: " . hae_erro_seguro($e, 'cron'));
 }
 ?>

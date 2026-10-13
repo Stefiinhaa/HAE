@@ -1,5 +1,5 @@
 <?php
-session_start();
+require_once __DIR__ . '/config/seguranca.php';
 date_default_timezone_set('America/Sao_Paulo');
 require 'config/conexao.php';
 

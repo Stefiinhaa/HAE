@@ -1,5 +1,5 @@
 <?php
-session_start();
+require_once __DIR__ . '/config/seguranca.php';
 require 'config/conexao.php';
 
 // Segurança: Apenas Diretor acessa as configurações globais
@@ -35,19 +35,16 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             }
         }
         
-        // Lógica de Upload da Nova Logo
+        // Lógica de Upload da Nova Logo (validada pelo conteúdo real da imagem)
         if (isset($_FILES['nova_logo']) && $_FILES['nova_logo']['error'] == 0) {
-            $extensao = strtolower(pathinfo($_FILES['nova_logo']['name'], PATHINFO_EXTENSION));
-            $extensoes_permitidas = ['jpg', 'jpeg', 'png'];
+            $info_logo = @getimagesize($_FILES['nova_logo']['tmp_name']);
+            $tipo_logo = $info_logo['mime'] ?? '';
             
-            if (in_array($extensao, $extensoes_permitidas)) {
-                $novo_nome = "logo_fatec_" . time() . "." . $extensao;
-                $diretorio = "uploads/";
+            if (in_array($tipo_logo, ['image/jpeg', 'image/png'], true)) {
+                $upload = hae_salvar_upload_imagem($_FILES['nova_logo'], "uploads/", "logo_fatec_" . time() . "_");
                 
-                if (!is_dir($diretorio)) mkdir($diretorio, 0777, true);
-                
-                if (move_uploaded_file($_FILES['nova_logo']['tmp_name'], $diretorio . $novo_nome)) {
-                    $caminho_logo = $diretorio . $novo_nome;
+                if ($upload['ok']) {
+                    $caminho_logo = $upload['caminho'];
                     $stmt_logo = $pdo->prepare("UPDATE configuracoes SET valor = ? WHERE chave = 'logo_institucional'");
                     $stmt_logo->execute([$caminho_logo]);
                 } else {
@@ -62,7 +59,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $sucesso = "Configurações do sistema atualizadas com sucesso!";
         }
     } catch (PDOException $e) {
-        $erro = "Erro ao atualizar banco de dados: " . $e->getMessage();
+        $erro = "Erro ao atualizar banco de dados: " . hae_erro_seguro($e, 'configuracoes.php');
     }
 }
 

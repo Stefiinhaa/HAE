@@ -1,5 +1,5 @@
 <?php
-session_start();
+require_once __DIR__ . '/config/seguranca.php';
 require 'config/conexao.php';
 
 // Segurança: Apenas Professor acessa
@@ -63,12 +63,26 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao'])) {
     $nome_mes_ano = ($meses[$mes_referencia] ?? $mes_referencia) . '/' . $ano_referencia;
 
     try {
+        // SEGURANÇA: o projeto precisa pertencer ao professor logado e estar aprovado
+        $stmt_dono = $pdo->prepare("SELECT id FROM solicitacoes_hae WHERE id = ? AND professor_id = ? AND status_aprovacao = 'Aprovado'");
+        $stmt_dono->execute([$solicitacao_id, $usuario_id]);
+        $acesso_negado = !$stmt_dono->fetch() || $mes_referencia < 1 || $mes_referencia > 12;
+
+        // SEGURANÇA: se for edição, o relatório também precisa pertencer a este professor
+        if (!$acesso_negado && $id_edicao > 0) {
+            $stmt_dono_rel = $pdo->prepare("SELECT r.id FROM relatorios_hae r JOIN solicitacoes_hae s ON r.solicitacao_id = s.id WHERE r.id = ? AND s.professor_id = ?");
+            $stmt_dono_rel->execute([$id_edicao, $usuario_id]);
+            $acesso_negado = !$stmt_dono_rel->fetch();
+        }
+
         // Verifica se já existe relatório cadastrado para este projeto no mesmo mês e ano
         $stmt_check = $pdo->prepare("SELECT id, status FROM relatorios_hae WHERE solicitacao_id = ? AND mes_referencia = ? AND ano_referencia = ? AND id != ?");
         $stmt_check->execute([$solicitacao_id, $mes_referencia, $ano_referencia, $id_edicao]);
         $relatorio_existente = $stmt_check->fetch(PDO::FETCH_ASSOC);
 
-        if ($relatorio_existente) {
+        if ($acesso_negado) {
+            $erro = "Não foi possível salvar: projeto ou relatório inválido para o seu usuário.";
+        } elseif ($relatorio_existente) {
             $erro = "<strong>Relatório de $nome_mes_ano já enviado!</strong><br>Já consta no sistema um relatório definitivo enviado para este projeto referente ao mês de $nome_mes_ano.";
         } else {
             if ($id_edicao > 0) {

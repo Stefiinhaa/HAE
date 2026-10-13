@@ -1,5 +1,5 @@
 <?php
-session_start();
+require_once __DIR__ . '/config/seguranca.php';
 require 'config/conexao.php';
 
 // Importa a central de envios de e-mail para usar na recuperação de senha
@@ -16,25 +16,36 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     // LÓGICA DE RECUPERAÇÃO DE SENHA (ESQUECI A SENHA)
     // ==============================================================================
     if (isset($_POST['acao']) && $_POST['acao'] == 'esqueci_senha') {
-        $email_rec = trim($_POST['email_recuperacao']);
+        $email_rec = trim($_POST['email_recuperacao'] ?? '');
         $email_rec_digitado = $email_rec; // Salva o que foi digitado
         
         $stmt = $pdo->prepare("SELECT id, nome, email FROM usuarios WHERE email = ?");
         $stmt->execute([$email_rec]);
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        if ($user) {
-            // Gera uma senha aleatória provisória de 8 caracteres
-            $nova_senha_temp = substr(str_shuffle("0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"), 0, 8);
-            $senha_hash = md5($nova_senha_temp);
+        // Limites contra abuso: 5 pedidos por IP a cada 15 min e 3 por e-mail por hora
+        $limite_excedido = (hae_rl('recuperacao_ip:' . hae_ip(), 900) > 5)
+            || ($user && hae_rl('recuperacao_email:' . strtolower($email_rec), 3600) > 3);
+
+        if ($limite_excedido) {
+            $erro = "Muitas solicitações de recuperação de senha. Aguarde alguns minutos e tente novamente.";
+            echo "<script>window.onload = function() { alternarForms('recuperar'); }</script>";
+        } elseif ($user) {
+            // Gera uma senha aleatória provisória de 8 caracteres (gerador criptograficamente seguro)
+            $alfabeto_senha = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+            $nova_senha_temp = "";
+            for ($i = 0; $i < 8; $i++) {
+                $nova_senha_temp .= $alfabeto_senha[random_int(0, strlen($alfabeto_senha) - 1)];
+            }
+            $senha_hash = hae_hash_senha($nova_senha_temp);
 
             // Atualiza a senha no banco e força a tela de "Redefinir Senha" no próximo login
             $stmt_upd = $pdo->prepare("UPDATE usuarios SET senha = ?, primeiro_acesso = 2 WHERE id = ?");
             $stmt_upd->execute([$senha_hash, $user['id']]);
 
             // Formatação Profissional Idêntica ao cadastrar_professor.php
-            $nome_usuario = $user['nome'];
-            $email_usuario = $user['email'];
+            $nome_usuario = h($user['nome']);
+            $email_usuario = h($user['email']);
             $assunto = "Acesso Liberado - Sistema HAE Fatec";
             
             $corpo_email = "
@@ -90,43 +101,79 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     // LÓGICA DE LOGIN NORMAL
     // ==============================================================================
     else {
-        $email = trim($_POST['email']);
+        $email = trim($_POST['email'] ?? '');
         $email_digitado = $email; // Salva o e-mail digitado na memória
-        $senha = md5(trim($_POST['senha']));
+        $senha_digitada = trim($_POST['senha'] ?? '');
 
-        $sql = "SELECT * FROM usuarios WHERE email = ? AND senha = ?";
-        $stmt = $pdo->prepare($sql);
-        $stmt->execute([$email, $senha]);
-        $usuario = $stmt->fetch(PDO::FETCH_ASSOC);
+        // ----- PROTEÇÃO CONTRA FORÇA BRUTA / ABUSO DE LOGIN -----
+        $email_chave = strtolower($email);
+        $chave_ip_email = 'login_falha:' . hae_ip() . '|' . $email_chave;
+        $chave_email    = 'login_falha_email:' . $email_chave;
+        $chave_ip       = 'login_falha_ip:' . hae_ip();
+        $janela_login   = 900; // 15 minutos
 
-        if ($usuario) {
-            $_SESSION['usuario_id'] = $usuario['id'];
-            $_SESSION['usuario_nome'] = $usuario['nome'];
-            $_SESSION['primeiro_acesso'] = $usuario['primeiro_acesso'];
-
-            $nomes_admin = ['Administrador', 'Administrador MD5'];
-            $funcoes_validas = ['Professor', 'Coordenador', 'Diretor'];
-
-            // God Mode (Simulação de Perfil)
-            if (in_array($usuario['nome'], $nomes_admin) && !empty($_POST['simular_funcao']) && in_array($_POST['simular_funcao'], $funcoes_validas)) {
-                $_SESSION['usuario_funcao'] = $_POST['simular_funcao']; 
-            } else {
-                $_SESSION['usuario_funcao'] = $usuario['funcao']; 
-            }
-
-            // Desvios de Rota
-            if ($usuario['primeiro_acesso'] == 1) {
-                header("Location: completar_cadastro.php");
-                exit;
-            } elseif ($usuario['primeiro_acesso'] == 2) {
-                header("Location: redefinir_senha.php");
-                exit;
-            } else {
-                header("Location: painel.php");
-                exit;
-            }
+        if (hae_rl($chave_ip_email, $janela_login, false) >= 5
+            || hae_rl($chave_email, $janela_login, false) >= 20
+            || hae_rl($chave_ip, $janela_login, false) >= 40) {
+            $erro = "Muitas tentativas de login. Aguarde 15 minutos e tente novamente.";
         } else {
-            $erro = "E-mail ou senha inválidos.";
+            $sql = "SELECT * FROM usuarios WHERE email = ?";
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute([$email]);
+            $usuario = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            $precisa_atualizar_hash = false;
+            if ($usuario) {
+                $senha_ok = hae_verificar_senha($senha_digitada, $usuario['senha'], $precisa_atualizar_hash);
+            } else {
+                // Gasta o mesmo tempo de uma verificação real (impede descobrir e-mails pelo tempo de resposta)
+                password_verify($senha_digitada, '$2y$10$VxXCnjCZBKIFH72RC4heye8VY2uVAIwJQdSYhKHU7PNbCMpRC0fyC');
+                $senha_ok = false;
+            }
+
+            if ($usuario && $senha_ok) {
+                // Login válido: zera o contador e troca o ID da sessão (evita session fixation)
+                hae_rl_zerar($chave_ip_email);
+                session_regenerate_id(true);
+
+                // Migração transparente: senha antiga (MD5) passa a ser guardada com bcrypt
+                if ($precisa_atualizar_hash) {
+                    $stmt_rehash = $pdo->prepare("UPDATE usuarios SET senha = ? WHERE id = ?");
+                    $stmt_rehash->execute([hae_hash_senha($senha_digitada), $usuario['id']]);
+                }
+
+                $_SESSION['usuario_id'] = $usuario['id'];
+                $_SESSION['usuario_nome'] = $usuario['nome'];
+                $_SESSION['primeiro_acesso'] = $usuario['primeiro_acesso'];
+
+                $nomes_admin = ['Administrador', 'Administrador MD5'];
+                $funcoes_validas = ['Professor', 'Coordenador', 'Diretor'];
+
+                // God Mode (Simulação de Perfil)
+                if (in_array($usuario['nome'], $nomes_admin) && !empty($_POST['simular_funcao']) && in_array($_POST['simular_funcao'], $funcoes_validas)) {
+                    $_SESSION['usuario_funcao'] = $_POST['simular_funcao']; 
+                } else {
+                    $_SESSION['usuario_funcao'] = $usuario['funcao']; 
+                }
+
+                // Desvios de Rota
+                if ($usuario['primeiro_acesso'] == 1) {
+                    header("Location: completar_cadastro.php");
+                    exit;
+                } elseif ($usuario['primeiro_acesso'] == 2) {
+                    header("Location: redefinir_senha.php");
+                    exit;
+                } else {
+                    header("Location: painel.php");
+                    exit;
+                }
+            } else {
+                // Registra a falha nos três contadores
+                hae_rl($chave_ip_email, $janela_login);
+                hae_rl($chave_email, $janela_login);
+                hae_rl($chave_ip, $janela_login);
+                $erro = "E-mail ou senha inválidos.";
+            }
         }
     }
 }

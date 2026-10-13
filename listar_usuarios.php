@@ -1,5 +1,5 @@
 <?php
-session_start();
+require_once __DIR__ . '/config/seguranca.php';
 require 'config/conexao.php';
 
 // Segurança Rigorosa: Apenas DIRETOR tem acesso à listagem e gestão geral de usuários
@@ -48,7 +48,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao'])) {
             if ($user_data && !empty($user_data['data_nascimento'])) {
                 // Converte a data para o formato ddmmaaaa (Ex: 15051980)
                 $nova_senha_plana = date('dmY', strtotime($user_data['data_nascimento']));
-                $nova_senha_hash = md5($nova_senha_plana);
+                $nova_senha_hash = hae_hash_senha($nova_senha_plana);
                 
                 // ATUALIZAÇÃO: Usa o status "2" para identificar que é apenas um Reset de Senha
                 $sql_reset = "UPDATE usuarios SET senha = ?, primeiro_acesso = 2 WHERE id = ?";
@@ -60,7 +60,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao'])) {
                 $erro = "Não foi possível resetar a senha: O usuário não possui data de nascimento cadastrada no sistema.";
             }
         } catch (PDOException $e) {
-            $erro = "Erro ao resetar a senha: " . $e->getMessage();
+            $erro = "Erro ao resetar a senha: " . hae_erro_seguro($e, 'listar_usuarios.php');
         }
     }
 }
@@ -79,12 +79,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao']) && $_POST['aca
 
     if ($id_edit === $usuario_logado_id && $funcao !== 'Diretor') {
         $erro = "Operação bloqueada: Você não pode alterar sua própria função para não perder o acesso ao painel.";
+    } elseif (hae_nome_reservado($nome) && !hae_nome_reservado($_SESSION['usuario_nome'] ?? '')) {
+        $erro = "Este nome é reservado pelo sistema. Escolha outro.";
     } else {
         $stmt_chk = $pdo->prepare("SELECT id FROM usuarios WHERE email = ? AND id != ?");
         $stmt_chk->execute([$email, $id_edit]);
         
         if ($stmt_chk->rowCount() > 0) {
-            $erro = "O E-mail '$email' já está em uso por outro usuário no sistema.";
+            $erro = "O E-mail '" . h($email) . "' já está em uso por outro usuário no sistema.";
         } else {
             try {
                 $sql_upd = "UPDATE usuarios SET nome = ?, email = ?, telefone_whatsapp = ?, funcao = ?, data_admissao = ?, tipo_contrato = ? WHERE id = ?";
@@ -97,7 +99,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao']) && $_POST['aca
                 
                 $sucesso = "Dados do usuário atualizados com sucesso!";
             } catch (PDOException $e) {
-                $erro = "Erro ao atualizar usuário: " . $e->getMessage();
+                $erro = "Erro ao atualizar usuário: " . hae_erro_seguro($e, 'listar_usuarios.php');
             }
         }
     }
@@ -417,7 +419,7 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
                                                     $num_whats = preg_replace('/[^0-9]/', '', $u['telefone_whatsapp']);
                                                     if (strlen($num_whats) >= 10) {
                                                         $senha_prov = date('dmY', strtotime($u['data_nascimento']));
-                                                        $msg_reenvio = urlencode("Olá " . $u['nome'] . "! Sua senha de acesso ao portal HAE Fatec foi resetada.\n\n*Seus dados de acesso:*\nLogin: " . $u['email'] . "\nSenha provisória: " . $senha_prov . "\n\nPor favor, acesse o sistema para definir sua nova senha definitiva.\n\n https://sistemahae.page.gd");
+                                                        $msg_reenvio = urlencode("Olá " . $u['nome'] . "! Sua senha de acesso ao portal HAE Fatec foi resetada.\n\n*Seus dados de acesso:*\nLogin: " . $u['email'] . "\nSenha provisória: " . $senha_prov . "\n\nPor favor, acesse o sistema para definir sua nova senha definitiva.\n\n " . hae_url_base());
                                                         
                                                         echo '<a href="https://wa.me/55'.$num_whats.'?text='.$msg_reenvio.'" target="_blank" class="btn-action btn-whatsapp" title="Reenviar Acesso (WhatsApp)">
                                                                 <i class="fa-brands fa-whatsapp"></i>

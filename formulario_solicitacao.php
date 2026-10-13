@@ -1,5 +1,5 @@
 <?php
-session_start();
+require_once __DIR__ . '/config/seguranca.php';
 require 'conexao.php';
 
 if (!isset($_SESSION['id_usuario']) || $_SESSION['funcao'] != 'Professor') {

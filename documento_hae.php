@@ -1,5 +1,5 @@
 <?php
-session_start();
+require_once __DIR__ . '/config/seguranca.php';
 require 'config/conexao.php';
 
 // =========================================================================
@@ -29,6 +29,12 @@ $dados = $stmt->fetch(PDO::FETCH_ASSOC);
 
 if (!$dados) {
     die("Solicitação não encontrada.");
+}
+
+// Segurança: professor só pode visualizar o documento dos PRÓPRIOS projetos
+if (($_SESSION['usuario_funcao'] ?? '') === 'Professor' && (int)$dados['professor_id'] !== (int)$_SESSION['usuario_id']) {
+    http_response_code(403);
+    die("Você não tem permissão para visualizar este documento.");
 }
 
 // -------------------------------------------------------------------------
@@ -74,7 +80,7 @@ $caminho_assinatura = $dados['assinatura_path'];
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <title>HAE - <?php echo $dados['nome']; ?></title>
+    <title>HAE - <?php echo h($dados['nome']); ?></title>
     <style>
         body { background: #525659; padding: 20px; font-family: 'Arial', sans-serif; margin: 0; }
         
@@ -230,7 +236,7 @@ $caminho_assinatura = $dados['assinatura_path'];
                 <div>Data: <?php echo $data_coord; ?></div>
                 <div class="assinatura-responsavel">
                     <?php if ($dados['status_coordenador'] == 'Aprovado' && !empty($assinatura_coordenador) && file_exists($assinatura_coordenador)): ?>
-                        <img src="<?php echo $assinatura_coordenador; ?>" alt="Assinatura Coordenador">
+                        <img src="<?php echo h($assinatura_coordenador); ?>" alt="Assinatura Coordenador">
                     <?php else: ?><br><?php endif; ?>
                     <div class="linha-assinatura-pequena">Assinatura</div>
                 </div>
@@ -245,7 +251,7 @@ $caminho_assinatura = $dados['assinatura_path'];
                 <div>Data: <?php echo $data_dir; ?></div>
                 <div class="assinatura-responsavel">
                     <?php if ($dados['status_diretor'] == 'Aprovado' && !empty($assinatura_diretor) && file_exists($assinatura_diretor)): ?>
-                        <img src="<?php echo $assinatura_diretor; ?>" alt="Assinatura Diretor">
+                        <img src="<?php echo h($assinatura_diretor); ?>" alt="Assinatura Diretor">
                     <?php else: ?><br><?php endif; ?>
                     <div class="linha-assinatura-pequena">Assinatura</div>
                 </div>
@@ -280,7 +286,7 @@ $caminho_assinatura = $dados['assinatura_path'];
 
         <div class="assinatura-box">
             <?php if (!empty($caminho_assinatura) && file_exists($caminho_assinatura)): ?>
-                <img src="<?php echo $caminho_assinatura; ?>" alt="Assinatura do Professor" class="assinatura-img">
+                <img src="<?php echo h($caminho_assinatura); ?>" alt="Assinatura do Professor" class="assinatura-img">
             <?php else: ?><br><br><br><?php endif; ?>
             <div class="linha-assinatura">Assinatura do Professor</div>
             <p style="margin-top: 5px;"><strong>Data:</strong> <?php echo $data_envio; ?></p>

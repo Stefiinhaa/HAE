@@ -1,5 +1,5 @@
 <?php
-session_start();
+require_once __DIR__ . '/config/seguranca.php';
 require 'config/conexao.php';
 
 // =========================================================================
@@ -217,7 +217,7 @@ $caminho_assinatura = $dados['assinatura_path'];
 
         <div class="assinatura-box">
             <?php if (!empty($caminho_assinatura) && file_exists($caminho_assinatura) && $dados['status'] == 'Publicado'): ?>
-                <img src="<?php echo $caminho_assinatura; ?>" alt="Assinatura Professor" class="assinatura-img">
+                <img src="<?php echo h($caminho_assinatura); ?>" alt="Assinatura Professor" class="assinatura-img">
             <?php else: ?>
                 <div style="height: 120px;"></div>
             <?php endif; ?>

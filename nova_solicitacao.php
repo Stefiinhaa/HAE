@@ -1,5 +1,5 @@
 <?php
-session_start();
+require_once __DIR__ . '/config/seguranca.php';
 require 'config/conexao.php';
 require_once 'enviar_email.php'; 
 require_once 'enviar_push.php';  
@@ -203,7 +203,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                 ";
                                 
                                 try { dispararEmailSistema($dir['email'], $dir['nome'], $assunto_dir, $corpo_email_dir); } catch (Exception $e) {}
-                                try { dispararPush($dir['id'], "Projeto HAE Corrigido 📋", "O(A) prof(a) $nome_prof reenviou o projeto HAE para sua análise final.", "https://sistemahae.page.gd/analisar_solicitacoes.php"); } catch (Exception $e) {}
+                                try { dispararPush($dir['id'], "Projeto HAE Corrigido 📋", "O(A) prof(a) $nome_prof reenviou o projeto HAE para sua análise final.", hae_url_base() . "/analisar_solicitacoes.php"); } catch (Exception $e) {}
                             }
                         }
                     } else {
@@ -237,7 +237,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                             ";
                             
                             try { dispararEmailSistema($email_coord, $nome_coord, $assunto_coord, $corpo_email_coord); } catch (Exception $e) {}
-                            try { dispararPush($coord['id'], "Projeto HAE Corrigido 📋", $msg_push, "https://sistemahae.page.gd/analisar_solicitacoes.php"); } catch (Exception $e) {}
+                            try { dispararPush($coord['id'], "Projeto HAE Corrigido 📋", $msg_push, hae_url_base() . "/analisar_solicitacoes.php"); } catch (Exception $e) {}
                         }
                     }
 
@@ -292,7 +292,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         ";
                         
                         try { dispararEmailSistema($email_coord, $nome_coord, $assunto_coord, $corpo_email_coord); } catch (Exception $e) {}
-                        try { dispararPush($coord['id'], "Novo Projeto HAE 📋", $msg_push, "https://sistemahae.page.gd/analisar_solicitacoes.php"); } catch (Exception $e) {}
+                        try { dispararPush($coord['id'], "Novo Projeto HAE 📋", $msg_push, hae_url_base() . "/analisar_solicitacoes.php"); } catch (Exception $e) {}
                     }
 
                     header("Location: meus_projetos.php?status=sucesso");
@@ -300,7 +300,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 }
                 
             } catch (Exception $e) {
-                $erro = "Erro ao processar solicitação: " . $e->getMessage();
+                $erro = "Erro ao processar solicitação: " . hae_erro_seguro($e, 'nova_solicitacao.php');
             }
         }
     }
@@ -543,11 +543,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                     <input type="text" name="categoria" id="categoria" autocomplete="off" value="<?php echo htmlspecialchars($c_categoria); ?>" required placeholder="Selecione na lista ou digite uma nova categoria para salvar...">
                                     <ul id="lista_categorias" class="custom-dropdown">
                                         <?php foreach ($categorias_db as $cat): ?>
-                                                <li onmousedown="event.preventDefault(); selecionarCategoria('<?php echo htmlspecialchars($cat); ?>')">
+                                                <li onmousedown="event.preventDefault(); selecionarCategoria(<?php echo hae_js_attr($cat); ?>)">
                                                     <span class="cat-text" style="flex:1;"><?php echo htmlspecialchars($cat); ?></span>
                                                 
                                                     <?php if (!in_array($cat, $categorias_padrao)): ?>
-                                                            <button type="button" class="btn-excluir-cat" title="Remover da lista" onmousedown="event.preventDefault(); excluirCategoria(event, '<?php echo htmlspecialchars($cat); ?>', this.parentElement)">
+                                                            <button type="button" class="btn-excluir-cat" title="Remover da lista" onmousedown="event.preventDefault(); excluirCategoria(event, <?php echo hae_js_attr($cat); ?>, this.parentElement)">
                                                                 <i class="fa-solid fa-xmark"></i>
                                                             </button>
                                                     <?php endif; ?>
@@ -700,10 +700,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                             if (data.sucesso && data.nova) {
                                 let li = document.createElement('li');
                                 li.onmousedown = function(e) { e.preventDefault(); selecionarCategoria(valor); };
-                                li.innerHTML = `<span class="cat-text" style="flex:1;">${valor}</span>
-                                                <button type="button" class="btn-excluir-cat" title="Remover da lista" onmousedown="event.preventDefault(); excluirCategoria(event, '${valor}', this.parentElement)">
+                                // Monta o item sem innerHTML com texto digitado (evita XSS)
+                                li.innerHTML = `<span class="cat-text" style="flex:1;"></span>
+                                                <button type="button" class="btn-excluir-cat" title="Remover da lista">
                                                     <i class="fa-solid fa-xmark"></i>
                                                 </button>`;
+                                li.querySelector('.cat-text').textContent = valor;
+                                li.querySelector('.btn-excluir-cat').onmousedown = function(ev) { ev.preventDefault(); excluirCategoria(ev, valor, li); };
                                 listaCat.appendChild(li);
                             }
                         }).catch(err => console.error(err));

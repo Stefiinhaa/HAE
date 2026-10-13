@@ -1,11 +1,16 @@
 <?php
-session_start();
+require_once __DIR__ . '/config/seguranca.php';
 
 // Trava de Segurança Máxima: Só funciona se for o SEU usuário administrador
 $nomes_admin = ['Administrador', 'Administrador MD5'];
 
-if (!isset($_SESSION['usuario_nome']) || !in_array($_SESSION['usuario_nome'], $nomes_admin)) {
+if (!isset($_SESSION['usuario_nome']) || !in_array($_SESSION['usuario_nome'], $nomes_admin, true)) {
     die("Acesso restrito a desenvolvedores.");
+}
+
+// Proteção CSRF: a troca de perfil só vale se o clique veio do próprio site
+if (isset($_GET['simular'])) {
+    hae_exigir_referer_proprio();
 }
 
 // Verifica qual perfil você clicou para simular

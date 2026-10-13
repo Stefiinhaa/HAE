@@ -1,8 +1,12 @@
 <?php
+require_once __DIR__ . '/config/seguranca.php';
+// Credenciais SMTP ficam fora do código-fonte (config/segredos.php, ignorado pelo Git)
+require_once __DIR__ . '/config/segredos.php';
+
 // Carrega os arquivos do PHPMailer
-require 'vendor/PHPMailer/Exception.php';
-require 'vendor/PHPMailer/PHPMailer.php';
-require 'vendor/PHPMailer/SMTP.php';
+require_once __DIR__ . '/vendor/PHPMailer/Exception.php';
+require_once __DIR__ . '/vendor/PHPMailer/PHPMailer.php';
+require_once __DIR__ . '/vendor/PHPMailer/SMTP.php';
 
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
@@ -16,28 +20,31 @@ function dispararEmailSistema($destinatario, $nome_destinatario, $assunto, $corp
     try {
         // Configurações do Servidor SMTP do Gmail
         $mail->isSMTP();
-        $mail->Host       = 'smtp.gmail.com'; 
+        $mail->Host       = SMTP_HOST; 
         $mail->SMTPAuth   = true;
-        $mail->Username   = 'sistemahae@gmail.com'; 
-        $mail->Password   = 'rupwbxsotdmwwnky'; 
+        $mail->Username   = SMTP_USUARIO; 
+        $mail->Password   = SMTP_SENHA; 
         $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS; 
         $mail->Port       = 465;                         
         $mail->CharSet    = 'UTF-8';
 
         // =========================================================
         // CORREÇÃO PARA O XAMPP/LOCALHOST:
-        // Obriga o PHP a ignorar a verificação restrita de SSL local
+        // A verificação restrita de SSL só é dispensada no ambiente local.
+        // Em produção o certificado do servidor SMTP é validado (evita interceptação).
         // =========================================================
-        $mail->SMTPOptions = array(
-            'ssl' => array(
-                'verify_peer' => false,
-                'verify_peer_name' => false,
-                'allow_self_signed' => true
-            )
-        );
+        if (hae_ambiente_local()) {
+            $mail->SMTPOptions = array(
+                'ssl' => array(
+                    'verify_peer' => false,
+                    'verify_peer_name' => false,
+                    'allow_self_signed' => true
+                )
+            );
+        }
 
         // Remetente e Destinatário
-        $mail->setFrom('sistemahae@gmail.com', 'HAE Fatec Garça'); 
+        $mail->setFrom(SMTP_USUARIO, SMTP_REMETENTE_NOME); 
         $mail->addAddress($destinatario, $nome_destinatario);
 
         // Laço de repetição para embutir todas as imagens (caso existam)

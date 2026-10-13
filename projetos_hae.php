@@ -1,5 +1,5 @@
 <?php
-session_start();
+require_once __DIR__ . '/config/seguranca.php';
 require 'config/conexao.php';
 
 // Segurança Rigorosa: Apenas DIRETOR tem acesso a este relatório consolidado
@@ -10,6 +10,8 @@ if (!isset($_SESSION['usuario_id']) || $_SESSION['usuario_funcao'] !== 'Diretor'
 
 // Lógica de exclusão do projeto pelo Diretor
 if (isset($_GET['excluir_id'])) {
+    // Proteção CSRF: ação destrutiva via link só é aceita se o clique veio do próprio site
+    hae_exigir_referer_proprio();
     $excluir_id = (int)$_GET['excluir_id'];
     
     try {
@@ -31,7 +33,7 @@ if (isset($_GET['excluir_id'])) {
         exit;
     } catch (Exception $e) {
         $pdo->rollBack();
-        die("Erro ao excluir o projeto: " . $e->getMessage());
+        die("Erro ao excluir o projeto: " . hae_erro_seguro($e, 'projetos_hae.php'));
     }
 }
 

@@ -1,5 +1,5 @@
 <?php
-session_start();
+require_once __DIR__ . '/config/seguranca.php';
 
 // Força o PHP a usar o fuso horário do Brasil
 date_default_timezone_set('America/Sao_Paulo');
@@ -35,8 +35,8 @@ if ($filtro_semestre !== 'Todos' && !preg_match('/^[12]\/\d{4}$/', $filtro_semes
     $filtro_semestre = $semestre_real;
 }
 
-$sql_sem_filter = ($filtro_semestre === 'Todos') ? "" : " AND semestre = '$filtro_semestre'";
-$sql_sem_filter_prefix = ($filtro_semestre === 'Todos') ? "" : " AND s.semestre = '$filtro_semestre'";
+$sql_sem_filter = ($filtro_semestre === 'Todos') ? "" : " AND semestre = " . $pdo->quote($filtro_semestre);
+$sql_sem_filter_prefix = ($filtro_semestre === 'Todos') ? "" : " AND s.semestre = " . $pdo->quote($filtro_semestre);
 
 // Busca os semestres que já existem no banco para montar o select
 $stmt_sem = $pdo->query("SELECT DISTINCT semestre FROM solicitacoes_hae ORDER BY semestre DESC");

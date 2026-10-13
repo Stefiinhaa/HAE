@@ -1,5 +1,5 @@
 <?php
-session_start();
+require_once __DIR__ . '/config/seguranca.php';
 require 'config/conexao.php';
 
 // Segurança: Apenas Professor acessa
@@ -25,7 +25,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['excluir_projeto_id']))
             exit;
         }
     } catch (PDOException $e) {
-        $erro = "Erro ao excluir o projeto: " . $e->getMessage();
+        $erro = "Erro ao excluir o projeto: " . hae_erro_seguro($e, 'meus_projetos.php');
     }
 }
 
@@ -508,9 +508,12 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
         // Mapa de relatórios carregado do PHP para abertura instantânea no Modal
         const relatoriosPorProjeto = <?php echo json_encode($relatorios_por_projeto); ?>;
 
+        // Escapa texto antes de usar innerHTML (evita XSS armazenado)
+        function escaparHtml(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function(c) { return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+
         function abrirModalMotivo(btn) {
             let texto = btn.getAttribute('data-motivo') || 'Nenhum parecer detalhado foi registrado.';
-            document.getElementById('textoMotivo').innerHTML = texto.replace(/\n/g, '<br>');
+            document.getElementById('textoMotivo').innerHTML = escaparHtml(texto).replace(/\n/g, '<br>');
             document.getElementById('modalMotivo').style.display = 'flex';
         }
 
@@ -524,7 +527,7 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
             const semestre = btn.getAttribute('data-semestre');
             const status = btn.getAttribute('data-status');
 
-            document.getElementById('subtituloModalRel').innerHTML = `<strong>Projeto:</strong> ${titulo} &bull; <strong>Semestre:</strong> ${semestre}`;
+            document.getElementById('subtituloModalRel').innerHTML = `<strong>Projeto:</strong> ${escaparHtml(titulo)} &bull; <strong>Semestre:</strong> ${escaparHtml(semestre)}`;
             
             const btnNovo = document.getElementById('btnNovoRelatorioModal');
             btnNovo.style.display = (status === 'Aprovado') ? 'inline-flex' : 'none';

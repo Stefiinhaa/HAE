@@ -1,5 +1,5 @@
 <?php
-session_start();
+require_once __DIR__ . '/config/seguranca.php';
 require 'config/conexao.php';
 
 // Segurança: Só entra quem logou e tem o status de 'primeiro_acesso = 1'
@@ -36,21 +36,21 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     } elseif ($nova_senha !== $confirma_senha) {
         $erro = "As senhas não coincidem.";
     } else {
-        // Tratar o upload da assinatura
+        // Tratar o upload da assinatura (validado pelo conteúdo real da imagem)
         $assinatura_path = "";
         if (isset($_FILES['assinatura']) && $_FILES['assinatura']['error'] == 0) {
-            $extensao = pathinfo($_FILES['assinatura']['name'], PATHINFO_EXTENSION);
-            $novo_nome = md5(uniqid()) . "." . $extensao;
-            $diretorio = "uploads/assinaturas/";
-            if (!is_dir($diretorio)) mkdir($diretorio, 0777, true);
-            move_uploaded_file($_FILES['assinatura']['tmp_name'], $diretorio . $novo_nome);
-            $assinatura_path = $diretorio . $novo_nome;
+            $upload = hae_salvar_upload_imagem($_FILES['assinatura'], "uploads/assinaturas/");
+            if ($upload['ok']) {
+                $assinatura_path = $upload['caminho'];
+            } else {
+                $erro = $upload['erro'];
+            }
         } else {
             $erro = "Você precisa enviar a imagem da sua assinatura digitalizada.";
         }
 
         if (empty($erro)) {
-            $senha_hash = md5($nova_senha);
+            $senha_hash = hae_hash_senha($nova_senha);
             
             // Atualiza o perfil completo e tira a flag de primeiro acesso
             $sql = "UPDATE usuarios SET 

@@ -1,5 +1,5 @@
 <?php
-session_start();
+require_once __DIR__ . '/config/seguranca.php';
 require 'config/conexao.php';
 
 // Segurança: Apenas logados e com função 'Professor' acessam essa tela
@@ -78,7 +78,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             header("Location: meus_projetos.php?status=reenviado");
             exit;
         } catch (PDOException $e) {
-            $erro = "Erro ao salvar: " . $e->getMessage();
+            $erro = "Erro ao salvar: " . hae_erro_seguro($e, 'editar_solicitacao.php');
         }
     }
 }

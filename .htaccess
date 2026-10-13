@@ -1,0 +1,41 @@
+# ==============================================================================
+# SEGURANÇA - SISTEMA HAE (Apache)
+# ==============================================================================
+
+# Impede listar o conteúdo de pastas
+Options -Indexes
+
+# Bloqueia acesso à pasta .git e a arquivos ocultos
+<IfModule mod_alias.c>
+    RedirectMatch 404 /\.git
+</IfModule>
+
+# Bloqueia download direto de arquivos sensíveis (banco, credenciais, logs, controle do cron)
+<FilesMatch "(^\.|\.(sql|json|log|txt|bak|old|orig|swp|md|example|dist|ini|inc|lock)$)">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
+# Impede a leitura do código-fonte de arquivos de apoio (não são páginas acessadas pelo navegador)
+<FilesMatch "^(enviar_email|enviar_push|formulario_solicitacao)\.php$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
+# Reforço dos cabeçalhos de segurança (também enviados pelo PHP)
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "SAMEORIGIN"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+    Header unset X-Powered-By
+</IfModule>
