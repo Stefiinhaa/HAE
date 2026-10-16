@@ -70,7 +70,7 @@ $videos_ajuda = [
 <!-- ESTRUTURA HTML DO BOTÃO E MODAL -->
 <div class="help-menu-container">
     <button class="btn-help-icon" id="btnHelpToggle" title="Central de Ajuda e Tutoriais" type="button">
-        <i class="fa-solid fa-circle-question"></i>
+        <i class="fa-solid fa-circle-play"></i>
     </button>
     
     <div class="help-dropdown" id="helpDropdown">
