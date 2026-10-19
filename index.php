@@ -23,14 +23,16 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $stmt->execute([$email_rec]);
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        // Limites contra abuso: 5 pedidos por IP a cada 15 min e 3 por e-mail por hora
+        // Limites contra abuso: 5 pedidos por IP a cada 15 min e 3 por e-mail por hora.
+        // A resposta e o comportamento visual são iguais para e-mails existentes e inexistentes.
         $limite_excedido = (hae_rl('recuperacao_ip:' . hae_ip(), 900) > 5)
             || ($user && hae_rl('recuperacao_email:' . strtolower($email_rec), 3600) > 3);
 
-        if ($limite_excedido) {
-            $erro = "Muitas solicitações de recuperação de senha. Aguarde alguns minutos e tente novamente.";
-            echo "<script>window.onload = function() { alternarForms('recuperar'); }</script>";
-        } elseif ($user) {
+        $sucesso = "Se o endereço informado estiver cadastrado e a solicitação estiver dentro do limite permitido, você receberá instruções de recuperação por e-mail. Verifique também a caixa de Spam.";
+        $email_rec_digitado = "";
+        echo "<script>window.onload = function() { alternarForms('recuperar'); }</script>";
+
+        if (!$limite_excedido && $user) {
             // Gera uma senha aleatória provisória de 8 caracteres (gerador criptograficamente seguro)
             $alfabeto_senha = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
             $nova_senha_temp = "";
@@ -90,11 +92,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             // Dispara o e-mail
             dispararEmailSistema($user['email'], $user['nome'], $assunto, $corpo_email, $lista_imagens);
             
-            $sucesso = "As instruções de recuperação foram enviadas para o seu e-mail institucional. <strong>Por favor, verifique também a sua caixa de Spam ou Lixo Eletrônico.</strong>";
-            $email_rec_digitado = ""; // Limpa a memória após o sucesso
-        } else {
-            $erro = "Não encontramos nenhum usuário com este e-mail no sistema.";
-            echo "<script>window.onload = function() { alternarForms('recuperar'); }</script>"; // Mantém na tela de recuperação
         }
     } 
     // ==============================================================================
