@@ -4,24 +4,19 @@
 // ==============================================================================
 $videos_ajuda = [
     [
-        'titulo' => 'Primeiros passos e configuração de perfil',
-        'thumb'  => 'https://sites.diretasistemas.com.br/wp-content/uploads/sites/5/2019/11/11150435/em-breve-1.png',
-        'url'    => 'https://sites.diretasistemas.com.br/wp-content/uploads/sites/5/2019/11/11150435/em-breve-1.png'
+        'titulo' => 'Tutorial - Como enviar projetos no sistema HAE',
+        'thumb'  => 'img/video1.jpeg',
+        'url'    => 'https://www.youtube.com/embed/MZ2YGJ-7HgI'
     ],
     [
-        'titulo' => 'Como enviar uma Nova Solicitação',
-        'thumb'  => 'https://sites.diretasistemas.com.br/wp-content/uploads/sites/5/2019/11/11150435/em-breve-1.png',
-        'url'    => 'https://sites.diretasistemas.com.br/wp-content/uploads/sites/5/2019/11/11150435/em-breve-1.png'
+        'titulo' => 'Tutorial  - Como enviar relatórios mensais no sistema HAE',
+        'thumb'  => 'img/video2.jpeg',
+        'url'    => 'https://www.youtube.com/embed/hXVancVgLMY'
     ],
     [
-        'titulo' => 'Consultando Meus Projetos',
-        'thumb'  => 'https://sites.diretasistemas.com.br/wp-content/uploads/sites/5/2019/11/11150435/em-breve-1.png',
-        'url'    => 'https://sites.diretasistemas.com.br/wp-content/uploads/sites/5/2019/11/11150435/em-breve-1.png'
-    ],
-    [
-        'titulo' => 'Como enviar o Relatório Mensal',
-        'thumb'  => 'https://sites.diretasistemas.com.br/wp-content/uploads/sites/5/2019/11/11150435/em-breve-1.png',
-        'url'    => 'https://sites.diretasistemas.com.br/wp-content/uploads/sites/5/2019/11/11150435/em-breve-1.png'
+        'titulo' => 'Tutorial - Como adicionar assinatura no seu perfil do sistema HAE',
+        'thumb'  => 'img/video3.jpeg',
+        'url'    => 'https://www.youtube.com/embed/5o5AUawD-8s'
     ]
 ];
 ?>
