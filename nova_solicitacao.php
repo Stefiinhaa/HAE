@@ -138,9 +138,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
                 if ($edit_id_post > 0) {
                     
-                    $stmt_ver = $pdo->prepare("SELECT titulo_projeto, status_coordenador FROM solicitacoes_hae WHERE id = ?");
-                    $stmt_ver->execute([$edit_id_post]);
+                    $stmt_ver = $pdo->prepare("SELECT titulo_projeto, status_coordenador FROM solicitacoes_hae WHERE id = ? AND professor_id = ? AND status_aprovacao IN ('Pendente', 'Devolvido')");
+                    $stmt_ver->execute([$edit_id_post, $professor_id]);
                     $dados_banco = $stmt_ver->fetch(PDO::FETCH_ASSOC);
+                    if (!$dados_banco) {
+                        header("Location: meus_projetos.php?erro=acesso_negado");
+                        exit;
+                    }
                     
                     $titulo_banco = $dados_banco['titulo_projeto'];
                     $status_coord_atual = $dados_banco['status_coordenador'];

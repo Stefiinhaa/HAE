@@ -26,8 +26,24 @@ define('HAE_LIMITE_GLOBAL_POR_MINUTO', 1200);
 // ------------------------------------------------------------------------------
 // AMBIENTE
 // ------------------------------------------------------------------------------
+// Se (e SOMENTE se) a hospedagem colocar o site atrás de um proxy/CDN que envia o IP real do visitante
+// em um cabeçalho confiável (ex.: 'CF-Connecting-IP' ou 'X-Real-IP'), informe o nome do cabeçalho aqui.
+// Deixe vazio na Locaweb comum (sem proxy). Habilitar sem necessidade permite forjar o IP.
+if (!defined('HAE_IP_CABECALHO')) {
+    define('HAE_IP_CABECALHO', '');
+}
+
 function hae_ip() {
-    // Usa somente REMOTE_ADDR: cabeçalhos como X-Forwarded-For podem ser forjados pelo atacante.
+    // Padrão: somente REMOTE_ADDR (cabeçalhos como X-Forwarded-For podem ser forjados pelo atacante).
+    if (HAE_IP_CABECALHO !== '') {
+        $chave = 'HTTP_' . strtoupper(str_replace('-', '_', HAE_IP_CABECALHO));
+        if (!empty($_SERVER[$chave])) {
+            $candidato = trim(explode(',', (string) $_SERVER[$chave])[0]);
+            if (filter_var($candidato, FILTER_VALIDATE_IP)) {
+                return $candidato;
+            }
+        }
+    }
     return $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
 }
 
@@ -36,7 +52,13 @@ function hae_ambiente_local() {
         return true;
     }
     $ip = hae_ip();
-    return $ip === '127.0.0.1' || $ip === '::1';
+    if ($ip !== '127.0.0.1' && $ip !== '::1') {
+        return false;
+    }
+    // Além do IP, o endereço acessado precisa ser local. Isso impede que um proxy do provedor
+    // (que chega ao PHP como 127.0.0.1) faça o site em produção se passar por ambiente de testes.
+    $host = strtolower((string) ($_SERVER['HTTP_HOST'] ?? 'localhost'));
+    return (bool) preg_match('/^(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/', $host);
 }
 
 function hae_https() {
@@ -106,6 +128,43 @@ function hae_nome_reservado($nome) {
 // ------------------------------------------------------------------------------
 function hae_hash_senha($senha) {
     return password_hash((string) $senha, PASSWORD_DEFAULT);
+}
+
+/**
+ * Gera uma senha temporária forte (padrão: 16 caracteres, ~95 bits de entropia).
+ *  - Usa random_int(), o gerador criptograficamente seguro do sistema operacional.
+ *  - Garante ao menos 2 caracteres de cada grupo (maiúscula, minúscula, número, símbolo).
+ *  - Remove caracteres ambíguos (O/0, I/l/1) porque o usuário digita a senha lida no e-mail.
+ *  - Símbolos escolhidos para não quebrar HTML/URL/WhatsApp (sem < > & " ' \ / % espaço).
+ *  - Embaralha o resultado (Fisher-Yates com random_int) para a posição dos grupos não ser previsível.
+ * A segurança vem da entropia real, não de "esconder" o método: mesmo conhecendo este código, a senha não é adivinhável.
+ */
+function hae_gerar_senha_temporaria($tamanho = 16) {
+    $grupos = [
+        'ABCDEFGHJKLMNPQRSTUVWXYZ',
+        'abcdefghijkmnpqrstuvwxyz',
+        '23456789',
+        '!@#$*?+=-_',
+    ];
+    $tamanho = max(12, (int) $tamanho);
+    $todos = implode('', $grupos);
+    $chars = [];
+
+    foreach ($grupos as $grupo) {
+        for ($i = 0; $i < 2; $i++) {
+            $chars[] = $grupo[random_int(0, strlen($grupo) - 1)];
+        }
+    }
+    while (count($chars) < $tamanho) {
+        $chars[] = $todos[random_int(0, strlen($todos) - 1)];
+    }
+    for ($i = count($chars) - 1; $i > 0; $i--) {
+        $j = random_int(0, $i);
+        $tmp = $chars[$i];
+        $chars[$i] = $chars[$j];
+        $chars[$j] = $tmp;
+    }
+    return implode('', $chars);
 }
 
 /**

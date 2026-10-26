@@ -10,7 +10,10 @@ require_once __DIR__ . '/config/segredos.php';
 $token_secreto = CRON_TOKEN;
 
 $token_enviado = isset($_GET['token']) && is_string($_GET['token']) ? $_GET['token'] : '';
-if ($token_enviado === '' || !hash_equals($token_secreto, $token_enviado)) {
+$autorizado_por_sessao = !empty($_SESSION['usuario_id']);
+$autorizado_por_token  = ($token_enviado !== '' && hash_equals($token_secreto, $token_enviado));
+
+if (!$autorizado_por_sessao && !$autorizado_por_token) {
     // Limita tentativas inválidas por IP (barra adivinhação do token)
     hae_limitar_requisicoes('cron_token_invalido:' . hae_ip(), 10, 900);
     http_response_code(403);

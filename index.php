@@ -33,12 +33,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         echo "<script>window.onload = function() { alternarForms('recuperar'); }</script>";
 
         if (!$limite_excedido && $user) {
-            // Gera uma senha aleatória provisória de 8 caracteres (gerador criptograficamente seguro)
-            $alfabeto_senha = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
-            $nova_senha_temp = "";
-            for ($i = 0; $i < 8; $i++) {
-                $nova_senha_temp .= $alfabeto_senha[random_int(0, strlen($alfabeto_senha) - 1)];
-            }
+            // Gera uma senha provisória forte de 16 caracteres (gerador criptograficamente seguro)
+            $nova_senha_temp = hae_gerar_senha_temporaria(16);
             $senha_hash = hae_hash_senha($nova_senha_temp);
 
             // Atualiza a senha no banco e força a tela de "Redefinir Senha" no próximo login
@@ -48,6 +44,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             // Formatação Profissional Idêntica ao cadastrar_professor.php
             $nome_usuario = h($user['nome']);
             $email_usuario = h($user['email']);
+            $url_portal = h(hae_url_base());
             $assunto = "Acesso Liberado - Sistema HAE Fatec";
             
             $corpo_email = "
@@ -65,11 +62,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                             <ul style='margin: 0; padding-left: 20px;'>
                                 <li style='margin-bottom: 10px;'><strong>Usuário:</strong> $email_usuario</li>
                                 <li style='margin-bottom: 10px;'>
-                                    <strong><img src='cid:img_texto_senha' alt='Senha Provisória' style='height: 12px; vertical-align: middle;'>:</strong> $nova_senha_temp
+                                    <strong>Senha Provisória:</strong> <span style='font-family: Consolas, monospace; font-size: 16px; letter-spacing: 1px;'>" . h($nova_senha_temp) . "</span>
                                 </li>
                                 <li>
-                                    <strong>Endereço do portal:</strong> Digite o endereço da imagem abaixo na barra do seu navegador:<br><br>
-                                    <img src='cid:img_link_portal' alt='Link de Acesso' style='max-width: 250px; border: 1px solid #ccc; border-radius: 4px;'>
+                                    <strong>Endereço do portal:</strong> <a href='$url_portal/' style='color: #b20000; font-weight: bold;'>$url_portal</a>
                                 </li>
                             </ul>
                         </div>
@@ -83,14 +79,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 </div>
             ";
             
-            // Monta a lista de imagens idêntica à do cadastro
-            $lista_imagens = [
-                ['path' => 'img/link_acesso.jpeg', 'cid' => 'img_link_portal'],
-                ['path' => 'img/texto_senha.jpeg', 'cid' => 'img_texto_senha']
-            ];
-            
             // Dispara o e-mail
-            dispararEmailSistema($user['email'], $user['nome'], $assunto, $corpo_email, $lista_imagens);
+            dispararEmailSistema($user['email'], $user['nome'], $assunto, $corpo_email);
             
         }
     } 

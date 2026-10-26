@@ -435,18 +435,18 @@ $pagina_atual = basename($_SERVER['PHP_SELF']);
 
                                             <button type="button" class="btn-action btn-historico" title="Editar Rápido" 
                                                 onclick="abrirModalEdicao(
-                                                    <?php echo $u['id']; ?>, 
-                                                    '<?php echo addslashes(htmlspecialchars($u['nome'])); ?>', 
-                                                    '<?php echo addslashes(htmlspecialchars($u['email'])); ?>', 
-                                                    '<?php echo addslashes(htmlspecialchars($u['telefone_whatsapp'] ?? '')); ?>', 
-                                                    '<?php echo $u['funcao']; ?>', 
-                                                    '<?php echo $u['data_admissao']; ?>', 
-                                                    '<?php echo $u['tipo_contrato']; ?>'
+                                                    <?php echo (int) $u['id']; ?>, 
+                                                    <?php echo hae_js_attr($u['nome']); ?>, 
+                                                    <?php echo hae_js_attr($u['email']); ?>, 
+                                                    <?php echo hae_js_attr($u['telefone_whatsapp'] ?? ''); ?>, 
+                                                    <?php echo hae_js_attr($u['funcao']); ?>, 
+                                                    <?php echo hae_js_attr($u['data_admissao']); ?>, 
+                                                    <?php echo hae_js_attr($u['tipo_contrato']); ?>
                                                 )">
                                                 <i class="fa-solid fa-pen"></i>
                                             </button>
                                             
-                                            <form method="POST" style="display: inline-block; margin: 0;" onsubmit="return confirm('Atenção: Tem certeza que deseja EXCLUIR o usuário <?php echo addslashes(htmlspecialchars($u['nome'])); ?>? Esta ação não pode ser desfeita.');">
+                                            <form method="POST" style="display: inline-block; margin: 0;" onsubmit="return confirm(<?php echo hae_js_attr('Atenção: Tem certeza que deseja EXCLUIR o usuário ' . $u['nome'] . '? Esta ação não pode ser desfeita.'); ?>);">
                                                 <input type="hidden" name="usuario_id" value="<?php echo $u['id']; ?>">
                                                 <input type="hidden" name="acao" value="excluir">
                                                 <button type="submit" class="btn-action btn-pdf" title="Excluir Usuário">

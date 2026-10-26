@@ -1,109 +1,110 @@
 ==============================================================================
-GUIA DE IMPLANTAÇÃO E HOSPEDAGEM - SISTEMA HAE NA LOCAWEB
+GUIA DE IMPLANTACAO E HOSPEDAGEM - SISTEMA HAE NA LOCAWEB
 ==============================================================================
 
-Este documento contém todas as instruções necessárias para subir o Sistema HAE
-na Hospedagem de Sites da Locaweb com pleno funcionamento e segurança máxima.
+Este documento contem as instrucoes para colocar o Sistema HAE no ar na
+Hospedagem de Sites da Locaweb (Linux + Apache + PHP).
 
 ------------------------------------------------------------------------------
 1. BANCO DE DADOS (MYSQL)
 ------------------------------------------------------------------------------
-1.1. No Painel da Locaweb, vá em "Banco de Dados" > "Criar Banco de Dados MySQL".
-     - Guarde o Nome do Banco, Usuário, Senha e o Host do Servidor.
-1.2. ATENÇÃO CRUCIAL (Particularidade da Locaweb):
-     - Na Locaweb, o host do banco de dados NUNCA é "localhost".
-     - A Locaweb fornece um host específico, por exemplo:
-       mysql.seudominio.com.br  ou  179.188.16.x
-1.3. Importação da Estrutura:
-     - Acesse o phpMyAdmin da Locaweb pelo painel.
-     - Selecione o banco criado e clique na aba "Importar".
-     - Selecione o arquivo: banco_estrutura.sql (já incluído na pasta).
-     - Caso queira subir também os dados locais de teste/homologação existentes,
-       utilize o arquivo sistema_hae.sql.
+1.1. No Painel da Locaweb, va em "Banco de Dados" > "Criar Banco de Dados MySQL".
+     Guarde: nome do banco, usuario, senha e o HOST do servidor.
+1.2. ATENCAO: na Locaweb o host do banco NUNCA e "localhost".
+     Exemplo de host: mysql.seudominio.com.br  (ou um IP fornecido no painel).
+1.3. No phpMyAdmin da Locaweb: selecione o banco > aba "Importar" >
+     escolha o arquivo banco_estrutura.sql (estrutura limpa, sem usuarios).
+1.4. Se for necessario migrar os dados atuais (usuarios, projetos), o
+     responsavel pelo sistema entregara um arquivo de backup SEPARADO (.sql),
+     fora deste ZIP. Importe-o da mesma forma e NUNCA o envie para dentro da
+     pasta publica do site (public_html).
 
 ------------------------------------------------------------------------------
-2. ARQUIVO DE CONEXÃO COM O BANCO (config/conexao.php)
+2. CONEXAO COM O BANCO (config/conexao.php)
 ------------------------------------------------------------------------------
-Abra o arquivo "config/conexao.php" e ajuste as credenciais criadas no passo 1:
+Abra "config/conexao.php" e preencha com os dados criados no passo 1:
 
-   $host = 'mysql.seudominio.com.br'; // HOST FORNECIDO PELA LOCAWEB (NÃO localhost)
-   $dbname = 'nome_do_banco_criado';
-   $username = 'usuario_criado';
-   $password = 'senha_do_banco';
-
-------------------------------------------------------------------------------
-3. VERSÃO DO PHP E CONFIGURAÇÃO
-------------------------------------------------------------------------------
-No Painel da Locaweb (Hospedagem > Gerenciar > Configuração do PHP):
-- Selecionar versão: PHP 8.2 (ou superior).
-- Assegurar que as seguintes extensões padrão estejam ativas:
-  * pdo_mysql
-  * curl
-  * mbstring
-  * fileinfo
-  * gd
-  * openssl
-  (Na Locaweb essas extensões já vêm habilitadas por padrão no PHP 8.2).
+   $host   -> o host da Locaweb (NAO use localhost)
+   $dbname -> nome do banco criado
+   $user   -> usuario do banco
+   $pass   -> senha do banco
 
 ------------------------------------------------------------------------------
-4. CERTIFICADO DIGITAL SSL (HTTPS)
+3. VERSAO DO PHP
 ------------------------------------------------------------------------------
-- No painel da Locaweb, ative o certificado SSL Gratuito (Let's Encrypt).
-- O sistema exige HTTPS para o funcionamento de:
-  * Service Workers (Notificações Push / PWA)
-  * Proteção de cookies de sessão segura (SameSite e Secure)
-  * Criptografia de senhas e dados acadêmicos
+No Painel da Locaweb (Hospedagem > Configuracao do PHP):
+- Selecione PHP 8.2 (ou superior).
+- Extensoes necessarias (normalmente ja ativas): pdo_mysql, curl, mbstring,
+  fileinfo, gd, openssl.
 
 ------------------------------------------------------------------------------
-5. PERMISSÕES DE ARQUIVOS E DIRETÓRIOS (LINUX / CHMOD)
+4. CERTIFICADO SSL (HTTPS) - OBRIGATORIO
 ------------------------------------------------------------------------------
-Via Gerenciador de Arquivos do Painel ou via FTP (FileZilla):
-- Pasta "uploads/" e subpastas (ex: "uploads/assinaturas/"):
-  Definir permissão de escrita: CHMOD 755 ou 775.
-- Arquivo "ultimo_cron.txt" na raiz:
-  Definir permissão de escrita: CHMOD 664 ou 666 (armazena data do último disparo).
+- Ative o SSL gratuito (Let's Encrypt) no painel e, se houver, a opcao de
+  redirecionar HTTP para HTTPS.
+- O HTTPS e necessario para notificacoes push, cookies de sessao seguros e
+  para proteger as senhas durante o login.
 
 ------------------------------------------------------------------------------
-6. ARQUIVOS OCULTOS DE SEGURANÇA (.htaccess)
+5. PERMISSOES (CHMOD)
 ------------------------------------------------------------------------------
-O sistema conta com proteção de diretórios e bloqueio de arquivos confidenciais
-via arquivos .htaccess:
-- .htaccess (na raiz do sistema)
-- config/.htaccess
-- uploads/.htaccess
-- vendor/.htaccess
-
-AO EXTRAIR O ZIP NA PASTA DE HOSPEDAGEM (ex: public_html):
-Certifique-se de que os arquivos que começam com ponto (".htaccess") foram
-extraídos. No Linux ou em alguns clientes FTP, arquivos iniciados por ponto
-podem ser ocultados na visualização, mas devem estar presentes no servidor.
+- Pasta "uploads/" e "uploads/assinaturas/": permissao de escrita (755 ou 775).
+- Arquivo "ultimo_cron.txt" (raiz): permissao de escrita (664 ou 666).
+- NAO use 777 em nenhuma pasta.
 
 ------------------------------------------------------------------------------
-7. TAREFA AGENDADA / CRON JOB (Notificações de Relatórios)
+6. ARQUIVOS .htaccess (PROTECAO) - NAO APAGAR
 ------------------------------------------------------------------------------
-O sistema possui rotina diária de verificação de relatórios atrasados
-(executada entre os dias 1 e 11 de cada mês).
+Arquivos que comecam com ponto (.htaccess) ficam ocultos em alguns programas.
+Confirme que existem apos extrair o ZIP:
+   .htaccess              (raiz)
+   config/.htaccess
+   uploads/.htaccess
+   vendor/.htaccess
+Eles bloqueiam o acesso externo a credenciais, banco, logs e codigo de apoio.
 
-No Painel da Locaweb, acesse "Tarefas Agendadas" / "Cron":
-- Periodicidade: Diária (sugestão: 08:00 da manhã).
-- Tipo: Chamada de URL via curl ou wget.
-- Comando:
-  curl -s "https://seudominio.com.br/cron_notificacoes.php?token=HaeFatec2026" > /dev/null 2>&1
-
-* Se você alterar o token em config/segredos.php (CRON_TOKEN), atualize a URL acima.
-
-------------------------------------------------------------------------------
-8. CONFIGURAÇÕES ADICIONAIS (config/segredos.php)
-------------------------------------------------------------------------------
-Todas as credenciais sensíveis (SMTP de e-mail, tokens) ficam centralizadas
-no arquivo "config/segredos.php":
-- Caso use e-mail corporativo da Locaweb (ex: contato@seudominio.com.br):
-  Altere SMTP_HOST para 'email-ssl.com.br', coloque o usuário e a senha.
-- Caso continue usando Gmail institucional, mantenha os dados atuais.
-- Se o domínio for configurado, a constante APP_URL pode receber a URL
-  (ex: 'https://sistemahae.com.br') ou ser deixada vazia '', pois o sistema
-  detecta o domínio automaticamente.
+Se o site der "Erro 500" logo apos enviar os arquivos, abra o .htaccess da
+raiz e comente (coloque # na frente) a linha "Options -Indexes"; algumas
+hospedagens nao permitem essa diretiva. O restante da protecao continua ativo.
 
 ------------------------------------------------------------------------------
-Fim das instruções. O sistema está pronto para produção.
+7. TAREFA AGENDADA (CRON) - COBRANCA DE RELATORIOS
+------------------------------------------------------------------------------
+O sistema verifica diariamente relatorios atrasados (dias 1 a 11 de cada mes).
+Agende uma chamada diaria (ex.: 08:00), pelo painel da Locaweb ("Tarefas
+Agendadas") ou pelo site cron-job.org, para a URL:
+
+   https://SEU-DOMINIO/cron_notificacoes.php?token=VALOR_DO_CRON_TOKEN
+
+O VALOR_DO_CRON_TOKEN e o que esta em config/segredos.php (linha CRON_TOKEN).
+Se alterar o token no arquivo, altere tambem na URL agendada.
+Comando para o agendador da Locaweb:
+   curl -s "https://SEU-DOMINIO/cron_notificacoes.php?token=VALOR_DO_CRON_TOKEN" > /dev/null 2>&1
+
+------------------------------------------------------------------------------
+8. CONFIGURACOES (config/segredos.php)
+------------------------------------------------------------------------------
+- SMTP_*  : e-mail usado para enviar avisos e recuperacao de senha.
+            (Gmail com senha de app, ou e-mail da propria Locaweb.)
+- APP_URL : RECOMENDADO preencher com o endereco final, por exemplo
+            'https://sistemahae.seudominio.com.br'  (sem barra no final).
+            Garante que os links nos e-mails e notificacoes apontem sempre
+            para o endereco oficial.
+
+------------------------------------------------------------------------------
+9. TESTE FINAL (5 minutos)
+------------------------------------------------------------------------------
+1. Abra https://SEU-DOMINIO/config/conexao.php  -> deve mostrar "Acesso
+   restrito" ou erro 403. (Se mostrar qualquer outra coisa, os .htaccess
+   nao foram enviados.)
+2. Abra https://SEU-DOMINIO/banco_estrutura.sql -> deve dar 403.
+3. Faca login, abra o painel e envie uma assinatura de teste (perfil).
+4. Teste "Esqueci a senha" e confira se o e-mail chega.
+5. Entre com 2 computadores/celulares diferentes e erre a senha 5 vezes em UM
+   deles: o outro NAO pode ser bloqueado. Se for bloqueado, a hospedagem usa
+   proxy: avise o desenvolvedor (ajuste HAE_IP_CABECALHO em
+   config/seguranca.php).
+
+------------------------------------------------------------------------------
+Fim. O sistema esta pronto para producao.
 ==============================================================================

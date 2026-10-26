@@ -3,8 +3,8 @@ require_once __DIR__ . '/config/seguranca.php';
 require 'config/conexao.php';
 require_once 'enviar_email.php'; 
 
-// Apenas Direção e Coordenação podem acessar
-if (!isset($_SESSION['usuario_id']) || !in_array($_SESSION['usuario_funcao'], ['Coordenador', 'Diretor'])) {
+// Apenas Direção pode acessar
+if (!isset($_SESSION['usuario_id']) || $_SESSION['usuario_funcao'] !== 'Diretor') {
     header("Location: painel.php");
     exit;
 }
@@ -45,6 +45,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao']) && $_POST['aca
 
             // DISPARO AUTOMÁTICO DE E-MAIL
             $nome_h = h($nome); $email_h = h($email); // escapado: o corpo do e-mail é HTML
+            $url_portal = h(hae_url_base());
             $assunto = "Acesso Liberado - Sistema HAE Fatec";
             $corpo_email = "
                 <div style='font-family: Arial, sans-serif; color: #333; line-height: 1.6; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;'>
@@ -59,11 +60,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao']) && $_POST['aca
                             <ul style='margin: 0; padding-left: 20px;'>
                                 <li style='margin-bottom: 10px;'><strong>Usuário:</strong> $email_h</li>
                                 <li style='margin-bottom: 10px;'>
-                                    <strong><img src='cid:img_texto_senha' alt='Senha Provisória' style='height: 12px; vertical-align: middle;'>:</strong> $senha_provisoria <em>(sua data de nascimento)</em>
+                                    <strong>Senha Provisória:</strong> $senha_provisoria <em>(sua data de nascimento)</em>
                                 </li>
                                 <li>
-                                    <strong>Endereço do portal:</strong> Digite o endereço da imagem abaixo na barra do seu navegador:<br><br>
-                                    <img src='cid:img_link_portal' alt='Link de Acesso' style='max-width: 250px; border: 1px solid #ccc; border-radius: 4px;'>
+                                    <strong>Endereço do portal:</strong> <a href='$url_portal/' style='color: #b20000; font-weight: bold;'>$url_portal</a>
                                 </li>
                             </ul>
                         </div>
@@ -73,12 +73,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao']) && $_POST['aca
                 </div>
             ";
             
-            $lista_imagens = [
-                ['path' => __DIR__ . '/img/link_acesso.jpeg', 'cid' => 'img_link_portal'],
-                ['path' => __DIR__ . '/img/texto_senha.jpeg', 'cid' => 'img_texto_senha']
-            ];
-            
-            $email_enviado = dispararEmailSistema($email, $nome, $assunto, $corpo_email, $lista_imagens);
+            $email_enviado = dispararEmailSistema($email, $nome, $assunto, $corpo_email);
 
             // GERA O LINK DO WHATSAPP
             $num_limpo = preg_replace('/\D/', '', $whatsapp);
@@ -159,7 +154,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao']) && $_POST['aca
                         
                         // Envio de E-mail
                         $nome_h = h($nome); $email_h = h($email); // escapado: o corpo do e-mail é HTML
-            $assunto = "Acesso Liberado - Sistema HAE Fatec";
+                        $url_portal = h(hae_url_base());
+                        $assunto = "Acesso Liberado - Sistema HAE Fatec";
                         $corpo_email = "
                             <div style='font-family: Arial, sans-serif; color: #333; line-height: 1.6; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;'>
                                 <div style='background-color: #b20000; padding: 20px; text-align: center; color: white;'>
@@ -173,11 +169,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao']) && $_POST['aca
                                         <ul style='margin: 0; padding-left: 20px;'>
                                             <li style='margin-bottom: 10px;'><strong>Usuário:</strong> $email_h</li>
                                             <li style='margin-bottom: 10px;'>
-                                                <strong><img src='cid:img_texto_senha' alt='Senha Provisória' style='height: 12px; vertical-align: middle;'>:</strong> $senha_provisoria <em>(sua data de nascimento)</em>
+                                                <strong>Senha Provisória:</strong> $senha_provisoria <em>(sua data de nascimento)</em>
                                             </li>
                                             <li>
-                                                <strong>Endereço do portal:</strong> Digite o endereço da imagem abaixo na barra do seu navegador:<br><br>
-                                                <img src='cid:img_link_portal' alt='Link de Acesso' style='max-width: 250px; border: 1px solid #ccc; border-radius: 4px;'>
+                                                <strong>Endereço do portal:</strong> <a href='$url_portal/' style='color: #b20000; font-weight: bold;'>$url_portal</a>
                                             </li>
                                         </ul>
                                     </div>
@@ -187,12 +182,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao']) && $_POST['aca
                             </div>
                         ";
                         
-                        $lista_imagens = [
-                            ['path' => __DIR__ . '/img/link_acesso.jpeg', 'cid' => 'img_link_portal'],
-                            ['path' => __DIR__ . '/img/texto_senha.jpeg', 'cid' => 'img_texto_senha']
-                        ];
-                        
-                        $email_enviado = dispararEmailSistema($email, $nome, $assunto, $corpo_email, $lista_imagens);
+                        $email_enviado = dispararEmailSistema($email, $nome, $assunto, $corpo_email);
                         
                         if ($email_enviado) {
                             $status_linha = "<span style='color:#27ae60; font-weight:bold;'>Sucesso (E-mail Enviado)</span>";

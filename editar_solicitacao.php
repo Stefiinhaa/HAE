@@ -10,14 +10,16 @@ if (!isset($_SESSION['usuario_id']) || $_SESSION['usuario_funcao'] !== 'Professo
 
 $usuario_id = $_SESSION['usuario_id'];
 $projeto_id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
+header("Location: nova_solicitacao.php" . ($projeto_id > 0 ? "?edit_id=" . $projeto_id : ""));
+exit;
 $erro = "";
 
 // 1. Busca os dados atuais do projeto para preencher o formulário
-$stmt = $pdo->prepare("SELECT * FROM solicitacoes_hae WHERE id = ? AND professor_id = ? AND status_aprovacao = 'Rejeitado'");
+$stmt = $pdo->prepare("SELECT * FROM solicitacoes_hae WHERE id = ? AND professor_id = ? AND status_aprovacao IN ('Pendente', 'Devolvido')");
 $stmt->execute([$projeto_id, $usuario_id]);
 $projeto = $stmt->fetch(PDO::FETCH_ASSOC);
 
-// Se não achar o projeto ou ele não estiver rejeitado, bloqueia o acesso
+// Se não achar o projeto ou ele não estiver disponível, bloqueia o acesso
 if (!$projeto) {
     die("Acesso negado. Este projeto não existe ou não está disponível para edição.");
 }

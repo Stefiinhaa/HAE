@@ -27,7 +27,7 @@ if (isset($_GET['excluir_id'])) {
         
         $url = "projetos_hae.php?msg=excluido";
         if (isset($_GET['semestre'])) {
-            $url .= "&semestre=" . urlencode($_GET['semestre']) . "&status=" . urlencode($_GET['status']);
+            $url .= "&semestre=" . urlencode($_GET['semestre']) . "&status=" . urlencode($_GET['status'] ?? 'Todos');
         }
         header("Location: " . $url);
         exit;

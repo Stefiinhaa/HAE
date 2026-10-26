@@ -500,10 +500,10 @@ else {
     </main>
     <script src="assets/js/painel.js"></script>
 
-    <!-- GATILHO FANTASMA DO CRON JOB (INFINITYFREE) -->
+    <!-- GATILHO AUTOMÁTICO DO CRON JOB -->
     <script>
         window.addEventListener('load', function() {
-            fetch('cron_notificacoes.php?token=HaeFatec2026')
+            fetch('cron_notificacoes.php')
                 .then(response => response.text())
                 .catch(err => console.error('Falha no robô:', err));
         });
